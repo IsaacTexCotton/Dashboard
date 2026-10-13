@@ -1,0 +1,29 @@
+name: Testes CAIXA FUTURO
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Executar testes automatizados
+        run: python -m unittest discover -s tests -v
+      - name: Validar amostra sem CRM
+        run: |
+          python importar.py --arquivo amostra_resposta.json --dry-run
+          python auditar_resposta.py amostra_resposta.json
+          python validar_integracao_local.py amostra_resposta.json
