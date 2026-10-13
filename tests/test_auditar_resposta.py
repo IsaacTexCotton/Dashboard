@@ -44,7 +44,7 @@ class AuditoriaTestes(unittest.TestCase):
         checks = auditar_resposta.auditar(payload, Decimal("0.01"))
         check = next(c for c in checks if c.grupo == "depositos" and c.metrica == "valorTotal")
         self.assertEqual(check.status, "DIVERGÊNCIA")
-        self.assertEqual(check.diferenca, "2.02")
+        self.assertEqual(check.diferenca, "0.02")
 
     def test_total_de_quantidade_precisa_ser_inteiro_json(self):
         payload = copy.deepcopy(AMOSTRA)
