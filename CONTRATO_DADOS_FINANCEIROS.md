@@ -3,7 +3,7 @@
 ## Estado da evidência
 
 - **Amostra observada:** `amostra_resposta.json`, versionada no repositório. É explicitamente fictícia; demonstra somente a forma ilustrativa abaixo.
-- **Resposta real sanitizada/autorizada:** não foi fornecida nesta homologação. Compatibilidade com a resposta real permanece **PENDENTE**.
+- **Payload sanitizado fornecido:** foi recebido um JSON de um único dia (2026-10-13). Uma auditoria aritmética independente conciliou as 12 métricas aditivas; o arquivo não foi versionado. Os scripts do repositório ainda não foram executados diretamente contra essa cópia neste ambiente, pois o clone falhou por indisponibilidade de DNS. Portanto, a validação automatizada dessa instância permanece **PENDENTE** até execução em ambiente controlado com o código publicado.
 - **Regra contábil aprovada:** nenhuma aprovação formal foi apresentada. Não inferir equivalência entre métricas distintas.
 - **Escopo:** contrato implementado por `importar.normalizar`, esquema SQLite atual e reconciliações implementadas em `auditar_resposta.py`. Este documento não afirma que os nomes são um contrato oficial do CRM.
 
