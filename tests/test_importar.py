@@ -7,6 +7,7 @@ import tempfile
 import unittest
 import urllib.parse
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -45,6 +46,50 @@ class NormalizacaoTestes(unittest.TestCase):
         payload["data"]["depositos"]["porUsuario"][0]["valor"] = float("nan")
         with self.assertRaisesRegex(importar.ErroValidacao, "não finito"):
             importar.normalizar(payload, "2026-10-13")
+
+    def test_rejeita_valor_monetario_nulo(self):
+        payload = json.loads(json.dumps(AMOSTRA))
+        payload["data"]["depositos"]["porUsuario"][0]["valor"] = None
+        with self.assertRaisesRegex(importar.ErroValidacao, "esperado número"):
+            importar.normalizar(payload, "2026-10-13")
+
+    def test_rejeita_valor_monetario_em_texto(self):
+        payload = json.loads(json.dumps(AMOSTRA))
+        payload["data"]["depositos"]["porUsuario"][0]["valor"] = "123,45"
+        with self.assertRaisesRegex(importar.ErroValidacao, "esperado número"):
+            importar.normalizar(payload, "2026-10-13")
+
+    def test_negativo_monetario_nao_e_bloqueado_sem_politica_aprovada(self):
+        # Comportamento temporário deliberado: negatividade requer definição de negócio.
+        payload = json.loads(json.dumps(AMOSTRA))
+        payload["data"]["depositos"]["porUsuario"][0]["valor"] = -1.25
+        usuarios, fatos, _ = importar.normalizar(payload, "2026-10-13")
+        deposito = next(f for f in fatos if f[2] == "deposito" and f[1] == "NEGOCIADOR.A")
+        self.assertEqual(deposito[5], -1.25)
+
+    def test_grupos_vazios_com_totais_zero_sao_validos(self):
+        payload = json.loads(json.dumps(AMOSTRA))
+        payload["data"]["depositos"] = {
+            "quantidadeTotal": 0, "valorTotal": 0, "porUsuario": []
+        }
+        payload["data"]["acordos"] = {
+            "quantidadeTotal": 0, "valorTotal": 0, "pagosTotal": 0,
+            "pendenteTotal": 0, "porUsuario": []
+        }
+        payload["data"]["promessas"] = {
+            "quantidadeTotal": 0, "prometidoTotal": 0, "cumpridoTotal": 0,
+            "emAbertoTotal": 0, "quebradoTotal": 0, "porUsuario": []
+        }
+        payload["data"]["contatos"] = {
+            "contatosUnicosTotal": 0, "registrosTotaisTotal": 0, "porUsuario": []
+        }
+        payload["data"]["valoresAcordo"] = {
+            "valorRecebidoPeriodo": 0, "valorAVencer": 0, "valorVencido": 0
+        }
+        usuarios, fatos, posicao = importar.normalizar(payload, "2026-10-13")
+        self.assertEqual(usuarios, {})
+        self.assertEqual(fatos, [])
+        self.assertEqual(posicao[2:], (0.0, 0.0, 0.0))
 
     def test_rejeita_quantidade_booleana(self):
         payload = json.loads(json.dumps(AMOSTRA))
@@ -133,6 +178,52 @@ class PersistenciaTestes(unittest.TestCase):
             self.assertEqual(proc.returncode, 0, proc.stderr)
             self.assertIn("VALIDAÇÃO OK", proc.stdout)
             self.assertIn("nenhuma chamada ao CRM", proc.stdout)
+            self.assertFalse(db.exists())
+
+    def test_dry_run_bloqueia_divergencia_financeira(self):
+        with tempfile.TemporaryDirectory() as td:
+            db = Path(td) / "nao_deve_existir.db"
+            payload = json.loads(json.dumps(AMOSTRA))
+            payload["data"]["depositos"]["valorTotal"] += 100
+            arquivo = Path(td) / "divergente.json"
+            arquivo.write_text(json.dumps(payload), encoding="utf-8")
+            env = os.environ.copy()
+            env["DASHBOARD_DB"] = str(db)
+            proc = subprocess.run(
+                [sys.executable, str(ROOT / "importar.py"), "--arquivo", str(arquivo), "--dry-run"],
+                cwd=ROOT, env=env, text=True, capture_output=True, check=False,
+            )
+            self.assertEqual(proc.returncode, 1, proc.stdout + proc.stderr)
+            self.assertIn("Importação bloqueada pela auditoria financeira", proc.stderr)
+            self.assertFalse(db.exists())
+
+    def test_importacao_local_bloqueia_divergencia_antes_de_criar_banco(self):
+        with tempfile.TemporaryDirectory() as td:
+            db = Path(td) / "nao_deve_existir.db"
+            arquivo = Path(td) / "divergente.json"
+            payload = json.loads(json.dumps(AMOSTRA))
+            payload["data"]["depositos"]["valorTotal"] += 100
+            arquivo.write_text(json.dumps(payload), encoding="utf-8")
+            env = os.environ.copy()
+            env["DASHBOARD_DB"] = str(db)
+            proc = subprocess.run(
+                [sys.executable, str(ROOT / "importar.py"), "--arquivo", str(arquivo)],
+                cwd=ROOT, env=env, text=True, capture_output=True, check=False,
+            )
+            self.assertEqual(proc.returncode, 1, proc.stdout + proc.stderr)
+            self.assertIn("DIVERGÊNCIA", proc.stderr)
+            self.assertFalse(db.exists())
+
+    def test_importacao_api_bloqueia_divergencia_antes_de_criar_banco(self):
+        with tempfile.TemporaryDirectory() as td:
+            db = Path(td) / "nao_deve_existir.db"
+            payload = json.loads(json.dumps(AMOSTRA))
+            payload["data"]["depositos"]["valorTotal"] += 100
+            with patch.object(importar, "DB", str(db)), patch.dict(
+                os.environ, {"CRM_URL": "https://crm.invalid", "CRM_TOKEN": "token-de-teste"}
+            ), patch("importar.buscar", return_value=payload):
+                codigo = importar.main([])
+            self.assertEqual(codigo, 1)
             self.assertFalse(db.exists())
 
     def test_dry_run_sem_arquivo_e_barrado(self):

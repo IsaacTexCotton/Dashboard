@@ -38,6 +38,20 @@ class AuditoriaTestes(unittest.TestCase):
         check = next(c for c in checks if c.metrica == "valorTotal")
         self.assertEqual(check.status, "OK")
 
+    def test_divergencia_de_dois_centavos_bloqueia(self):
+        payload = copy.deepcopy(AMOSTRA)
+        payload["data"]["depositos"]["valorTotal"] = 25000.02
+        checks = auditar_resposta.auditar(payload, Decimal("0.01"))
+        check = next(c for c in checks if c.grupo == "depositos" and c.metrica == "valorTotal")
+        self.assertEqual(check.status, "DIVERGÊNCIA")
+        self.assertEqual(check.diferenca, "2.02")
+
+    def test_total_de_quantidade_precisa_ser_inteiro_json(self):
+        payload = copy.deepcopy(AMOSTRA)
+        payload["data"]["depositos"]["quantidadeTotal"] = 15.0
+        with self.assertRaisesRegex(importar.ErroValidacao, "esperado inteiro"):
+            auditar_resposta.auditar(payload)
+
     def test_total_ausente_fica_pendente(self):
         payload = copy.deepcopy(AMOSTRA)
         del payload["data"]["promessas"]["quebradoTotal"]

@@ -4,7 +4,7 @@ Ferramentas Python para importar, auditar e proteger o consolidado diário do CR
 
 ## Ferramentas
 
-- `importar.py`: valida payloads e grava cada dia em transação atômica; o modo `--dry-run` valida arquivo local sem abrir banco e sem consultar API.
+- `importar.py`: audita totais aditivos antes de gravar, valida payloads e grava cada dia em transação atômica; `--dry-run` audita/valida arquivo local sem abrir banco e sem consultar API.
 - `auditar_resposta.py`: reconcilia totais aditivos gerais com somas por usuário a partir de JSON local.
 - `diagnosticar_banco.py`: verifica estrutura e consistência do SQLite em modo somente leitura.
 - `backup_sqlite.py`: cria snapshot consistente, sem sobrescrever backup existente; gera manifesto com tamanho, SHA-256, integridade e contagens de tabela.

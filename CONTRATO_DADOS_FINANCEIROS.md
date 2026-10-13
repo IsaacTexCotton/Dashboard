@@ -18,18 +18,18 @@ Todas as propriedades abaixo são observadas na amostra fictícia e implementada
 | Sucesso | `success` | boolean true, obrigatório | exige identidade `True` | não persistido |
 | Depósitos: quantidade | `data.depositos.porUsuario[].quantidade` | inteiro >= 0, obrigatório por usuário | rejeita bool, fração e negativo | `fatos.qtd`, tipo `deposito` |
 | Depósitos: valor | `data.depositos.porUsuario[].valor` | número finito, obrigatório por usuário | rejeita bool, texto e não finito; negativos ainda não são rejeitados | `fatos.valor`, tipo `deposito` |
-| Depósitos: totais agregados | `data.depositos.quantidadeTotal`, `valorTotal` | opcionais para importador; totais presentes são auditados | quantidade deve reconciliar exatamente; dinheiro com tolerância padrão R$ 0,01 | não persistidos separadamente |
+| Depósitos: totais agregados | `data.depositos.quantidadeTotal`, `valorTotal` | opcionais na normalização; ausentes geram PENDENTE no auditor e bloqueiam importação | quantidade deve reconciliar exatamente; dinheiro com tolerância padrão R$ 0,01 | não persistidos separadamente |
 | Acordos: quantidade | `data.acordos.porUsuario[].quantidade` | inteiro >= 0, obrigatório | mesmas regras de quantidade | `fatos.qtd`, tipo `acordo` |
 | Acordos: valor | `data.acordos.porUsuario[].valor` | número finito, obrigatório | negativo não é bloqueado atualmente | `fatos.valor`, tipo `acordo` |
 | Acordos: pagos | `data.acordos.porUsuario[].pagos` | número finito, obrigatório | negativo não é bloqueado atualmente | `fatos.valor_pago`, tipo `acordo` |
 | Acordos: pendente | `data.acordos.porUsuario[].pendente` | número finito, obrigatório | negativo não é bloqueado atualmente | `fatos.valor_aberto`, tipo `acordo` |
-| Acordos: totais agregados | `quantidadeTotal`, `valorTotal`, `pagosTotal`, `pendenteTotal` em `data.acordos` | opcionais para importador; auditados quando presentes | contagem exata; monetários com tolerância R$ 0,01 | não persistidos separadamente |
+| Acordos: totais agregados | `quantidadeTotal`, `valorTotal`, `pagosTotal`, `pendenteTotal` em `data.acordos` | opcionais na normalização; ausentes geram PENDENTE no auditor e bloqueiam importação | contagem exata; monetários com tolerância R$ 0,01 | não persistidos separadamente |
 | Promessas: quantidade | `data.promessas.porUsuario[].quantidade` | inteiro >= 0, obrigatório | inteiro não negativo | `fatos.qtd`, tipo `promessa` |
 | Promessas: prometido | `data.promessas.porUsuario[].prometido` | número finito, obrigatório | negativo não é bloqueado atualmente | `fatos.valor`, tipo `promessa` |
 | Promessas: cumprido | `data.promessas.porUsuario[].cumprido` | número finito, obrigatório | negativo não é bloqueado atualmente | `fatos.valor_pago`, tipo `promessa` |
 | Promessas: em aberto | `data.promessas.porUsuario[].emAberto` | número finito, obrigatório | negativo não é bloqueado atualmente | `fatos.valor_aberto`, tipo `promessa` |
 | Promessas: quebrado | `data.promessas.porUsuario[].quebrado` | número finito, obrigatório | negativo não é bloqueado atualmente | `fatos.valor_quebrado`, tipo `promessa` |
-| Promessas: totais agregados | `quantidadeTotal`, `prometidoTotal`, `cumpridoTotal`, `emAbertoTotal`, `quebradoTotal` em `data.promessas` | opcionais para importador; auditados quando presentes | contagem exata; monetários com tolerância R$ 0,01 | não persistidos separadamente |
+| Promessas: totais agregados | `quantidadeTotal`, `prometidoTotal`, `cumpridoTotal`, `emAbertoTotal`, `quebradoTotal` em `data.promessas` | opcionais na normalização; ausentes geram PENDENTE no auditor e bloqueiam importação | contagem exata; monetários com tolerância R$ 0,01 | não persistidos separadamente |
 | Contatos: registros totais | `data.contatos.porUsuario[].registrosTotais` | inteiro >= 0, obrigatório | inteiro não negativo | `fatos.qtd`, tipo `contato` |
 | Contatos: contatos únicos por usuário | `data.contatos.porUsuario[].contatosUnicos` | inteiro >= 0, obrigatório | inteiro não negativo | `fatos.qtd_unicos`, tipo `contato` |
 | Contatos: registros agregados | `data.contatos.registrosTotaisTotal` | opcional para importador; auditado quando presente | reconciliação inteira exata | não persistido separadamente |
@@ -42,6 +42,8 @@ Todas as propriedades abaixo são observadas na amostra fictícia e implementada
 O usuário é identificado por `usuario` (texto não vazio) e o nome é opcional (`nome`, texto ou null). Um mesmo identificador com nomes não vazios conflitantes dentro do payload bloqueia a normalização. Usuários repetidos dentro do mesmo grupo bloqueiam; um usuário pode aparecer em grupos diferentes. A tabela `usuarios` é atualizada pelo identificador global.
 
 ## Auditoria e severidade
+
+Desde a proteção da Fase 6, os caminhos de gravação por arquivo e API e o modo `--dry-run` executam a auditoria antes de gravar ou aprovar a resposta. Qualquer check `DIVERGÊNCIA` ou `PENDENTE` bloqueia a execução com código 1; erros de estrutura/tipo continuam sendo erros de validação (código 2). A resposta da API é auditada antes de abrir/criar o SQLite na primeira data. Em uma faixa de vários dias, cada dia continua sendo transacionado separadamente: dias anteriores já gravados não são revertidos se um dia posterior falhar.
 
 - `auditar_resposta.py` compara totais agregados disponíveis contra soma por usuário. Campos agregados ausentes viram `PENDENTE` e resultam em código 1; divergência monetária acima de R$ 0,01 ou divergência inteira resulta em código 1. Estrutura/JSON inválidos resultam em código 2.
 - A importação local valida estrutura e campos obrigatórios, mas não reconcilia por si só todos os totais agregados. A rotina integrada bloqueia a importação se a auditoria não retorna código 0.

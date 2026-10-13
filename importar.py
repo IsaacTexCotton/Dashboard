@@ -255,6 +255,30 @@ def _carregar_arquivo(caminho: str):
         raise RuntimeError(f"Arquivo JSON inválido: {caminho}, linha {exc.lineno}") from exc
 
 
+def _auditoria_financeira_ok(resp: Any) -> bool:
+    """Bloqueia gravação quando totais aditivos estão ausentes ou divergem."""
+    # Import local para evitar ciclo de importação: o auditor reutiliza normalizar().
+    from auditar_resposta import auditar
+
+    checks = auditar(resp)
+    bloqueios = [check for check in checks if check.status in ("DIVERGÊNCIA", "PENDENTE")]
+    for check in bloqueios:
+        print(
+            f"Auditoria bloqueante: {check.grupo}.{check.metrica}: {check.status}; "
+            f"total={check.total_api}; soma={check.soma_usuarios}; "
+            f"diferença={check.diferenca}",
+            file=sys.stderr,
+        )
+    if bloqueios:
+        print(
+            f"Importação bloqueada pela auditoria financeira: {len(bloqueios)} "
+            "verificação(ões) pendente(s) ou divergente(s).",
+            file=sys.stderr,
+        )
+        return False
+    return True
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Importação controlada do consolidado diário do CRM")
     grupo = parser.add_mutually_exclusive_group()
@@ -273,6 +297,8 @@ def main(argv: list[str] | None = None) -> int:
         resp = _carregar_arquivo(args.arquivo)
         if not isinstance(resp, dict) or not isinstance(resp.get("data"), dict):
             raise ErroValidacao("arquivo: estrutura data ausente ou inválida")
+        if not _auditoria_financeira_ok(resp):
+            return 1
         dia_ref = _dia_iso(resp["data"].get("inicio"), "data.inicio")
         if args.dry_run:
             usuarios, fatos, _ = normalizar(resp, dia_ref)
@@ -305,16 +331,22 @@ def main(argv: list[str] | None = None) -> int:
         raise RuntimeError("Defina CRM_TOKEN ou CRM_COOKIE para autenticar a consulta.")
 
     total = 0
-    con = sqlite3.connect(DB)
+    con: sqlite3.Connection | None = None
     try:
-        con.executescript(SCHEMA)
         for dia in dias(inicio, fim):
             resposta = buscar(dia)
+            if not _auditoria_financeira_ok(resposta):
+                return 1
+            # Só cria/abre o banco depois que a primeira resposta foi auditada.
+            if con is None:
+                con = sqlite3.connect(DB)
+                con.executescript(SCHEMA)
             total += gravar(con, dia, resposta, "api")
             print(f"  {dia} ok")
             time.sleep(0.3)
     finally:
-        con.close()
+        if con is not None:
+            con.close()
     print(f"{total} linhas gravadas em {DB}")
     return 0
 

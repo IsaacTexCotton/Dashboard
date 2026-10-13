@@ -76,7 +76,12 @@ def auditar(resp: Any, tolerancia: Decimal = Decimal("0.01")) -> list[Check]:
         if total_campo not in grupo_obj:
             checks.append(Check(grupo, total_campo, "ausente", "não calculado", "—", "PENDENTE"))
             continue
-        total = _decimal(grupo_obj[total_campo], f"data.{grupo}.{total_campo}")
+        if tipo == "inteiro":
+            total = Decimal(importar._inteiro(
+                grupo_obj[total_campo], f"data.{grupo}.{total_campo}"
+            ))
+        else:
+            total = _decimal(grupo_obj[total_campo], f"data.{grupo}.{total_campo}")
         soma = Decimal("0")
         for indice, linha in enumerate(linhas):
             if not isinstance(linha, dict) or linha_campo not in linha:
