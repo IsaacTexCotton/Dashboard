@@ -9,3 +9,20 @@ backups/
 relatorios/
 .env
 .env.*
+
+# Dados reais de homologação e relatórios locais nunca devem ser versionados.
+resposta*.json
+*_sanitizada.json
+*_sanitizado.json
+relatorio_homologacao*.json
+*.manifest.json
+
+# Arquivos auxiliares gerados pelo SQLite (WAL e memória compartilhada).
+*-wal
+*-shm
+
+# Arquivos locais de segredo; nunca armazene credenciais no repositório.
+*credentials*.json
+*secrets*.json
+*.pem
+*.key
