@@ -17,6 +17,10 @@ resposta*.json
 relatorio_homologacao*.json
 *.manifest.json
 
+# Capturas de interface/exportações locais; não versionar dumps de dashboard.
+captura-dashboard-*.zip
+captura-dashboard-*/
+
 # Arquivos auxiliares gerados pelo SQLite (WAL e memória compartilhada).
 *-wal
 *-shm
