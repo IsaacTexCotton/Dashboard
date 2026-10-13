@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+*.db
+*.sqlite
+*.sqlite3
+*.sqlite3.manifest.json
+*.db.manifest.json
+backups/
+relatorios/
+.env
+.env.*
