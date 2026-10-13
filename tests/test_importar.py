@@ -31,6 +31,18 @@ class NormalizacaoTestes(unittest.TestCase):
         with self.assertRaises(importar.ErroValidacao):
             importar.normalizar(payload, "2026-10-13")
 
+    def test_rejeita_resposta_vazia(self):
+        with self.assertRaisesRegex(importar.ErroValidacao, "success=true"):
+            importar.normalizar({}, "2026-10-13")
+
+    def test_rejeita_nome_conflitante_para_mesmo_usuario_entre_grupos(self):
+        payload = json.loads(json.dumps(AMOSTRA))
+        item = payload["data"]["acordos"]["porUsuario"][0]
+        item["usuario"] = "NEGOCIADOR.A"
+        item["nome"] = "Nome conflitante"
+        with self.assertRaisesRegex(importar.ErroValidacao, "nomes conflitantes"):
+            importar.normalizar(payload, "2026-10-13")
+
     def test_rejeita_periodo_divergente(self):
         with self.assertRaisesRegex(importar.ErroValidacao, "período divergente"):
             importar.normalizar(AMOSTRA, "2026-10-12")
@@ -224,6 +236,38 @@ class PersistenciaTestes(unittest.TestCase):
             ), patch("importar.buscar", return_value=payload):
                 codigo = importar.main([])
             self.assertEqual(codigo, 1)
+            self.assertFalse(db.exists())
+
+    def test_total_agregado_ausente_bloqueia_importacao(self):
+        with tempfile.TemporaryDirectory() as td:
+            db = Path(td) / "nao_deve_existir.db"
+            arquivo = Path(td) / "total_ausente.json"
+            payload = json.loads(json.dumps(AMOSTRA))
+            del payload["data"]["promessas"]["quebradoTotal"]
+            arquivo.write_text(json.dumps(payload), encoding="utf-8")
+            env = os.environ.copy()
+            env["DASHBOARD_DB"] = str(db)
+            proc = subprocess.run(
+                [sys.executable, str(ROOT / "importar.py"), "--arquivo", str(arquivo)],
+                cwd=ROOT, env=env, text=True, capture_output=True, check=False,
+            )
+            self.assertEqual(proc.returncode, 1, proc.stdout + proc.stderr)
+            self.assertIn("PENDENTE", proc.stderr)
+            self.assertFalse(db.exists())
+
+    def test_json_malformado_retorna_codigo_dois_sem_criar_banco(self):
+        with tempfile.TemporaryDirectory() as td:
+            db = Path(td) / "nao_deve_existir.db"
+            arquivo = Path(td) / "invalido.json"
+            arquivo.write_text("{json invalido", encoding="utf-8")
+            env = os.environ.copy()
+            env["DASHBOARD_DB"] = str(db)
+            proc = subprocess.run(
+                [sys.executable, str(ROOT / "importar.py"), "--arquivo", str(arquivo)],
+                cwd=ROOT, env=env, text=True, capture_output=True, check=False,
+            )
+            self.assertEqual(proc.returncode, 2)
+            self.assertIn("Arquivo JSON inválido", proc.stderr)
             self.assertFalse(db.exists())
 
     def test_dry_run_sem_arquivo_e_barrado(self):
