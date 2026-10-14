@@ -53,10 +53,11 @@ O sucesso local comprova apenas os cenários cobertos pelo JSON e pelos testes. 
 - [ ] Totais aditivos reconciliados; divergências explicadas e aprovadas.
 - [ ] Datas, campos obrigatórios, nulos e valores extremos revisados.
 - [ ] Responsável financeiro aprovou o significado das métricas e snapshots, e os casos de renegociação, descontos, cancelamentos, parcelas não vencidas e pagamentos parciais foram avaliados para a regra `valor = pagos + pendente`.
-- [ ] A política aprovada está versionada em `POLITICA_PRECISAO_MONETARIA.md`; sua aplicabilidade ao CAIXA FUTURO foi confirmada apesar do escopo do texto declarar Contas a Pagar.
+- [ ] A política aprovada e revisada está versionada em `POLITICA_PRECISAO_MONETARIA.md`; o escopo já identifica explicitamente o dashboard de Cobrança em Contas a Pagar/Financeiro.
 - [ ] TI/Contabilidade confirmou se o ERP e o módulo de títulos usam *half-up* para juros, multas e descontos.
-- [ ] Antes de alterar regras monetárias, foram resolvidos os conflitos de escopo/sinais, e há testes para arredondamento fronteiriço, somas sem deriva, importação com 3/4/6 casas decimais, valores legados `REAL` problemáticos e igualdade de rateio/parcelamento.
-- [ ] Comparação por igualdade exata em centavos e tratamento de entrada decimal foram implementados e testados somente após a confirmação de escopo.
+- [ ] Antes de alterar regras monetárias, foram resolvidos os conflitos de sinal por campo e implementados testes para arredondamento fronteiriço, somas sem deriva, importação com 3/4/6 casas decimais, valores legados `REAL` problemáticos e igualdade de rateio/parcelamento.
+- [ ] Parsing decimal sem `float`, armazenamento de novos valores em centavos e comparação exata foram implementados e testados; a tolerância monetária não é usada como substituto de conversão exata.
+- [ ] Implementação de cobrança respeita as regras da política: juros simples `pro rata die`, multa aplicada uma vez, boleto/custas importados como valor de origem, pagamento confirmado separado de pagamento informado/pendente de baixa.
 - [ ] Qualquer migração de `REAL` possui inventário de leitores/escritores, análise de compatibilidade, backup verificado, colunas paralelas, script idempotente, dupla escrita/conciliação, aprovação de corte e rollback testado.
 - [ ] O campo `timestamp` do JSON é preservado exatamente como recebido; ausência/vazio bloqueia a importação, sem fallback para relógio local nem inferência/conversão de fuso.
 - [ ] `main` exige o workflow de CI como verificação obrigatória.
