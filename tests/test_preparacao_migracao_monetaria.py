@@ -26,7 +26,7 @@ FIXTURE = ROOT / "tests" / "fixtures" / "amostra_monetaria_erp_systextil_sinteti
 
 class PreparacaoMigracaoMonetariaTestes(unittest.TestCase):
     def _carregar_fixture(self):
-        payload = json.loads(FIXTURE.read_text(encoding="utf-8"))
+        payload = loads_json_estrito(FIXTURE.read_text(encoding="utf-8"))
         self.assertEqual(payload["classificacao"], "SINTETICO_NAO_REAL")
         self.assertFalse(payload["origem_autorizada_real_disponivel"])
         self.assertEqual(payload["quantidade_registros"], len(payload["registros"]))
