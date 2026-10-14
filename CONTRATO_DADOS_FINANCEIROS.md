@@ -3,9 +3,24 @@
 ## Estado da evidência
 
 - **Amostra observada:** `amostra_resposta.json`, versionada no repositório. É explicitamente fictícia; demonstra somente a forma ilustrativa abaixo.
-- **Payload sanitizado fornecido:** foi recebido um JSON de um único dia (2026-10-13). Uma auditoria aritmética independente conciliou as 12 métricas aditivas; o arquivo não foi versionado. Os scripts do repositório ainda não foram executados diretamente contra essa cópia neste ambiente, pois o clone falhou por indisponibilidade de DNS. Portanto, a validação automatizada dessa instância permanece **PENDENTE** até execução em ambiente controlado com o código publicado.
+- **Payload sanitizado fornecido:** o JSON autorizado de um dia (2026-10-13) foi validado em 14/10/2026 com os scripts publicados no commit `b9754aa744b35bfd0d9f8604034887d2c160ecbd`; os blobs dos quatro scripts executados foram conferidos contra os hashes do GitHub. O arquivo não foi versionado. A auditoria terminou com 12 métricas aditivas `OK` e `contatosUnicosTotal` classificado como `NÃO ADITIVO`; o `--dry-run` aprovou 5 usuários e 17 fatos sem abrir banco; `validar_integracao_local.py` terminou `PASSED`, com zero consultas ao CRM e SQLite apenas temporário; o diagnóstico reportou 13 verificações `OK`, zero avisos e zero falhas. Reimportar o mesmo payload manteve os 17 fatos; o registro de importação passou de 1 para 2 e o snapshot com o mesmo timestamp permaneceu único.
 - **Decisões informadas para a homologação:** valores monetários negativos devem bloquear a importação; a tolerância de reconciliação monetária de R$ 0,01 é aceita; `valorRecebidoPeriodo` identifica recebimentos dentro do período; `valorAVencer` e `valorVencido` representam posição da carteira conforme vencimento; cada captura da posição deve permanecer como registro histórico. A regra `valor do acordo = pago + pendente` ainda não foi confirmada.
 - **Escopo:** contrato implementado por `importar.normalizar`, esquema SQLite atual e reconciliações implementadas em `auditar_resposta.py`. Este documento não afirma que os nomes são um contrato oficial do CRM.
+
+## Resultado da validação controlada do payload sanitizado (14/10/2026)
+
+Os comandos abaixo foram executados contra o arquivo sanitizado fornecido, fora do repositório, sem consultar o CRM. O ambiente removeu as variáveis `CRM_URL`, `CRM_TOKEN` e `CRM_COOKIE`; o fluxo integrado reportou `crm_consultas: 0` e `banco_persistente: false`.
+
+| Execução | Resultado observado |
+|---|---|
+| `python auditar_resposta.py resposta_sanitizada.json` | Código 0; 12 checks aditivos `OK`; `contatosUnicosTotal` tratado como `NÃO ADITIVO` |
+| `python importar.py --arquivo resposta_sanitizada.json --dry-run` | Código 0; validação de 5 usuários e 17 fatos; nenhum banco aberto ou alterado |
+| `python validar_integracao_local.py resposta_sanitizada.json` | `PASSED`; importação e reimportação em SQLite temporário; 17 fatos e 1 dia mantidos; log de importação incrementado; nenhum acesso ao CRM |
+| Diagnóstico dentro da integração | 13 checks `OK`, 0 avisos e 0 falhas |
+
+Também foram executadas regressões com cópias temporárias derivadas do payload, removidas ao final: diferença monetária de R$ 0,01 aprovada; diferença de R$ 0,02 bloqueada; `valorVencido` negativo rejeitado pela importação com código 2, mensagem controlada e sem criação de banco. O JSON original não foi modificado.
+
+Esta evidência fecha a pendência de executar os scripts do projeto sobre **este payload sanitizado específico**. Não prova, isoladamente, o contrato integral da API de produção, não substitui as decisões contábeis ainda abertas e não autoriza implantação. O exercício de restauração registrado na suíte automatizada usa bancos temporários e não substitui a preparação operacional exigida pelo runbook.
 
 ## Contrato observado e persistência
 
@@ -66,12 +81,12 @@ O esquema atual usa SQLite `REAL` (ponto flutuante binário), sujeito a pequenas
 
 Fatos diários (`fatos`) e snapshots (`acordos_posicao`) são conjuntos diferentes. Conforme definição recebida, `valorRecebidoPeriodo` representa o fluxo recebido no intervalo; `valorAVencer` e `valorVencido` são a posição da carteira na captura, classificada pela data de vencimento. Cada snapshot deve ser preservado como fotografia daquele instante, não como movimentação e não deve ser somado aos snapshots de outros instantes.
 
-## Evidência necessária para fechar homologação
+## Pendências para fechamento integral e produção
 
-- JSON real sanitizado e autorizado, preservando estrutura, tipos, campos opcionais e relações entre totais e linhas; remover nomes/identificadores pessoais ou substituí-los consistentemente por pseudônimos.
-- Identificação do período e da origem da resposta, sem tokens, cookies, cabeçalhos de autenticação ou dados pessoais desnecessários.
-- Confirmação da regra contábil `valor do acordo = pago + pendente`, incluindo renegociações e ajustes.
-- Definição de como validar contatos únicos globalmente, sem somar contagens por negociador sem regra de deduplicação.
-- Confirmação de precisão/arredondamento e eventual plano de migração do SQLite `REAL`.
-- Validação direta do JSON sanitizado com os scripts publicados e exercício operacional de backup/recuperação antes de produção.
-- Execução local auditada com o JSON fornecido; não consultar o CRM para obter a evidência.
+- Aprovar ou rejeitar formalmente a regra `valor do acordo = pago + pendente`, incluindo renegociações, descontos, cancelamentos e pagamentos parciais.
+- Definir como validar contatos únicos globalmente, sem somar contagens por negociador sem regra de deduplicação.
+- Confirmar precisão/arredondamento e aprovar eventual migração do SQLite `REAL`, com análise de compatibilidade e backup.
+- Executar o exercício operacional de backup/recuperação em banco de homologação autorizado, mantendo o banco de origem e o backup preservados; os testes automatizados isolados não substituem essa aprovação operacional.
+- Manter a evidência do payload sanitizado fora do Git e repetir os comandos quando houver mudança relevante no contrato ou nos scripts. Não consultar o CRM para gerar evidência de homologação.
+
+A validação automatizada deste payload sanitizado está concluída; as pendências acima continuam sendo gates antes de produção.
