@@ -54,7 +54,7 @@ O sucesso local comprova apenas os cenários cobertos pelo JSON e pelos testes. 
 - [ ] Datas, campos obrigatórios, nulos e valores extremos revisados.
 - [ ] Responsável financeiro aprovou o significado das métricas e snapshots, e os casos de renegociação, descontos, cancelamentos, parcelas não vencidas e pagamentos parciais foram avaliados para a regra `valor = pagos + pendente`.
 - [ ] Política de precisão monetária aprovada está transcrita com regra de arredondamento e valores acima de duas casas; qualquer migração de `REAL` possui compatibilidade, backup e plano explícitos.
-- [ ] Formato, fuso horário e comportamento de `timestamp` ausente foram acordados com a origem dos dados.
+- [ ] O campo `timestamp` do JSON é preservado exatamente como recebido; ausência/vazio bloqueia a importação, sem fallback para relógio local nem inferência/conversão de fuso.
 - [ ] `main` exige o workflow de CI como verificação obrigatória.
 - [ ] Backup recente criado e verificado, com manifesto íntegro.
 - [ ] Banco de homologação diagnosticado após importação e reimportação.
