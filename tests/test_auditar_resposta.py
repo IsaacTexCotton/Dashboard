@@ -38,6 +38,12 @@ class AuditoriaTestes(unittest.TestCase):
         check = next(c for c in checks if c.metrica == "valorTotal")
         self.assertEqual(check.status, "OK")
 
+    def test_total_monetario_negativo_e_rejeitado(self):
+        payload = copy.deepcopy(AMOSTRA)
+        payload["data"]["depositos"]["valorTotal"] = -1
+        with self.assertRaisesRegex(importar.ErroValidacao, "valor monetário negativo não permitido"):
+            auditar_resposta.auditar(payload)
+
     def test_divergencia_de_dois_centavos_bloqueia(self):
         payload = copy.deepcopy(AMOSTRA)
         payload["data"]["depositos"]["valorTotal"] = 25000.02
