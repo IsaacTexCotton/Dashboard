@@ -315,3 +315,78 @@ def backfill_monetario(
         if abriu_transacao and con.in_transaction:
             con.rollback()
         raise
+
+
+def main(argv: list[str] | None = None) -> int:
+    import argparse
+    import json
+    import sys
+    from datetime import datetime, timezone
+    from pathlib import Path
+
+    parser = argparse.ArgumentParser(
+        description="Backfill monetário histórico; modo simulação por padrão"
+    )
+    parser.add_argument("banco", help="caminho para SQLite existente; nunca cria banco")
+    parser.add_argument("--aplicar", action="store_true", help="aplica o backfill em transação")
+    parser.add_argument(
+        "--diretorio-backup",
+        help="diretório existente para backup e manifesto obrigatórios em modo --aplicar",
+    )
+    args = parser.parse_args(argv)
+    banco = Path(args.banco).expanduser().resolve()
+    if not banco.is_file():
+        print(json.dumps({"status": "ERROR", "error": f"Banco não encontrado: {banco}"}))
+        return 2
+    if args.aplicar and (not args.diretorio_backup or not Path(args.diretorio_backup).is_dir()):
+        print(json.dumps({
+            "status": "ERROR",
+            "error": "--aplicar exige --diretorio-backup apontando para diretório existente",
+        }))
+        return 2
+
+    backup_info: dict[str, Any] | None = None
+    try:
+        if args.aplicar:
+            import backup_sqlite
+
+            stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+            destino = Path(args.diretorio_backup).resolve() / (
+                f"{banco.stem}-pre-backfill-{stamp}{banco.suffix or '.sqlite3'}"
+            )
+            manifesto = backup_sqlite.criar_backup(banco, destino)
+            verificado = backup_sqlite.verificar_backup(destino)
+            if verificado.get("status") != "OK":
+                raise ErroBackfillMonetario(
+                    "backup não passou na verificação: " + json.dumps(verificado)
+                )
+            if manifesto.get("source_file") != banco.name:
+                raise ErroBackfillMonetario("manifesto do backup não corresponde ao banco de origem")
+            backup_info = {
+                "arquivo": str(destino),
+                "sha256": verificado.get("backup_sha256"),
+                "status": verificado.get("status"),
+            }
+
+        if args.aplicar:
+            con = sqlite3.connect(str(banco), timeout=30)
+        else:
+            con = sqlite3.connect(banco.as_uri() + "?mode=ro", uri=True)
+        try:
+            resultado = backfill_monetario(con, aplicar=args.aplicar)
+        finally:
+            con.close()
+        print(json.dumps({
+            "status": "OK",
+            "banco": str(banco),
+            "backup": backup_info,
+            "resultado": resultado,
+        }, ensure_ascii=False, indent=2))
+        return 0
+    except (OSError, sqlite3.Error, ErroBackfillMonetario, ErroMigracaoMonetaria) as exc:
+        print(json.dumps({"status": "ERROR", "error": str(exc)}, ensure_ascii=False), file=sys.stderr)
+        return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
