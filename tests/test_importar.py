@@ -137,7 +137,7 @@ class NormalizacaoTestes(unittest.TestCase):
 
         payload["data"]["depositos"]["porUsuario"][0]["valor"] = Decimal("1.231")
         with self.assertRaisesRegex(
-            ValueError, "precisão excede 2 casas|arredondamento de entrada proibido"
+            importar.ErroValidacao, "precisão excede 2 casas|arredondamento de entrada proibido"
         ):
             importar.normalizar_duplo(
                 payload, "2026-10-13", "2026-10-14T12:00:00"
