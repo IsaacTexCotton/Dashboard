@@ -83,7 +83,7 @@ Foram identificados **6 módulos de teste, com 65 métodos `test_*`** na revisã
 - Os testes de backup e recuperação usam banco isolado/de teste; **não equivalem** a um backup real verificado nem a um ensaio operacional autorizado em homologação.
 - A amostra `amostra_resposta.json` é fictícia segundo o contrato. Não serve como prova do comportamento de sinais no CRM nem da equação de promessas em produção.
 - A árvore contém `caixa-futuro-fase1.zip`, artefato binário que não foi inspecionado internamente nesta etapa. Por isso, não declaro fechado o inventário de todos os possíveis consumidores/leitores embutidos nele. A varredura de consumidores permanece um gate antes do corte.
-- Resultado CI confirmado para a revisão documental anterior: [workflow #38](https://github.com/IsaacTexCotton/Dashboard/actions/runs/38568801738), `success` no commit `a113a97401d067330944373dcaf3bd6933c4b428`. Isso confirma apenas os testes existentes e a amostra sanitizada/fictícia nesse commit; não prova compatibilidade monetária futura e uma nova execução deve ser confirmada para o head desta atualização.
+- Último resultado CI confirmado antes desta atualização textual: [workflow #42](https://github.com/IsaacTexCotton/Dashboard/actions/runs/38581680436), `success` no head documental `82c5e3284a3e1db61c55ed77123e245639b93b27`. Isso confirma somente os testes existentes e a amostra fictícia nesse head; não prova compatibilidade monetária futura. A nova alteração documental exige confirmar a execução subsequente.
 
 ## 4. Conflitos e riscos
 
