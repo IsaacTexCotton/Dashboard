@@ -84,7 +84,7 @@
       "operacao": "final",
       "escala": 2,
       "negativos_permitidos": false,
-      "esperado": 9223372036854776000,
+      "esperado": 9223372036854775807,
       "resultado_esperado": "ok",
       "justificativa": "Limite superior int64 em centavos"
     },
