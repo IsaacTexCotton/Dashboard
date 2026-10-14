@@ -3,7 +3,11 @@ import sqlite3
 import unittest
 from decimal import Decimal
 
-from escrita_dupla import gravar_dia_duplo
+from escrita_dupla import (
+    gravar_dia_duplo,
+    preparar_fato_duplo,
+    preparar_posicao_dupla,
+)
 from modelo_monetario import mapear_fato_centavos, mapear_posicao_centavos
 
 DIA = "2026-10-14"
@@ -89,25 +93,20 @@ def criar_banco(isolation_level=""):
 
 
 def fatos_exemplo():
-    deposito_legado = {
-        "data": DIA, "usuario": "ana", "tipo": "deposito", "qtd": 1,
-        "qtd_unicos": 0, "valor": 12.34, "valor_pago": 0.0,
-        "valor_aberto": 0.0, "valor_quebrado": 0.0, "importado_em": "agora",
-    }
-    acordo_legado = {
-        "data": DIA, "usuario": "bia", "tipo": "acordo", "qtd": 1,
-        "qtd_unicos": 0, "valor": 100.0, "valor_pago": 40.0,
-        "valor_aberto": 60.0, "valor_quebrado": 0.0, "importado_em": "agora",
-    }
-    return [
-        {"legado": deposito_legado, "centavos": mapear_fato_centavos(
-            "deposito", {"valor": Decimal("12.34")}
-        )},
-        {"legado": acordo_legado, "centavos": mapear_fato_centavos(
-            "acordo", {"valor": Decimal("100.00"), "pagos": Decimal("40.00"),
-                       "pendente": Decimal("60.00")}
-        )},
-    ]
+    deposito = preparar_fato_duplo(
+        dia=DIA, usuario="ana", tipo="deposito", quantidade=1,
+        importado_em="agora", campos_monetarios={"valor": Decimal("12.34")},
+    )
+    acordo = preparar_fato_duplo(
+        dia=DIA, usuario="bia", tipo="acordo", quantidade=1,
+        importado_em="agora",
+        campos_monetarios={
+            "valor": Decimal("100.00"),
+            "pagos": Decimal("40.00"),
+            "pendente": Decimal("60.00"),
+        },
+    )
+    return [deposito, acordo]
 
 
 def argumentos(fatos=None):
@@ -115,18 +114,15 @@ def argumentos(fatos=None):
         "dia": DIA,
         "usuarios": {"ana": "Ana", "bia": "Bia"},
         "fatos": fatos if fatos is not None else fatos_exemplo(),
-        "posicao_legada": {
-            "capturado_em": "2026-10-14T12:00:00",
-            "data": DIA,
-            "recebido_periodo": 20.0,
-            "a_vencer": 30.0,
-            "vencido": 40.0,
-        },
-        "posicao_centavos": mapear_posicao_centavos({
-            "valorRecebidoPeriodo": Decimal("20.00"),
-            "valorAVencer": Decimal("30.00"),
-            "valorVencido": Decimal("40.00"),
-        }),
+        "posicao_dupla": preparar_posicao_dupla(
+            capturado_em="2026-10-14T12:00:00",
+            dia=DIA,
+            campos_monetarios={
+                "valorRecebidoPeriodo": Decimal("20.00"),
+                "valorAVencer": Decimal("30.00"),
+                "valorVencido": Decimal("40.00"),
+            },
+        ),
         "origem": "fixture",
         "quando": "2026-10-14T12:01:00",
     }
@@ -150,7 +146,14 @@ class TestEscritaDupla(unittest.TestCase):
     def test_grava_legado_e_centavos_no_mesmo_lote(self):
         con = criar_banco()
         try:
-            total = gravar_dia_duplo(con, **argumentos())
+            args = argumentos()
+            posicao_legada, posicao_centavos = args.pop("posicao_dupla")
+            total = gravar_dia_duplo(
+                con,
+                **args,
+                posicao_legada=posicao_legada,
+                posicao_centavos=posicao_centavos,
+            )
             self.assertEqual(total, 2)
             rows = con.execute(
                 "SELECT usuario, valor, deposito_valor_centavos, "
@@ -166,6 +169,64 @@ class TestEscritaDupla(unittest.TestCase):
             ).fetchone()
             self.assertEqual(pos, (20.0, 2000, 30.0, 3000, 40.0, 4000))
             self.assertEqual(con.execute("SELECT COUNT(*) FROM importacoes").fetchone()[0], 1)
+        finally:
+            con.close()
+
+    def test_preparadores_derivam_real_e_centavos_da_mesma_origem_decimal(self):
+        fato = preparar_fato_duplo(
+            dia=DIA, usuario="negativo", tipo="deposito", quantidade=1,
+            importado_em="agora", campos_monetarios={"valor": Decimal("-1.23")},
+        )
+        self.assertEqual(fato["centavos"]["deposito_valor_centavos"], -123)
+        self.assertEqual(fato["legado"]["valor"], -1.23)
+        self.assertEqual(fato["legado"]["valor_pago"], 0.0)
+
+        with self.assertRaises(Exception):
+            preparar_fato_duplo(
+                dia=DIA, usuario="inválido", tipo="deposito", quantidade=1,
+                importado_em="agora", campos_monetarios={"valor": Decimal("1.231")},
+            )
+        with self.assertRaises(Exception):
+            preparar_posicao_dupla(
+                capturado_em="ts", dia=DIA,
+                campos_monetarios={
+                    "valorRecebidoPeriodo": Decimal("1.00"),
+                    "valorAVencer": Decimal("-1.00"),
+                    "valorVencido": Decimal("1.00"),
+                },
+            )
+
+    def test_rollback_pos_corte_encontra_registro_novo_nas_colunas_real(self):
+        con = criar_banco()
+        try:
+            args = argumentos()
+            posicao_legada, posicao_centavos = args.pop("posicao_dupla")
+            gravar_dia_duplo(
+                con,
+                **args,
+                posicao_legada=posicao_legada,
+                posicao_centavos=posicao_centavos,
+            )
+            # Simulação de rollback da leitura: query usa REAL legado, mas
+            # confirma que registros pós-corte também foram atualizados ali.
+            self.assertEqual(
+                con.execute(
+                    "SELECT valor FROM fatos WHERE usuario='ana' AND tipo='deposito'"
+                ).fetchone()[0],
+                12.34,
+            )
+            self.assertEqual(
+                con.execute(
+                    "SELECT deposito_valor_centavos FROM fatos WHERE usuario='ana' AND tipo='deposito'"
+                ).fetchone()[0],
+                1234,
+            )
+            self.assertEqual(
+                con.execute(
+                    "SELECT recebido_periodo, recebido_periodo_centavos FROM acordos_posicao"
+                ).fetchone(),
+                (20.0, 2000),
+            )
         finally:
             con.close()
 
