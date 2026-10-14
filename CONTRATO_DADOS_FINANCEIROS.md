@@ -4,7 +4,7 @@
 
 - **Amostra observada:** `amostra_resposta.json`, versionada no repositório. É explicitamente fictícia; demonstra somente a forma ilustrativa abaixo.
 - **Payload sanitizado fornecido:** foi recebido um JSON de um único dia (2026-10-13). Uma auditoria aritmética independente conciliou as 12 métricas aditivas; o arquivo não foi versionado. Os scripts do repositório ainda não foram executados diretamente contra essa cópia neste ambiente, pois o clone falhou por indisponibilidade de DNS. Portanto, a validação automatizada dessa instância permanece **PENDENTE** até execução em ambiente controlado com o código publicado.
-- **Regra contábil aprovada:** nenhuma aprovação formal foi apresentada. Não inferir equivalência entre métricas distintas.
+- **Decisões informadas para a homologação:** valores monetários negativos devem bloquear a importação; a tolerância de reconciliação monetária de R$ 0,01 é aceita; `valorRecebidoPeriodo` identifica recebimentos dentro do período; `valorAVencer` e `valorVencido` representam posição da carteira conforme vencimento; cada captura da posição deve permanecer como registro histórico. A regra `valor do acordo = pago + pendente` ainda não foi confirmada.
 - **Escopo:** contrato implementado por `importar.normalizar`, esquema SQLite atual e reconciliações implementadas em `auditar_resposta.py`. Este documento não afirma que os nomes são um contrato oficial do CRM.
 
 ## Contrato observado e persistência
@@ -17,26 +17,26 @@ Todas as propriedades abaixo são observadas na amostra fictícia e implementada
 | Dia final | `data.fim` | string, obrigatório | data ISO canônica; deve ser igual ao dia importado | `importacoes.fim` |
 | Sucesso | `success` | boolean true, obrigatório | exige identidade `True` | não persistido |
 | Depósitos: quantidade | `data.depositos.porUsuario[].quantidade` | inteiro >= 0, obrigatório por usuário | rejeita bool, fração e negativo | `fatos.qtd`, tipo `deposito` |
-| Depósitos: valor | `data.depositos.porUsuario[].valor` | número finito, obrigatório por usuário | rejeita bool, texto e não finito; negativos ainda não são rejeitados | `fatos.valor`, tipo `deposito` |
+| Depósitos: valor | `data.depositos.porUsuario[].valor` | número finito não negativo, obrigatório por usuário | rejeita bool, texto, não finito e negativo | `fatos.valor`, tipo `deposito` |
 | Depósitos: totais agregados | `data.depositos.quantidadeTotal`, `valorTotal` | opcionais na normalização; ausentes geram PENDENTE no auditor e bloqueiam importação | quantidade deve reconciliar exatamente; dinheiro com tolerância padrão R$ 0,01 | não persistidos separadamente |
 | Acordos: quantidade | `data.acordos.porUsuario[].quantidade` | inteiro >= 0, obrigatório | mesmas regras de quantidade | `fatos.qtd`, tipo `acordo` |
-| Acordos: valor | `data.acordos.porUsuario[].valor` | número finito, obrigatório | negativo não é bloqueado atualmente | `fatos.valor`, tipo `acordo` |
-| Acordos: pagos | `data.acordos.porUsuario[].pagos` | número finito, obrigatório | negativo não é bloqueado atualmente | `fatos.valor_pago`, tipo `acordo` |
-| Acordos: pendente | `data.acordos.porUsuario[].pendente` | número finito, obrigatório | negativo não é bloqueado atualmente | `fatos.valor_aberto`, tipo `acordo` |
+| Acordos: valor | `data.acordos.porUsuario[].valor` | número finito não negativo, obrigatório | valores negativos são rejeitados | `fatos.valor`, tipo `acordo` |
+| Acordos: pagos | `data.acordos.porUsuario[].pagos` | número finito não negativo, obrigatório | valores negativos são rejeitados | `fatos.valor_pago`, tipo `acordo` |
+| Acordos: pendente | `data.acordos.porUsuario[].pendente` | número finito não negativo, obrigatório | valores negativos são rejeitados | `fatos.valor_aberto`, tipo `acordo` |
 | Acordos: totais agregados | `quantidadeTotal`, `valorTotal`, `pagosTotal`, `pendenteTotal` em `data.acordos` | opcionais na normalização; ausentes geram PENDENTE no auditor e bloqueiam importação | contagem exata; monetários com tolerância R$ 0,01 | não persistidos separadamente |
 | Promessas: quantidade | `data.promessas.porUsuario[].quantidade` | inteiro >= 0, obrigatório | inteiro não negativo | `fatos.qtd`, tipo `promessa` |
-| Promessas: prometido | `data.promessas.porUsuario[].prometido` | número finito, obrigatório | negativo não é bloqueado atualmente | `fatos.valor`, tipo `promessa` |
-| Promessas: cumprido | `data.promessas.porUsuario[].cumprido` | número finito, obrigatório | negativo não é bloqueado atualmente | `fatos.valor_pago`, tipo `promessa` |
-| Promessas: em aberto | `data.promessas.porUsuario[].emAberto` | número finito, obrigatório | negativo não é bloqueado atualmente | `fatos.valor_aberto`, tipo `promessa` |
+| Promessas: prometido | `data.promessas.porUsuario[].prometido` | número finito não negativo, obrigatório | valores negativos são rejeitados | `fatos.valor`, tipo `promessa` |
+| Promessas: cumprido | `data.promessas.porUsuario[].cumprido` | número finito não negativo, obrigatório | valores negativos são rejeitados | `fatos.valor_pago`, tipo `promessa` |
+| Promessas: em aberto | `data.promessas.porUsuario[].emAberto` | número finito não negativo, obrigatório | valores negativos são rejeitados | `fatos.valor_aberto`, tipo `promessa` |
 | Promessas: quebrado | `data.promessas.porUsuario[].quebrado` | número finito, obrigatório | negativo não é bloqueado atualmente | `fatos.valor_quebrado`, tipo `promessa` |
 | Promessas: totais agregados | `quantidadeTotal`, `prometidoTotal`, `cumpridoTotal`, `emAbertoTotal`, `quebradoTotal` em `data.promessas` | opcionais na normalização; ausentes geram PENDENTE no auditor e bloqueiam importação | contagem exata; monetários com tolerância R$ 0,01 | não persistidos separadamente |
 | Contatos: registros totais | `data.contatos.porUsuario[].registrosTotais` | inteiro >= 0, obrigatório | inteiro não negativo | `fatos.qtd`, tipo `contato` |
 | Contatos: contatos únicos por usuário | `data.contatos.porUsuario[].contatosUnicos` | inteiro >= 0, obrigatório | inteiro não negativo | `fatos.qtd_unicos`, tipo `contato` |
 | Contatos: registros agregados | `data.contatos.registrosTotaisTotal` | opcional para importador; auditado quando presente | reconciliação inteira exata | não persistido separadamente |
 | Contatos únicos agregados | `data.contatos.contatosUnicosTotal` | observado na amostra; não aditivo | auditor exibe como não aditivo, sem reconciliação | não persistido separadamente |
-| Recebido no período | `data.valoresAcordo.valorRecebidoPeriodo` | número finito, obrigatório | não negativo ainda não exigido; sem total por usuário para reconciliar | `acordos_posicao.recebido_periodo` |
-| Valores a vencer | `data.valoresAcordo.valorAVencer` | número finito, obrigatório | não negativo ainda não exigido | `acordos_posicao.a_vencer` |
-| Valores vencidos | `data.valoresAcordo.valorVencido` | número finito, obrigatório | não negativo ainda não exigido | `acordos_posicao.vencido` |
+| Recebido no período | `data.valoresAcordo.valorRecebidoPeriodo` | número finito não negativo, obrigatório; sem total por usuário para reconciliar | `acordos_posicao.recebido_periodo` |
+| Valores a vencer | `data.valoresAcordo.valorAVencer` | número finito não negativo, obrigatório | `acordos_posicao.a_vencer` |
+| Valores vencidos | `data.valoresAcordo.valorVencido` | número finito não negativo, obrigatório | `acordos_posicao.vencido` |
 | Timestamp da resposta | `timestamp` | texto não vazio; se ausente, gerado localmente | não valida formato temporal | `acordos_posicao.capturado_em` |
 
 O usuário é identificado por `usuario` (texto não vazio) e o nome é opcional (`nome`, texto ou null). Um mesmo identificador com nomes não vazios conflitantes dentro do payload bloqueia a normalização. Usuários repetidos dentro do mesmo grupo bloqueiam; um usuário pode aparecer em grupos diferentes. A tabela `usuarios` é atualizada pelo identificador global.
@@ -53,18 +53,18 @@ Desde a proteção da Fase 6, os caminhos de gravação por arquivo e API e o mo
 
 ## Questões que exigem decisão financeira
 
-1. Confirmar se valores negativos são válidos (estornos, ajustes, cancelamentos) ou devem bloquear importação. O importador atualmente aceita números negativos finitos nos campos monetários; não mudar essa regra sem decisão de negócio.
-2. Definir moeda, arredondamento e tolerância por campo; a tolerância atual de R$ 0,01 é aplicada pelo auditor a totais monetários aditivos.
-3. Definir se `valorTotal`, `pagos` e `pendente` têm relação contábil obrigatória, incluindo pagamentos parciais, renegociações e cancelamentos.
-4. Definir o significado temporal de `valoresAcordo`: recebido no período é fluxo do período; a vencer/vencido parecem posição, mas isso não foi comprovado pela API/negócio.
-5. Definir se reimportar o mesmo dia deve substituir o snapshot ou preservar múltiplas capturas. Atualmente fatos do dia são substituídos, enquanto snapshots usam `capturado_em` como chave e podem manter várias capturas.
+1. **Decidido:** qualquer campo monetário negativo bloqueia a validação/importação. Estornos e ajustes, se representados negativamente pelo CRM, precisam ser tratados fora desta regra ou ter formato aprovado explicitamente; o importador não os aceitará como valores monetários negativos.
+2. **Decidido provisoriamente para reconciliação:** tolerância monetária de R$ 0,01. Diferenças superiores a um centavo bloqueiam; quantidades inteiras precisam coincidir exatamente. O esquema SQLite continua usando `REAL`, então a política de precisão para persistência/migração permanece pendente.
+3. **Pendente:** confirmar se o valor total do acordo deve ser igual ao valor pago mais o pendente em todos os casos, incluindo pagamentos parciais, renegociações, descontos e cancelamentos.
+4. **Decidido conforme a definição informada:** `valorRecebidoPeriodo` é o total efetivamente recebido no intervalo; `valorAVencer` é o saldo ainda pendente cujo vencimento não chegou; `valorVencido` é o saldo pendente cujo vencimento passou. Estes dois últimos representam a posição da carteira, não valores que devam ser somados entre snapshots.
+5. **Comportamento atual e histórico:** a tabela `acordos_posicao` preserva capturas com diferentes `capturado_em`; não somar snapshots de dias/horários diferentes. Os fatos do mesmo dia são substituídos quando esse dia é reimportado; isso é distinto do histórico de posições.
 6. Aprovar o formato e a semântica de `timestamp`; quando ausente, o importador inventa um horário local de captura, que não representa o horário da resposta do CRM.
 
 ## Precisão monetária e histórico
 
 O esquema atual usa SQLite `REAL` (ponto flutuante binário), sujeito a pequenas diferenças de representação. Não migrar automaticamente: antes, comparar todos os valores existentes em centavos, definir política para valores com mais de duas casas e preparar migração com backup, verificação de contagens e reconciliação antes/depois. Recomendação provisória: usar `Decimal` na camada de validação/cálculo e persistir centavos inteiros somente após aprovação e plano de migração compatível; até lá, converter de strings decimais quando possível, explicitar tolerância e evitar igualdade exata entre floats.
 
-Fatos diários (`fatos`) e snapshots (`acordos_posicao`) são conjuntos diferentes. Um fato diário representa métricas associadas ao dia importado; um snapshot registra valores de posição na captura. Sem especificação do CRM, não se deve tratar snapshots como histórico de movimentações, nem somá-los entre dias.
+Fatos diários (`fatos`) e snapshots (`acordos_posicao`) são conjuntos diferentes. Conforme definição recebida, `valorRecebidoPeriodo` representa o fluxo recebido no intervalo; `valorAVencer` e `valorVencido` são a posição da carteira na captura, classificada pela data de vencimento. Cada snapshot deve ser preservado como fotografia daquele instante, não como movimentação e não deve ser somado aos snapshots de outros instantes.
 
 ## Evidência necessária para fechar homologação
 
