@@ -225,7 +225,7 @@ O arquivo **`DECISOES_PENDENCIAS_MIGRACAO.md`**, recebido em 14/10/2026, registr
 - [x] Revisão de consistência técnica e plano de execução preparados em documentos da mesma branch.
 - [ ] Ratificação/assinatura formal das decisões e das resoluções dos bloqueadores.
 - [ ] Inventário completo dos consumidores, testes e workflows CI: pendente.
-- [ ] Testes automatizados executados nesta sessão: não executados.
+- [x] GitHub Actions `Testes CAIXA FUTURO` — execução [#36](https://github.com/IsaacTexCotton/Dashboard/actions/runs/38568526243) concluiu `success` no commit `c3f50f4cb8c4b62d483ad924e7ce8076487c137e`, incluindo os testes automatizados existentes e validação da amostra sem CRM; testes específicos da migração ainda não foram implementados/executados.
 - [ ] Backup real verificado/restauração testada: não executados.
 - [ ] Payload do CRM/ERP real sanitizado: não consultado nem recebido nesta análise.
 - [ ] Migração, alteração de schema, dupla escrita, corte ou descomissionamento de REAL: não executados.
