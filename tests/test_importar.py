@@ -256,6 +256,39 @@ class PersistenciaTestes(unittest.TestCase):
             self.assertEqual(codigo, 1)
             self.assertFalse(db.exists())
 
+    def test_importacao_local_bloqueia_valor_negativo_antes_de_criar_banco(self):
+        with tempfile.TemporaryDirectory() as td:
+            db = Path(td) / "nao_deve_existir.db"
+            arquivo = Path(td) / "negativo.json"
+            payload = json.loads(json.dumps(AMOSTRA))
+            payload["data"]["valoresAcordo"]["valorVencido"] = -1
+            arquivo.write_text(json.dumps(payload), encoding="utf-8")
+            env = os.environ.copy()
+            env["DASHBOARD_DB"] = str(db)
+            proc = subprocess.run(
+                [sys.executable, str(ROOT / "importar.py"), "--arquivo", str(arquivo)],
+                cwd=ROOT, env=env, text=True, capture_output=True, check=False,
+            )
+            self.assertEqual(proc.returncode, 2, proc.stdout + proc.stderr)
+            self.assertIn("valor monetário negativo não permitido", proc.stderr)
+            self.assertFalse(db.exists())
+
+    def test_importacao_api_bloqueia_valor_negativo_antes_de_criar_banco(self):
+        with tempfile.TemporaryDirectory() as td:
+            db = Path(td) / "nao_deve_existir.db"
+            payload = json.loads(json.dumps(AMOSTRA))
+            payload["data"]["promessas"]["porUsuario"][0]["quebrado"] = -1
+            with patch.object(importar, "DB", str(db)), patch.dict(
+                os.environ, {"CRM_URL": "https://crm.invalid", "CRM_TOKEN": "token-de-teste"}
+            ), patch("importar.buscar", return_value=payload), patch(
+                "importar.dias", return_value=iter(["2026-10-13"])
+            ):
+                with self.assertRaisesRegex(
+                    importar.ErroValidacao, "valor monetário negativo não permitido"
+                ):
+                    importar.main([])
+            self.assertFalse(db.exists())
+
     def test_total_agregado_ausente_bloqueia_importacao(self):
         with tempfile.TemporaryDirectory() as td:
             db = Path(td) / "nao_deve_existir.db"

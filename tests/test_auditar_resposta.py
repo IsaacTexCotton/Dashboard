@@ -44,6 +44,29 @@ class AuditoriaTestes(unittest.TestCase):
         with self.assertRaisesRegex(importar.ErroValidacao, "valor monetário negativo não permitido"):
             auditar_resposta.auditar(payload)
 
+    def test_todos_totais_monetarios_agregados_negativos_sao_rejeitados(self):
+        caminhos = [
+            ("depositos", "valorTotal"),
+            ("acordos", "valorTotal"),
+            ("acordos", "pagosTotal"),
+            ("acordos", "pendenteTotal"),
+            ("promessas", "prometidoTotal"),
+            ("promessas", "cumpridoTotal"),
+            ("promessas", "emAbertoTotal"),
+            ("promessas", "quebradoTotal"),
+        ]
+        for caminho in caminhos:
+            with self.subTest(campo=".".join(caminho)):
+                payload = copy.deepcopy(AMOSTRA)
+                alvo = payload["data"]
+                for chave in caminho[:-1]:
+                    alvo = alvo[chave]
+                alvo[caminho[-1]] = -1
+                with self.assertRaisesRegex(
+                    importar.ErroValidacao, "valor monetário negativo não permitido"
+                ):
+                    auditar_resposta.auditar(payload)
+
     def test_divergencia_de_dois_centavos_bloqueia(self):
         payload = copy.deepcopy(AMOSTRA)
         payload["data"]["depositos"]["valorTotal"] = 25000.02
