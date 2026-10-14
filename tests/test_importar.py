@@ -35,6 +35,19 @@ class NormalizacaoTestes(unittest.TestCase):
         with self.assertRaisesRegex(importar.ErroValidacao, "success=true"):
             importar.normalizar({}, "2026-10-13")
 
+    def test_timestamp_da_origem_e_preservado_exatamente(self):
+        payload = json.loads(json.dumps(AMOSTRA))
+        timestamp = "2026-10-13T16:56:19.816961"
+        payload["timestamp"] = timestamp
+        _, _, posicao = importar.normalizar(payload, "2026-10-13")
+        self.assertEqual(posicao[0], timestamp)
+
+    def test_rejeita_timestamp_ausente_sem_gerar_horario_local(self):
+        payload = json.loads(json.dumps(AMOSTRA))
+        payload.pop("timestamp", None)
+        with self.assertRaisesRegex(importar.ErroValidacao, "timestamp: campo obrigatório"):
+            importar.normalizar(payload, "2026-10-13")
+
     def test_rejeita_nome_conflitante_para_mesmo_usuario_entre_grupos(self):
         payload = json.loads(json.dumps(AMOSTRA))
         item = payload["data"]["acordos"]["porUsuario"][0]
