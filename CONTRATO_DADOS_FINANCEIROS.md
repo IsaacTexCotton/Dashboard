@@ -28,15 +28,15 @@ Todas as propriedades abaixo são observadas na amostra fictícia e implementada
 | Promessas: prometido | `data.promessas.porUsuario[].prometido` | número finito não negativo, obrigatório | valores negativos são rejeitados | `fatos.valor`, tipo `promessa` |
 | Promessas: cumprido | `data.promessas.porUsuario[].cumprido` | número finito não negativo, obrigatório | valores negativos são rejeitados | `fatos.valor_pago`, tipo `promessa` |
 | Promessas: em aberto | `data.promessas.porUsuario[].emAberto` | número finito não negativo, obrigatório | valores negativos são rejeitados | `fatos.valor_aberto`, tipo `promessa` |
-| Promessas: quebrado | `data.promessas.porUsuario[].quebrado` | número finito, obrigatório | negativo não é bloqueado atualmente | `fatos.valor_quebrado`, tipo `promessa` |
+| Promessas: quebrado | `data.promessas.porUsuario[].quebrado` | número finito não negativo, obrigatório | valores negativos são rejeitados | `fatos.valor_quebrado`, tipo `promessa` |
 | Promessas: totais agregados | `quantidadeTotal`, `prometidoTotal`, `cumpridoTotal`, `emAbertoTotal`, `quebradoTotal` em `data.promessas` | opcionais na normalização; ausentes geram PENDENTE no auditor e bloqueiam importação | contagem exata; monetários com tolerância R$ 0,01 | não persistidos separadamente |
 | Contatos: registros totais | `data.contatos.porUsuario[].registrosTotais` | inteiro >= 0, obrigatório | inteiro não negativo | `fatos.qtd`, tipo `contato` |
 | Contatos: contatos únicos por usuário | `data.contatos.porUsuario[].contatosUnicos` | inteiro >= 0, obrigatório | inteiro não negativo | `fatos.qtd_unicos`, tipo `contato` |
 | Contatos: registros agregados | `data.contatos.registrosTotaisTotal` | opcional para importador; auditado quando presente | reconciliação inteira exata | não persistido separadamente |
 | Contatos únicos agregados | `data.contatos.contatosUnicosTotal` | observado na amostra; não aditivo | auditor exibe como não aditivo, sem reconciliação | não persistido separadamente |
-| Recebido no período | `data.valoresAcordo.valorRecebidoPeriodo` | número finito não negativo, obrigatório; sem total por usuário para reconciliar | `acordos_posicao.recebido_periodo` |
-| Valores a vencer | `data.valoresAcordo.valorAVencer` | número finito não negativo, obrigatório | `acordos_posicao.a_vencer` |
-| Valores vencidos | `data.valoresAcordo.valorVencido` | número finito não negativo, obrigatório | `acordos_posicao.vencido` |
+| Recebido no período | `data.valoresAcordo.valorRecebidoPeriodo` | número finito não negativo, obrigatório | sem total por usuário para reconciliar | `acordos_posicao.recebido_periodo` |
+| Valores a vencer | `data.valoresAcordo.valorAVencer` | número finito não negativo, obrigatório | rejeita negativos | `acordos_posicao.a_vencer` |
+| Valores vencidos | `data.valoresAcordo.valorVencido` | número finito não negativo, obrigatório | rejeita negativos | `acordos_posicao.vencido` |
 | Timestamp da resposta | `timestamp` | texto não vazio; se ausente, gerado localmente | não valida formato temporal | `acordos_posicao.capturado_em` |
 
 O usuário é identificado por `usuario` (texto não vazio) e o nome é opcional (`nome`, texto ou null). Um mesmo identificador com nomes não vazios conflitantes dentro do payload bloqueia a normalização. Usuários repetidos dentro do mesmo grupo bloqueiam; um usuário pode aparecer em grupos diferentes. A tabela `usuarios` é atualizada pelo identificador global.
@@ -70,5 +70,8 @@ Fatos diários (`fatos`) e snapshots (`acordos_posicao`) são conjuntos diferent
 
 - JSON real sanitizado e autorizado, preservando estrutura, tipos, campos opcionais e relações entre totais e linhas; remover nomes/identificadores pessoais ou substituí-los consistentemente por pseudônimos.
 - Identificação do período e da origem da resposta, sem tokens, cookies, cabeçalhos de autenticação ou dados pessoais desnecessários.
-- Aprovação do responsável financeiro para semântica, tolerância, valores negativos, contatos únicos, snapshots e política de precisão.
+- Confirmação da regra contábil `valor do acordo = pago + pendente`, incluindo renegociações e ajustes.
+- Definição de como validar contatos únicos globalmente, sem somar contagens por negociador sem regra de deduplicação.
+- Confirmação de precisão/arredondamento e eventual plano de migração do SQLite `REAL`.
+- Validação direta do JSON sanitizado com os scripts publicados e exercício operacional de backup/recuperação antes de produção.
 - Execução local auditada com o JSON fornecido; não consultar o CRM para obter a evidência.
