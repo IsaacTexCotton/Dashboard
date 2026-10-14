@@ -171,7 +171,7 @@ python backfill_monetario.py /tmp/migracao-monetaria/homologacao-migrada.sqlite3
 
 Sem `--aplicar`, a CLI exige que o arquivo já exista, abre SQLite em modo somente leitura e retorna JSON com `modo=simulacao`, número de linhas de `fatos`, snapshots, `updates_previstos`, `colunas_a_preencher`, campos pendentes, `colunas_real_alteradas=0` e `conciliacao_concluida=false`. Guardar a saída com identificação do SHA do código, hash/contagens da base sintética e comando usado.
 
-O relatório de simulação deve ser repetível sobre a mesma imagem de banco. Divergências de destinos já preenchidos, valores históricos não finitos, sinais proibidos, tipo desconhecido e overflow são erros para diagnóstico; o conversor não deve sobrescrever um valor em centavos já preenchido e divergente. A simulação não é reconciliação financeira nem substitui os 30 registros reais.
+O teste `test_backfill_simulacao_30_fatos_e_3_snapshots_sem_escrita` cria uma base descartável com 30 fatos sintéticos e 3 snapshots: resultado esperado `updates_previstos=26`, `colunas_a_preencher=69`, `campos_pendentes_origem_null=0`, `colunas_real_alteradas=0` e `conciliacao_concluida=false`. O teste compara os campos legados e os alvos antes/depois e confirma que a fase permanece `schema_adicionado`. Esses números são resultado de uma fixture sintética determinística, não contagens do banco empresarial nem resultado de backfill real.\n\nO relatório de simulação deve ser repetível sobre a mesma imagem de banco. Divergências de destinos já preenchidos, valores históricos não finitos, sinais proibidos, tipo desconhecido e overflow são erros para diagnóstico; o conversor não deve sobrescrever um valor em centavos já preenchido e divergente. A simulação não é reconciliação financeira nem substitui os 30 registros reais.
 
 **Proibido nesta etapa:** executar `migrar_schema_monetario.py` contra DB real, usar CLI com `--aplicar`, alterar o banco de produção, ativar triggers em produção ou fazer cutover.
 
@@ -229,7 +229,7 @@ A consulta efetuada para o status do commit exato da `main` não retornou checks
 - [x] Manter PR #11 fechada sem merge e preservar a branch antiga.
 - [x] Documentar o contrato das 11 métricas e a distinção `NULL`/zero.
 - [x] Adicionar 36 fixtures explicitamente sintéticas e testes de conversão estrita.
-- [x] Adicionar teste de backup, verificação e restauração lógica em SQLite descartável.
+- [x] Adicionar teste de backup, verificação e restauração lógica em SQLite descartável.\n- [x] Adicionar simulação reproduzível de backfill com 30 fatos e 3 snapshots sintéticos, comparando estado anterior/posterior e contagens previstas.
 - [x] Fortalecer a expectativa do teste de subcentavos com o tipo de erro público (`ErroValidacao`), sem alterar o runtime.
 - [x] Documentar o inventário de consumidores conhecido, a lacuna de exaustividade e a busca reproduzível.
 - [x] Documentar comandos operacionais; nenhum comando de alteração foi apontado para DB/CRM de produção.
