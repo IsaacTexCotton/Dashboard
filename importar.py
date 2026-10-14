@@ -83,6 +83,8 @@ def _numero(valor: Any, campo: str) -> float:
         raise ErroValidacao(f"{campo}: número fora do intervalo suportado") from exc
     if not math.isfinite(numero):
         raise ErroValidacao(f"{campo}: número não finito")
+    if numero < 0:
+        raise ErroValidacao(f"{campo}: valor monetário negativo não permitido")
     return numero
 
 
