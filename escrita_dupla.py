@@ -8,10 +8,21 @@ from __future__ import annotations
 
 import math
 import sqlite3
+from decimal import Decimal
 from typing import Any
 
-from modelo_monetario import FATO_METRICAS_CENTAVOS, POSICAO_METRICAS_CENTAVOS
-from precisao_monetaria import ErroMonetario, INT64_MAX, INT64_MIN
+from modelo_monetario import (
+    FATO_METRICAS_CENTAVOS,
+    POSICAO_METRICAS_CENTAVOS,
+    mapear_fato_centavos,
+    mapear_posicao_centavos,
+)
+from precisao_monetaria import (
+    ErroMonetario,
+    INT64_MAX,
+    INT64_MIN,
+    valor_final_centavos,
+)
 
 COLUNAS_FATO_LEGADO = (
     "data",
@@ -74,6 +85,135 @@ def _real_legado(valor: Any, campo: str) -> int | float:
     if not math.isfinite(float(valor)):
         raise ErroMonetario(f"{campo}: REAL legado não finito")
     return valor
+
+
+def _real_de_decimal_validado(
+    valor: Any,
+    campo: str,
+    *,
+    negativos_permitidos: bool,
+) -> float:
+    """Cast confinado ao adaptador de compatibilidade REAL."""
+    valor_final_centavos(
+        valor,
+        campo=campo,
+        negativos_permitidos=negativos_permitidos,
+    )
+    if isinstance(valor, bool):
+        raise ErroMonetario(f"{campo}: booleano não permitido")
+    if isinstance(valor, Decimal):
+        decimal_origem = valor
+    elif isinstance(valor, int):
+        decimal_origem = Decimal(valor)
+    else:
+        raise ErroMonetario(
+            f"{campo}: o adaptador REAL aceita somente int/Decimal validados"
+        )
+    convertido = float(decimal_origem)
+    if not math.isfinite(convertido):
+        raise ErroMonetario(f"{campo}: conversão para REAL não finita")
+    return convertido
+
+
+def preparar_fato_duplo(
+    *,
+    dia: str,
+    usuario: str,
+    tipo: str,
+    quantidade: int,
+    importado_em: str,
+    campos_monetarios: dict[str, Any],
+    qtd_unicos: int = 0,
+) -> dict[str, dict[str, Any]]:
+    """Gera os dois payloads a partir da mesma entrada decimal exata.
+
+    O Decimal validado gera diretamente os inteiros em centavos. Somente o
+    adaptador legado faz cast para float/REAL. Este helper não grava no banco.
+    """
+    dia = _texto(dia, "dia")
+    usuario = _texto(usuario, "usuario")
+    tipo = _texto(tipo, "tipo")
+    importado_em = _texto(importado_em, "importado_em")
+    quantidade = _inteiro_nao_negativo(quantidade, "quantidade")
+    qtd_unicos = _inteiro_nao_negativo(qtd_unicos, "qtd_unicos")
+    if tipo not in _APLICAVEIS_POR_TIPO:
+        raise ErroMonetario(f"tipo de fato desconhecido: {tipo!r}")
+    if not isinstance(campos_monetarios, dict):
+        raise ErroMonetario("campos_monetarios: esperado objeto")
+
+    centavos = mapear_fato_centavos(tipo, campos_monetarios)
+    origem_por_legado = {
+        "deposito": {"valor": "valor"},
+        "acordo": {"valor": "valor", "pagos": "valor_pago", "pendente": "valor_aberto"},
+        "promessa": {
+            "prometido": "valor",
+            "cumprido": "valor_pago",
+            "emAberto": "valor_aberto",
+            "quebrado": "valor_quebrado",
+        },
+        "contato": {},
+    }[tipo]
+    permitidos = {
+        "deposito": {"valor"},
+        "acordo": {"pendente"},
+        "promessa": {"emAberto"},
+        "contato": set(),
+    }[tipo]
+    valores_legados = {
+        "valor": 0.0,
+        "valor_pago": 0.0,
+        "valor_aberto": 0.0,
+        "valor_quebrado": 0.0,
+    }
+    for campo_origem, coluna_legada in origem_por_legado.items():
+        valores_legados[coluna_legada] = _real_de_decimal_validado(
+            campos_monetarios[campo_origem],
+            f"{tipo}.{campo_origem}",
+            negativos_permitidos=campo_origem in permitidos,
+        )
+
+    legado = {
+        "data": dia,
+        "usuario": usuario,
+        "tipo": tipo,
+        "qtd": quantidade,
+        "qtd_unicos": qtd_unicos,
+        **valores_legados,
+        "importado_em": importado_em,
+    }
+    return {"legado": legado, "centavos": centavos}
+
+
+def preparar_posicao_dupla(
+    *,
+    capturado_em: str,
+    dia: str,
+    campos_monetarios: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, int]]:
+    """Prepara snapshot REAL/centavos a partir das mesmas entradas Decimal."""
+    capturado_em = _texto(capturado_em, "capturado_em")
+    dia = _texto(dia, "dia")
+    centavos = mapear_posicao_centavos(campos_monetarios)
+    legado = {
+        "capturado_em": capturado_em,
+        "data": dia,
+        "recebido_periodo": _real_de_decimal_validado(
+            campos_monetarios["valorRecebidoPeriodo"],
+            "valoresAcordo.valorRecebidoPeriodo",
+            negativos_permitidos=True,
+        ),
+        "a_vencer": _real_de_decimal_validado(
+            campos_monetarios["valorAVencer"],
+            "valoresAcordo.valorAVencer",
+            negativos_permitidos=False,
+        ),
+        "vencido": _real_de_decimal_validado(
+            campos_monetarios["valorVencido"],
+            "valoresAcordo.valorVencido",
+            negativos_permitidos=False,
+        ),
+    }
+    return legado, centavos
 
 
 def _validar_centavos_fato(tipo: str, centavos: dict[str, Any]) -> tuple[Any, ...]:
