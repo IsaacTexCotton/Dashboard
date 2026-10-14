@@ -101,40 +101,43 @@ Foram identificados **6 módulos de teste, com 65 métodos `test_*`** na revisã
 - Colunas REAL devem permanecer inalteradas; usar colunas paralelas e conciliação.
 - Valores de face, pagamentos confirmados, pendentes de baixa, créditos e abatimentos têm semânticas diferentes. Não liberar negativos globalmente nem presumir que pagos e pendente cobrem todos os cenários contábeis.
 
-### Matriz provisória de sinais — requer confirmação por campo
+### Matriz proposta de sinais v1.1 — pendente de assinatura e validação da origem
 
-| Campo | Regra provisória | Pendência |
+| Campo/métrica | Regra proposta | Validação que continua necessária |
 |---|---|---|
-| Depósito | manter não negativo por ora | confirmar se estornos são eventos separados ou valores negativos |
-| Valor/face de acordo | manter não negativo por ora | confirmar tratamento de crédito, cancelamento e renegociação |
-| Pagos/cumpridos | manter não negativo por ora | confirmar se estornos são eventos separados |
-| Pendente/em aberto | manter não negativo por ora | confirmar se excesso de pagamento pode gerar saldo negativo |
-| Quebrado | manter não negativo por ora | confirmar semântica da métrica |
-| Recebido no período | manter não negativo por ora | confirmar se total é bruto/líquido de devoluções |
-| A vencer/vencido | manter não negativo por ora | confirmar representação de crédito/abatimento na carteira |
+| Depósito (`deposito_valor_centavos`) | negativos permitidos | confirmar com dados de origem sanitizados se estorno/crédito usa sinal negativo ou evento separado |
+| Valor/face de acordo (`acordo_valor_centavos`) | não negativo | confirmar tratamento de crédito, cancelamento e renegociação |
+| Pago/cumprido (`acordo_pago_centavos`, `promessa_cumprido_centavos`) | não negativos | confirmar se estornos são eventos separados |
+| Pendente/em aberto (`acordo_pendente_centavos`, `promessa_em_aberto_centavos`) | negativos permitidos | confirmar excedente de pagamento, crédito e abatimentos |
+| Quebrado (`promessa_quebrado_centavos`) | não negativo | confirmar semântica da métrica |
+| Recebido no período (`recebido_periodo_centavos`) | negativos permitidos | confirmar tratamento de devoluções/estornos e se o total é bruto ou líquido |
+| A vencer/vencido (`a_vencer_centavos`, `vencido_centavos`) | não negativos | confirmar representação de crédito/abatimento na carteira |
 
-A política permite negativos somente quando a semântica do campo os autoriza. Até decisão documentada, manter o comportamento atual em produção; não inferir regra contábil a partir dos nomes.
+Esta é a matriz de sinais **proposta** para o contrato v1.1. Enquanto a v1.1 não for assinada, não alterar o comportamento de produção. Após assinatura, validar a semântica com extração autorizada e sanitizada e testes por campo; não inferir regra contábil somente pelos nomes.
 
 ## 5. Arquitetura recomendada
 
-1. Entrada: parsear decimais do JSON com parse_float=Decimal ou preservar os tokens numéricos; validar finitude e tipos, sem float em cálculos financeiros.
+1. **Entrada:** validar o token JSON bruto com `parse_int` e `parse_float` (ou parser equivalente), aplicando gramática decimal sem `e/E`; rejeitar `NaN`/infinito via `parse_constant`, booleanos por verificação explícita de tipo e strings não autorizadas pelo contrato. Não passar por `float` em cálculos financeiros.
 2. Centralizar real_para_centavos(valor_legado), com Decimal e half-up simétrico para longe de zero, saída inteira e tratamento explícito de NULL, valores não finitos e overflow. Para REAL legado, a representação original pode já estar perdida; documentar a conversão determinística e validar com fixtures sintéticas. Não prometer recuperar precisão inexistente.
 3. Criar colunas INTEGER paralelas com sufixo _centavos para montantes finais. Preços, quantidades fracionárias e taxas, se aplicáveis, usam escala _eN.
-4. Valores de entrada com mais de duas casas devem ser tratados como texto decimal e arredondados uma única vez no resultado final. Valores oficiais de origem (boleto, extrato, custas) não devem ser recalculados.
+4. **Entrada decimal conforme classe do campo:** para valor monetário final, aceitar casas além da segunda somente se todos os dígitos excedentes forem zero (`1.230` aceito; `1.231` rejeitado sem arredondamento). Para grandezas de cálculo, preservar a escala `_eN` contratada com aritmética exata e aplicar *half-up* somente ao resultado monetário final. Valores oficiais de origem (boleto, extrato, custas) não devem ser recalculados.
 5. Manter catálogo explícito de semântica e sinal por campo; nunca corrigir sinal silenciosamente.
 6. Conciliar inteiros em centavos por igualdade exata. Relatório por campo/período deve apresentar contagem, total legado convertido, total novo e delta em centavos, separando fluxos de snapshots.
 7. Migração aditiva e idempotente: conferir schema, criar apenas colunas ausentes, usar chave primária estável, registrar inválidos sem expor dados pessoais e abortar em incompatibilidade. Não sobrescrever destino divergente sem modo de reparo aprovado.
 
-### Ambiguidade crítica: legado somente leitura versus dupla escrita
+### Decisão de desenho consolidada: `REAL congelado` e dupla escrita
 
-A política exige que colunas REAL existentes sejam somente leitura para o novo código e também menciona período de dupla escrita. Isso é incompatível se dupla escrita significar atualizar as colunas REAL. Recomendação para decisão humana: legado estritamente somente leitura; novos escritores gravam somente _centavos; conciliação lê ambos sem mutar legado. Se consumidores antigos exigirem REAL atualizado, bloquear até exceção formal ou camada de compatibilidade aprovada. Não implementar exceção unilateralmente.
+A decisão proposta mais recente resolve a ambiguidade: `REAL congelado` significa preservar o schema e a semântica legados, não interromper a escrita. Após a assinatura formal da Política v1.1/contrato e aprovação dos gates técnicos, o escritor mantém o caminho legado em `REAL` com semântica inalterada e grava as colunas novas `INTEGER`/`_centavos` na **mesma transação SQLite**. Falha em qualquer lado deve reverter ambos.
 
+A escrita em `REAL` permanece ativa durante a dupla escrita, durante o corte e por pelo menos **90 dias corridos após o corte**; depois disso, continua até o descomissionamento formal aprovado pela Controladoria. O anexo de consumidores deve registrar leitores ainda dependentes de `REAL` e a data/gate em que cada leitor muda. O teste de rollback após o corte precisa criar dados novos pós-corte e confirmar que a leitura revertida para `REAL` os encontra.
+
+Essa é uma minuta de desenho, não uma autorização de implementação: nenhuma alteração funcional, coluna ou backfill antes da ratificação/assinatura formal e dos gates pertinentes.
 ## 6. Plano faseado executável — ainda não executado
 
 ### Fase 0 — inventário e semântica
 - Mapear todos os leitores/escritores, SQL, views, gráficos, relatórios, exportações e integrações.
 - Confirmar formato decimal oficial e sinais por campo.
-- Resolver nomes e modelo das colunas novas e a ambiguidade da dupla escrita.
+- Confirmar no contrato os nomes semânticos por métrica, as regras de `NULL`/`CHECK` e a dupla escrita transacional já descrita na minuta; recolher ratificação formal antes de implementação.
 - Gate: revisão de engenharia e semântica aprovada pela área financeira.
 
 ### Fase 1 — backup e baseline
@@ -156,9 +159,9 @@ A política exige que colunas REAL existentes sejam somente leitura para o novo 
 - Gate: contagens preservadas e legado inalterado.
 
 ### Fase 4 — leitura paralela e conciliação
-- Manter leitura de legado até aprovação do corte; não gravar no legado.
+- Manter a leitura legada até aprovação do corte; após assinatura formal e liberação dos gates, gravar `REAL` e `_centavos` na mesma transação SQLite, preservando a semântica do escritor legado.
 - Comparar por campo e período, reportar diferenças de 1 centavo e explicar todas as divergências.
-- Dupla escrita no REAL só pode ocorrer mediante exceção formal à política.
+- Manter a escrita em `REAL` durante e após o corte por pelo menos 90 dias corridos e até o descomissionamento formal aprovado pela Controladoria.
 - Gate Controladoria: zero divergência inexplicada, semântica confirmada e aprovação escrita.
 
 ### Fase 5 — corte e rollback
