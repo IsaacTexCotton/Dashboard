@@ -6,6 +6,7 @@ from migrar_schema_monetario import (
     ErroMigracaoMonetaria,
     FASES_VALIDAS,
     TABELA_ESTADO,
+    ativar_triggers_obrigatoriedade,
     definir_fase_migracao,
     migrar_schema_monetario,
 )
@@ -200,6 +201,81 @@ class TestMigracaoSchemaMonetario(unittest.TestCase):
             )
             with self.assertRaises(ErroMigracaoMonetaria):
                 definir_fase_migracao(con, "backfill_em_andamento")
+        finally:
+            con.close()
+
+    def test_fase_nao_pode_pular_backfill(self):
+        con = sqlite3.connect(":memory:")
+        try:
+            con.executescript(SCHEMA_LEGADO)
+            con.commit()
+            migrar_schema_monetario(con)
+            with self.assertRaises(ErroMigracaoMonetaria):
+                definir_fase_migracao(con, "backfill_conciliado")
+            self.assertEqual(
+                con.execute(f"SELECT fase FROM {TABELA_ESTADO}").fetchone()[0],
+                "schema_adicionado",
+            )
+        finally:
+            con.close()
+
+    def test_triggers_so_ativam_depois_de_backfill_conciliado(self):
+        con = banco_legado()
+        try:
+            migrar_schema_monetario(con)
+            with self.assertRaises(ErroMigracaoMonetaria):
+                ativar_triggers_obrigatoriedade(con)
+            definir_fase_migracao(con, "backfill_em_andamento")
+            con.execute(
+                "UPDATE fatos SET deposito_valor_centavos=1234 WHERE tipo='deposito'"
+            )
+            con.commit()
+            definir_fase_migracao(con, "backfill_conciliado")
+            criados = ativar_triggers_obrigatoriedade(con)
+            self.assertEqual(len(criados), 4)
+            self.assertEqual(ativar_triggers_obrigatoriedade(con), [])
+            with self.assertRaises(sqlite3.IntegrityError):
+                con.execute(
+                    "INSERT INTO fatos(data,usuario,tipo,qtd,qtd_unicos,valor,valor_pago,"
+                    "valor_aberto,valor_quebrado,importado_em) "
+                    "VALUES ('2026-10-15','sem-centavos','deposito',1,0,1.0,0,0,0,'agora')"
+                )
+            con.rollback()
+            con.execute(
+                "INSERT INTO fatos(data,usuario,tipo,qtd,qtd_unicos,valor,valor_pago,"
+                "valor_aberto,valor_quebrado,importado_em,deposito_valor_centavos) "
+                "VALUES ('2026-10-15','com-centavos','deposito',1,0,1.0,0,0,0,'agora',100)"
+            )
+            con.commit()
+            with self.assertRaises(sqlite3.IntegrityError):
+                con.execute(
+                    "UPDATE fatos SET deposito_valor_centavos=NULL "
+                    "WHERE usuario='com-centavos'"
+                )
+        finally:
+            con.close()
+
+    def test_trigger_posicao_exige_tres_metricas_apos_conciliacao(self):
+        con = banco_legado()
+        try:
+            migrar_schema_monetario(con)
+            definir_fase_migracao(con, "backfill_em_andamento")
+            con.execute(
+                "UPDATE fatos SET deposito_valor_centavos=1234 WHERE tipo='deposito'"
+            )
+            con.execute(
+                "INSERT INTO acordos_posicao(capturado_em,data,recebido_periodo,"
+                "a_vencer,vencido,recebido_periodo_centavos,a_vencer_centavos,"
+                "vencido_centavos) VALUES ('ts','2026-10-14',1,2,3,100,200,300)"
+            )
+            con.commit()
+            definir_fase_migracao(con, "backfill_conciliado")
+            ativar_triggers_obrigatoriedade(con)
+            with self.assertRaises(sqlite3.IntegrityError):
+                con.execute(
+                    "INSERT INTO acordos_posicao(capturado_em,data,recebido_periodo,a_vencer,vencido) "
+                    "VALUES ('ts2','2026-10-14',1,2,3)"
+                )
         finally:
             con.close()
 
