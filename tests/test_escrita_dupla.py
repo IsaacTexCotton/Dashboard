@@ -8,6 +8,7 @@ from escrita_dupla import (
     preparar_fato_duplo,
     preparar_posicao_dupla,
 )
+from precisao_monetaria import ErroMonetario
 from modelo_monetario import mapear_fato_centavos, mapear_posicao_centavos
 
 DIA = "2026-10-14"
@@ -224,12 +225,11 @@ class TestEscritaDupla(unittest.TestCase):
             semear_fato_legado(con)
             con.execute("""
               CREATE TRIGGER falha_centavos BEFORE INSERT ON fatos
-              WHEN NEW.acordo_valor_centavos=999999
+              WHEN NEW.acordo_valor_centavos=10000
               BEGIN SELECT RAISE(ABORT, 'falha simulada em centavos'); END;
             """)
             con.commit()
             fatos = fatos_exemplo()
-            fatos[1]["centavos"]["acordo_valor_centavos"] = 999999
             with self.assertRaises(sqlite3.IntegrityError):
                 gravar_dia_duplo(con, **argumentos(fatos))
             self.assertEqual(
@@ -249,12 +249,11 @@ class TestEscritaDupla(unittest.TestCase):
             semear_fato_legado(con)
             con.execute("""
               CREATE TRIGGER falha_legado BEFORE INSERT ON fatos
-              WHEN NEW.valor=777.0
+              WHEN NEW.tipo='acordo'
               BEGIN SELECT RAISE(ABORT, 'falha simulada no legado'); END;
             """)
             con.commit()
             fatos = fatos_exemplo()
-            fatos[1]["legado"]["valor"] = 777.0
             with self.assertRaises(sqlite3.IntegrityError):
                 gravar_dia_duplo(con, **argumentos(fatos))
             self.assertEqual(
@@ -272,6 +271,23 @@ class TestEscritaDupla(unittest.TestCase):
             self.assertEqual(gravar_dia_duplo(con, **argumentos()), 2)
             self.assertFalse(con.in_transaction)
             self.assertEqual(con.execute("SELECT COUNT(*) FROM fatos").fetchone()[0], 2)
+        finally:
+            con.close()
+
+    def test_payload_legado_e_centavos_desalinhados_e_rejeitado_antes_da_transacao(self):
+        con = criar_banco()
+        try:
+            semear_fato_legado(con)
+            fatos = fatos_exemplo()
+            fatos[0]["legado"]["valor"] = 12.35
+            with self.assertRaises(ErroMonetario):
+                gravar_dia_duplo(con, **argumentos(fatos))
+            self.assertFalse(con.in_transaction)
+            self.assertEqual(
+                con.execute("SELECT usuario, valor FROM fatos WHERE data=?", (DIA,)).fetchall(),
+                [("antigo", 9.99)],
+            )
+            self.assertEqual(con.execute("SELECT COUNT(*) FROM importacoes").fetchone()[0], 0)
         finally:
             con.close()
 
