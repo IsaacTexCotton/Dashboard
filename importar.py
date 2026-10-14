@@ -259,14 +259,17 @@ def normalizar_duplo(resp: Any, dia: str, importado_em: str):
                 destino: _campo_decimal_exato(item, origem, ctx)
                 for destino, origem in money_fields.items()
             }
-            fatos_duplos.append(preparar_fato_duplo(
-                dia=dia,
-                usuario=item["usuario"],
-                tipo=tipo,
-                quantidade=_campo_inteiro(item, "quantidade", ctx),
-                importado_em=importado_em,
-                campos_monetarios=campos,
-            ))
+            try:
+                fatos_duplos.append(preparar_fato_duplo(
+                    dia=dia,
+                    usuario=item["usuario"],
+                    tipo=tipo,
+                    quantidade=_campo_inteiro(item, "quantidade", ctx),
+                    importado_em=importado_em,
+                    campos_monetarios=campos,
+                ))
+            except ErroMonetario as exc:
+                raise ErroValidacao(str(exc)) from exc
 
     for i, item in enumerate(grupo("contatos")):
         ctx = f"data.contatos.porUsuario[{i}]"
@@ -289,11 +292,14 @@ def normalizar_duplo(resp: Any, dia: str, importado_em: str):
     timestamp = resp.get("timestamp")
     if not isinstance(timestamp, str) or not timestamp.strip():
         raise ErroValidacao("timestamp: campo obrigatório da origem; esperado texto não vazio")
-    posicao_legada, posicao_centavos = preparar_posicao_dupla(
-        capturado_em=timestamp,
-        dia=dia,
-        campos_monetarios=campos_posicao,
-    )
+    try:
+        posicao_legada, posicao_centavos = preparar_posicao_dupla(
+            capturado_em=timestamp,
+            dia=dia,
+            campos_monetarios=campos_posicao,
+        )
+    except ErroMonetario as exc:
+        raise ErroValidacao(str(exc)) from exc
     return usuarios, fatos_duplos, (posicao_legada, posicao_centavos)
 
 
@@ -424,7 +430,7 @@ def _carregar_arquivo(caminho: str):
     except json.JSONDecodeError as exc:
         raise RuntimeError(f"Arquivo JSON inválido: {caminho}, linha {exc.lineno}") from exc
     except ErroMonetario as exc:
-        raise RuntimeError(f"Arquivo JSON numérico inválido: {caminho}: {exc}") from exc
+        raise RuntimeError(f"Arquivo JSON inválido (token numérico): {caminho}: {exc}") from exc
 
 
 def _auditoria_financeira_ok(resp: Any) -> bool:
