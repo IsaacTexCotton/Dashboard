@@ -1,12 +1,18 @@
 # Política de Precisão Monetária — Dashboard de Cobrança (Contas a Pagar / Financeiro)
 
-**Status:** Proposta de revisão v1.1 — pendente de ratificação e assinatura formal. Até a assinatura, a versão 1.0 permanece a versão formalmente aprovada.
+**Status:** v1.1 ratificada pelo solicitante em 14/10/2026; registro de aprovação formal documentado abaixo.
 **Versão proposta:** 1.1 — 14/10/2026
-**Aprovador requerido:** Diretoria Financeira
+**Aprovação registrada:** o solicitante declarou formalmente assinar a Política v1.1 e as aprovações da Controladoria em 14/10/2026.
 **Escopo:** Todo valor monetário calculado, armazenado, importado, exibido ou exportado pelo aplicativo de dashboard do **setor de Cobrança**, dentro da área de Contas a Pagar e Financeiro (títulos vencidos, juros, multa, descontos, boletos, pagamentos, negativação e cartório).
 **Moeda base:** BRL (Real). Moedas estrangeiras seguem a seção 8.
 
 ---
+
+## Registro de aprovação formal — 14/10/2026
+
+O solicitante declarou explicitamente nesta conversa: “Eu assino formalmente a Política v1.1 e as aprovações da Controladoria, após isso integre”. Esta declaração é registrada como ratificação da versão 1.1 e aprovação para prosseguir com a integração técnica. O registro de GitHub desta alteração mantém trilha de auditoria. Se a governança corporativa exigir instrumento de assinatura externo, ele deve ser anexado ao processo interno; esta anotação não inventa certificado nem documento externo.
+
+A ratificação não dispensa gates de execução: validação das regras com origem autorizada, backup/restauração verificados, conciliação, dez dias úteis de estabilidade e liberação formal do corte.
 
 ## 1. Princípios
 
@@ -192,7 +198,7 @@ Toda alteração que toque valores monetários deve passar por testes automatiza
 
 ---
 
-## Resumo executivo — proposta v1.1 pendente de assinatura
+## Resumo executivo — Política v1.1 ratificada em 14/10/2026
 
 | Pergunta | Regra proposta |
 |---|---|
