@@ -179,4 +179,13 @@ Só iniciar depois de 90 dias corridos de operação sem incidente após o corte
 
 ## 8. Estado atual
 
-Este plano foi preparado a partir da análise documental e das decisões recebidas em 14/10/2026. O GitHub Actions `Testes CAIXA FUTURO` — execução [#36](https://github.com/IsaacTexCotton/Dashboard/actions/runs/38568526243) no commit `c3f50f4cb8c4b62d483ad924e7ce8076487c137e` — concluiu com sucesso nos testes automatizados existentes e na validação da amostra sem CRM. Isso não valida uma migração que ainda não foi implementada: testes específicos de centavos/schema/dupla escrita/rollback permanecem pendentes. Não foram executados backup, migração, alteração de schema, dupla escrita, acesso ao CRM/ERP ou corte de produção nesta etapa.
+Este plano foi preparado a partir da análise documental e das decisões recebidas em 14/10/2026. O GitHub Actions `Testes CAIXA FUTURO` — execução [#38](https://github.com/IsaacTexCotton/Dashboard/actions/runs/38568801738) no head documental `a113a97401d067330944373dcaf3bd6933c4b428` — concluiu com sucesso nos testes automatizados existentes e na validação da amostra sem CRM. Isso não valida uma migração que ainda não foi implementada: testes específicos de centavos/schema/dupla escrita/rollback permanecem pendentes. Não foram executados backup, migração, alteração de schema, dupla escrita, acesso ao CRM/ERP ou corte de produção nesta etapa.
+
+
+### Bloqueadores rastreados no GitHub
+
+- [Issue #3 — Ratificar regra de entrada com mais de 2 casas](https://github.com/IsaacTexCotton/Dashboard/issues/3)
+- [Issue #4 — Definir contrato de dupla escrita REAL/INTEGER](https://github.com/IsaacTexCotton/Dashboard/issues/4)
+- [Issue #5 — Definir colunas INTEGER específicas por métrica](https://github.com/IsaacTexCotton/Dashboard/issues/5)
+
+Os três itens precisam ser decididos e fechados com evidência/aprovação antes da PR funcional de migração.
