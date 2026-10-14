@@ -69,7 +69,7 @@ Em `acordos_posicao`, as colunas-alvo são `recebido_periodo_centavos`, `a_vence
 
 ### Token decimal e validação antes da transação
 
-Para tokens numéricos JSON, o parser usa validadores `parse_int` e `parse_float` que inspecionam a grafia original antes de criar `Decimal`; o formato lexical permitido é `^-?\\d+(\\.\\d+)?# CAIXA FUTURO — Contrato de dados e homologação financeira
+Para tokens numéricos JSON, o parser usa validadores `parse_int` e `parse_float` que inspecionam a grafia original antes de criar `Decimal`; o formato lexical permitido é `^-?\d+(\\.\d+)?# CAIXA FUTURO — Contrato de dados e homologação financeira
 
 ## Estado da evidência
 
@@ -122,6 +122,8 @@ Esta evidência fecha a pendência de executar os scripts do projeto sobre **est
 ## Contrato observado e persistência
 
 Todas as propriedades abaixo são observadas na amostra fictícia e implementadas pelo importador. Isso não comprova que a API real sempre as envia.
+
+A tabela a seguir descreve o **estado atualmente observado** no importador legado, não as regras-alvo da proposta monetária v1.1. As regras de sinais, parsing, colunas por métrica e obrigatoriedade transicional constam na seção `Proposta de contrato monetário v1.1 — pendente de assinatura`, acima, e só podem ser aplicadas após ratificação formal.
 
 | Campo lógico | Caminho JSON | Tipo/obrigatoriedade atual | Validação atual | Destino SQLite |
 |---|---|---|---|---|
