@@ -69,26 +69,8 @@ Em `acordos_posicao`, as colunas-alvo são `recebido_periodo_centavos`, `a_vence
 
 ### Token decimal e validação antes da transação
 
-Para tokens numéricos JSON, o parser usa validadores `parse_int` e `parse_float` que inspecionam a grafia original antes de criar `Decimal`; o formato lexical permitido é `^-?\d+(\\.\d+)?# CAIXA FUTURO — Contrato de dados e homologação financeira
+Para tokens numéricos JSON, o parser usa validadores `parse_int` e `parse_float` que inspecionam a grafia original antes de criar `Decimal`; a gramática decimal lexical exige sinal `-` opcional, um ou mais dígitos, e opcionalmente um ponto seguido de um ou mais dígitos, sem notação científica `e/E`. `parse_constant` rejeita `NaN`, `Infinity` e `-Infinity`. A normalização rejeita booleanos explicitamente, pois em Python `bool` é subtipo de `int`. Strings decimais só podem ser aceitas se a origem/formato estiver declarado como permitido para aquele campo; nesse caso passam pela mesma regra. A normalização de todo o payload precede a transação de gravação do dia.
 
-## Estado da evidência
-
-- **Amostra observada:** `amostra_resposta.json`, versionada no repositório. É explicitamente fictícia; demonstra somente a forma ilustrativa abaixo.
-- **Payload sanitizado fornecido:** o JSON autorizado de um dia (2026-10-13) foi validado em 14/10/2026 com os scripts publicados no commit `b9754aa744b35bfd0d9f8604034887d2c160ecbd`; os blobs dos quatro scripts executados foram conferidos contra os hashes do GitHub. O arquivo não foi versionado. A auditoria terminou com 12 métricas aditivas `OK` e `contatosUnicosTotal` classificado como `NÃO ADITIVO`; o `--dry-run` aprovou 5 usuários e 17 fatos sem abrir banco; `validar_integracao_local.py` terminou `PASSED`, com zero consultas ao CRM e SQLite apenas temporário; o diagnóstico reportou 13 verificações `OK`, zero avisos e zero falhas. Reimportar o mesmo payload manteve os 17 fatos; o registro de importação passou de 1 para 2 e o snapshot com o mesmo timestamp permaneceu único.
-- **Decisões e estado de implementação:** `valorRecebidoPeriodo` identifica recebimentos do período; `valorAVencer` e `valorVencido` representam posição da carteira e cada captura deve permanecer no histórico. Em 14/10/2026 foi recebida a política `POLITICA_PRECISAO_MONETARIA.md` (v1.0, aprovada pela Diretoria Financeira no documento fornecido): aritmética monetária exata, centavos em `INTEGER` para novas colunas, arredondamento *half-up*, uma única vez no resultado final, comparação por igualdade exata e congelamento de `REAL` legado até plano aprovado. **A versão revisada da política declara expressamente o escopo do dashboard do setor de Cobrança dentro da área de Contas a Pagar/Financeiro, portanto o conflito de escopo foi resolvido.** Permanecem conflitos entre a política e o runtime: o importador rejeita valores monetários negativos, e o auditor aceita tolerância de R$ 0,01, enquanto a política permite sinal para créditos/estornos/abatimentos e exige igualdade exata. A política não autoriza migração imediata das colunas `REAL` legadas. A decisão anterior de rejeitar todos os valores negativos e aceitar tolerância de R$ 0,01 conflita com a política revisada; esse conflito precisa ser resolvido em alteração de código própria, sem modificar automaticamente o banco legado. A igualdade `valor = pagos + pendente` continua condicionada à validação das exceções e ainda não é bloqueante.
-- **Escopo:** contrato implementado por `importar.normalizar`, esquema SQLite atual e reconciliações implementadas em `auditar_resposta.py`. Este documento não afirma que os nomes são um contrato oficial do CRM.
-
-## Decisões de negócio recebidas em 14/10/2026
-
-| Tema | Decisão registrada | Estado técnico |
-|---|---|---|
-| Acordos por usuário | `valor = pagos + pendente` deve ser obrigatório após validar exceções | Ainda não bloqueante. É necessário definir como identificar e tratar renegociações, descontos, cancelamentos, parcelas não vencidas e pagamentos parciais antes de ativar o bloqueio |
-| Precisão monetária | `POLITICA_PRECISAO_MONETARIA.md` v1.0 é a versão formalmente aprovada; proposta v1.1 registrada em branch documental, pendente de assinatura | A proposta v1.1 define valores finais com no máximo duas casas efetivas (zeros excedentes são aceitos), regras decimais exatas, sinais por campo, `REAL` congelado com escrita legada preservada até descomissionamento e colunas por métrica. Nenhuma regra nova é aplicada pelo runtime antes da assinatura e da integração da versão aprovada |
-| Timestamp da captura | Usar e preservar exatamente o campo `timestamp` enviado no JSON da origem, como referência temporal da posição atualizada | Decidido em 14/10/2026: não substituir por relógio local nem inferir/converter fuso; campo ausente ou vazio deve bloquear a importação |
-| Contatos únicos globais | Não existe chave/regra aprovada para deduplicação entre negociadores | Manter `contatosUnicosTotal` como não aditivo; não somar por usuário nem usar essa métrica como gate de reconciliação |
-
- 
-, sem notação científica. `parse_constant` rejeita `NaN`, `Infinity` e `-Infinity`. A normalização rejeita booleanos explicitamente, pois em Python `bool` é subtipo de `int`. Strings decimais só podem ser aceitas se a origem/formato estiver declarado como permitido para aquele campo; nesse caso passam pela mesma regra. A normalização de todo o payload precede a transação de gravação do dia.
 
 ## Registro da política de precisão monetária recebida em 14/10/2026
 
