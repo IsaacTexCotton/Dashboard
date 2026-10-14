@@ -1,8 +1,8 @@
-# Política de Precisão Monetária — Dashboard de Contas a Pagar
+# Política de Precisão Monetária — Dashboard de Cobrança (Contas a Pagar / Financeiro)
 
 **Status:** Aprovada (versão 1.0)
 **Aprovador:** Diretoria Financeira
-**Escopo:** Todo valor monetário calculado, armazenado, importado, exibido ou exportado pelo aplicativo de dashboard do setor de Contas a Pagar.
+**Escopo:** Todo valor monetário calculado, armazenado, importado, exibido ou exportado pelo aplicativo de dashboard do **setor de Cobrança**, dentro da área de Contas a Pagar e Financeiro (títulos vencidos, juros, multa, descontos, boletos, pagamentos, negativação e cartório).
 **Moeda base:** BRL (Real). Moedas estrangeiras seguem a seção 8.
 
 ---
@@ -70,6 +70,26 @@ O sufixo `_eN` indica a escala (N casas decimais). O valor final em centavos só
 | Rateio e parcelamento | Seção 5 |
 | Indicadores e percentuais derivados | Somente na exibição |
 
+### 3.2 Cálculos típicos de cobrança
+
+Os parâmetros (taxas, base de dias, carência) **não são definidos por esta política**: vêm do contrato/condição comercial e do ERP (Systêxtil). Esta política define apenas **como calcular e arredondar**.
+
+| Cálculo | Método aprovado |
+|---|---|
+| Multa por atraso | Percentual (`_e4`) × valor original do título, aplicada **uma única vez**; arredondar o encargo para centavos |
+| Juros de mora | Juros **simples**, proporcional por dia (*pro rata die*): `valor × taxa_mensal_e4 × dias_de_atraso / base_de_dias`; arredondar **uma vez** no total dos juros |
+| Valor atualizado | Original + multa + juros − descontos/abatimentos, tudo em centavos inteiros; sem arredondar novamente |
+| Pagamento parcial | Abatimento em centavos inteiros; saldo = original atualizado − pagamentos, nunca recalculado por percentual |
+| Custas de cartório | Valor de origem informado pelo cartório, importado como centavos; não é recalculado |
+| Desconto / abatimento | Valor ou percentual aplicado uma vez; resultado arredondado *half-up* |
+
+**Regras específicas:**
+
+1. **Boleto emitido (portal B2B) é dado de origem.** O valor impresso no boleto é o valor oficial do título naquela data e **não é refeito** pelo app. O app apenas o registra e o compara com o valor que ele mesmo calcularia, sinalizando divergência.
+2. **Dias de atraso** são contados como inteiro, pela data de vencimento e pela data de referência, e **não são arredondados nem fracionados**.
+3. **Confirmação de pagamento tem defasagem** (em geral ~1 dia útil; no cartório pode ser maior). O dashboard distingue **"pago (confirmado)"** de **"pagamento informado/pendente de baixa"**, e os dois nunca são somados como se fossem a mesma coisa.
+4. **Totais de carteira, recuperação e vencidos** são somas de centavos inteiros, sem arredondamento intermediário.
+
 ---
 
 ## 4. Valores com mais de duas casas decimais
@@ -94,7 +114,7 @@ O sufixo `_eN` indica a escala (N casas decimais). O valor final em centavos só
 
 - Eixos e rótulos: formatação `pt-BR`, com 2 casas para valores exatos.
 - Valores grandes podem ser abreviados (mil, mi) **somente na visualização**, com o valor exato acessível em detalhe ou *tooltip*.
-- Percentuais (ex.: % vencido, % por fornecedor): calculados sobre os inteiros em centavos e arredondados na exibição (1 casa por padrão). A soma visual de percentuais pode não fechar 100,0 %, o que é aceito; o dado subjacente permanece exato.
+- Percentuais e indicadores de cobrança (ex.: % vencido, taxa de recuperação, valor em aging por faixa de atraso, por negociador): calculados sobre os inteiros em centavos e arredondados na exibição (1 casa por padrão). A soma visual de percentuais pode não fechar 100,0 %, o que é aceito; o dado subjacente permanece exato.
 
 ---
 
@@ -162,4 +182,5 @@ Toda alteração que toque valores monetários deve passar por testes automatiza
 | Regra de arredondamento | *Half-up* (comercial), 2 casas, uma única vez no resultado final |
 | Valores com mais de 2 casas | Lidos como texto, mantidos em inteiro escalado no cálculo, arredondados só no final; nunca truncar |
 | Armazenamento | `INTEGER` em centavos (`_centavos`); preços/quantidades/taxas em inteiro escalado (`_e4`, `_e6`) |
+| Cálculos de cobrança | Multa e juros pro rata die calculados com precisão total e arredondados uma vez; valor de boleto/cartório é dado de origem e não é recalculado |
 | Colunas `REAL` existentes | Congeladas; só mudam após análise de compatibilidade e plano de migração aprovados |
