@@ -488,3 +488,120 @@ def validar_schema_monetario(con: sqlite3.Connection) -> str:
     if fase is None:
         raise ErroMigracaoMonetaria("marcador de fase monetária ausente")
     return fase
+
+
+def planejar_schema_monetario(con: sqlite3.Connection) -> dict[str, object]:
+    """Gera plano de DDL em somente leitura; não cria/abre schema de negócio."""
+    tabelas = _tabelas(con)
+    for tabela, obrigatorias in _COLUNAS_LEGADAS_OBRIGATORIAS.items():
+        if tabela not in tabelas:
+            raise ErroMigracaoMonetaria(f"tabela legada ausente: {tabela}")
+        faltantes = obrigatorias - set(_colunas_tabela(con, tabela))
+        if faltantes:
+            raise ErroMigracaoMonetaria(
+                f"{tabela}: colunas legadas ausentes: {sorted(faltantes)}"
+            )
+    fase = _validar_estado(con, tabelas)
+    adicionar: list[str] = []
+    existentes: list[str] = []
+    for coluna in _COLUNAS:
+        presentes = _colunas_tabela(con, coluna.tabela)
+        if coluna.nome not in presentes:
+            if fase == "backfill_conciliado":
+                raise ErroMigracaoMonetaria(
+                    f"{coluna.tabela}.{coluna.nome}: ausente após backfill conciliado"
+                )
+            adicionar.append(f"{coluna.tabela}.{coluna.nome}")
+            continue
+        if presentes[coluna.nome] != "INTEGER" or not _tem_check_esperado(
+            tabelas[coluna.tabela], coluna
+        ):
+            raise ErroMigracaoMonetaria(
+                f"{coluna.tabela}.{coluna.nome}: tipo/CHECK existente incompatível"
+            )
+        existentes.append(f"{coluna.tabela}.{coluna.nome}")
+    return {
+        "modo": "simulacao",
+        "fase": fase or "marcador_a_criar",
+        "colunas_a_adicionar": adicionar,
+        "colunas_alvo_validas_existentes": existentes,
+        "altera_dados": False,
+    }
+
+
+def main(argv: list[str] | None = None) -> int:
+    import argparse
+    import json
+    from datetime import datetime, timezone
+    from pathlib import Path
+
+    parser = argparse.ArgumentParser(
+        description="Planejar/aplicar a migração aditiva monetária; simulação por padrão"
+    )
+    parser.add_argument("banco", help="caminho para um SQLite existente; nunca cria banco")
+    parser.add_argument("--aplicar", action="store_true", help="aplica DDL depois de criar/verificar backup")
+    parser.add_argument(
+        "--diretorio-backup",
+        help="diretório existente para backup e manifesto obrigatórios em modo --aplicar",
+    )
+    args = parser.parse_args(argv)
+    banco = Path(args.banco).expanduser().resolve()
+    if not banco.is_file():
+        print(json.dumps({"status": "ERROR", "error": f"Banco não encontrado: {banco}"}))
+        return 2
+    if args.aplicar and (not args.diretorio_backup or not Path(args.diretorio_backup).is_dir()):
+        print(json.dumps({
+            "status": "ERROR",
+            "error": "--aplicar exige --diretorio-backup apontando para diretório existente",
+        }))
+        return 2
+    if not args.aplicar:
+        try:
+            con = sqlite3.connect(banco.as_uri() + "?mode=ro", uri=True)
+            try:
+                plano = planejar_schema_monetario(con)
+            finally:
+                con.close()
+            print(json.dumps({
+                "status": "OK",
+                "banco": str(banco),
+                **plano,
+            }, ensure_ascii=False, indent=2))
+            return 0
+        except (OSError, sqlite3.Error, ErroMigracaoMonetaria) as exc:
+            print(json.dumps({"status": "ERROR", "error": str(exc)}, ensure_ascii=False))
+            return 2
+
+    try:
+        import backup_sqlite
+
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        destino = Path(args.diretorio_backup).resolve() / (
+            f"{banco.stem}-pre-monetario-{stamp}{banco.suffix or '.sqlite3'}"
+        )
+        manifesto = backup_sqlite.criar_backup(banco, destino)
+        verificado = backup_sqlite.verificar_backup(destino)
+        if verificado.get("status") != "OK":
+            raise ErroMigracaoMonetaria("backup não passou na verificação: " + json.dumps(verificado))
+        if manifesto.get("source_file") != banco.name:
+            raise ErroMigracaoMonetaria("manifesto do backup não corresponde ao banco de origem")
+        con = sqlite3.connect(str(banco), timeout=30)
+        try:
+            resultado = migrar_schema_monetario(con)
+        finally:
+            con.close()
+        print(json.dumps({
+            "status": "OK",
+            "banco": str(banco),
+            "backup": str(destino),
+            "backup_sha256": verificado.get("backup_sha256"),
+            "resultado": resultado,
+        }, ensure_ascii=False, indent=2))
+        return 0
+    except (OSError, sqlite3.Error, ErroMigracaoMonetaria, backup_sqlite.ErroBackup, FileExistsError) as exc:
+        print(json.dumps({"status": "ERROR", "error": str(exc)}, ensure_ascii=False), file=sys.stderr)
+        return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
