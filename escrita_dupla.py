@@ -216,6 +216,62 @@ def preparar_posicao_dupla(
     return legado, centavos
 
 
+def _validar_pareamento_fato(
+    tipo: str,
+    legado: dict[str, Any],
+    centavos: dict[str, Any],
+) -> None:
+    """Evita aceitar dois payloads diferentes para uma única origem monetária."""
+    mapeamento = {
+        "deposito": (("deposito_valor_centavos", "valor"),),
+        "acordo": (
+            ("acordo_valor_centavos", "valor"),
+            ("acordo_pago_centavos", "valor_pago"),
+            ("acordo_pendente_centavos", "valor_aberto"),
+        ),
+        "promessa": (
+            ("promessa_prometido_centavos", "valor"),
+            ("promessa_cumprido_centavos", "valor_pago"),
+            ("promessa_em_aberto_centavos", "valor_aberto"),
+            ("promessa_quebrado_centavos", "valor_quebrado"),
+        ),
+        "contato": (),
+    }
+    usados = {coluna_legada for _, coluna_legada in mapeamento[tipo]}
+    for coluna_centavos, coluna_legada in mapeamento[tipo]:
+        esperado = float(Decimal(centavos[coluna_centavos]) / Decimal(100))
+        recebido = float(legado[coluna_legada])
+        if recebido != esperado:
+            raise ErroMonetario(
+                f"{tipo}: divergência no lote preparado entre {coluna_legada} "
+                f"(REAL) e {coluna_centavos} (INTEGER)"
+            )
+    # Campos legados sem métrica semântica para aquele tipo continuam no valor
+    # neutro da compatibilidade; não podem transportar saldo de outro tipo.
+    for coluna_legada in ("valor", "valor_pago", "valor_aberto", "valor_quebrado"):
+        if coluna_legada not in usados and float(legado[coluna_legada]) != 0.0:
+            raise ErroMonetario(
+                f"{tipo}: {coluna_legada} legado deve permanecer zero neste tipo"
+            )
+
+
+def _validar_pareamento_posicao(
+    legado: dict[str, Any],
+    centavos: dict[str, Any],
+) -> None:
+    for coluna_legada, coluna_centavos in (
+        ("recebido_periodo", "recebido_periodo_centavos"),
+        ("a_vencer", "a_vencer_centavos"),
+        ("vencido", "vencido_centavos"),
+    ):
+        esperado = float(Decimal(centavos[coluna_centavos]) / Decimal(100))
+        if float(legado[coluna_legada]) != esperado:
+            raise ErroMonetario(
+                f"acordos_posicao: divergência no lote entre {coluna_legada} "
+                f"(REAL) e {coluna_centavos} (INTEGER)"
+            )
+
+
 def _validar_centavos_fato(tipo: str, centavos: dict[str, Any]) -> tuple[Any, ...]:
     if not isinstance(centavos, dict) or set(centavos) != set(FATO_METRICAS_CENTAVOS):
         raise ErroMonetario("métricas _centavos do fato não correspondem ao contrato")
@@ -318,6 +374,7 @@ def gravar_dia_duplo(
         _real_legado(legado["valor_quebrado"], f"{ctx}.valor_quebrado")
         _texto(legado["importado_em"], f"{ctx}.importado_em")
         valores_centavos = _validar_centavos_fato(tipo, centavos)
+        _validar_pareamento_fato(tipo, legado, centavos)
         fatos_preparados.append(
             tuple(legado[c] for c in COLUNAS_FATO_LEGADO) + valores_centavos
         )
@@ -333,6 +390,7 @@ def gravar_dia_duplo(
     for coluna, valor in zip(COLUNAS_POSICAO_LEGADO[2:], valores_posicao_legada[2:]):
         _real_legado(valor, f"acordos_posicao.{coluna}")
     valores_posicao_centavos = _validar_centavos_posicao(posicao_centavos)
+    _validar_pareamento_posicao(posicao_legada, posicao_centavos)
 
     colunas_fato = COLUNAS_FATO_LEGADO + FATO_METRICAS_CENTAVOS
     sql_fato = (
