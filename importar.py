@@ -176,10 +176,8 @@ def normalizar(resp: Any, dia: str):
         _campo_numero(valores, "valorVencido", "data.valoresAcordo"),
     )
     timestamp = resp.get("timestamp")
-    if timestamp is None:
-        timestamp = datetime.now().isoformat(timespec="seconds")
     if not isinstance(timestamp, str) or not timestamp.strip():
-        raise ErroValidacao("timestamp: esperado texto não vazio")
+        raise ErroValidacao("timestamp: campo obrigatório da origem; esperado texto não vazio")
     return usuarios, fatos, (timestamp, dia, *totais)
 
 
