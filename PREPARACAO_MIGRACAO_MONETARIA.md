@@ -33,7 +33,7 @@ A PR #11 foi comparada com a `main` atual. A comparação de refs registrou 36 c
 
 1. **`importar.py`:** a versão antiga deixa de converter algumas exceções `ErroMonetario` em `ErroValidacao` nos preparadores da escrita dupla. A versão da `main` já contém esses tratamentos. Portar a versão antiga poderia regredir a superfície de erro do importador.
 2. **`tests/test_importar.py`:** a PR antiga adicionava `depositos.valor` à lista de sinais proibidos. Isso contradiz a regra atual que permite sinal negativo no valor de depósito; não foi portado. A expectativa de erro para subcentavos foi especificada de forma mais precisa como `importar.ErroValidacao`, e essa melhoria de teste foi portada para esta branch.
-3. **`tests/test_auditar_resposta.py`:** a PR antiga exigia divergência para um agregado negativo cuja soma por usuário também diverge. Essa assertiva mais específica foi portada. A invocação que passa tolerância de R$ 0,01 não foi copiada, pois a política atual exige reconciliação monetária exata.
+3. **`tests/test_auditar_resposta.py`:** a PR antiga exigia divergência para um agregado negativo cuja soma por usuário também diverge. Essa assertiva foi avaliada, mas não portada: para os grupos acordos/promessas presentes na fixture, os valores negativos podem resultar em soma exatamente igual e o status correto é `OK`. Foi mantida a asserção flexível que verifica que a regra de sinal não levanta erro. A invocação que passa tolerância de R$ 0,01 não foi copiada, pois a política atual exige reconciliação monetária exata.
 
 Os módulos monetários, o backfill, a escrita dupla, a migração e seus testes correspondentes já têm conteúdo idêntico ao da `main` no HEAD comparado. Nenhuma contribuição funcional exclusiva necessária foi identificada. A PR #11 está fechada sem merge, e a branch foi preservada como trilha de auditoria; **não excluir a branch até terminar a revisão humana do histórico, caso o proprietário queira mantê-la por mais tempo**.
 
@@ -229,7 +229,7 @@ A consulta efetuada para o status do commit exato da `main` não retornou checks
 - [x] Documentar o contrato das 11 métricas e a distinção `NULL`/zero.
 - [x] Adicionar 36 fixtures explicitamente sintéticas e testes de conversão estrita.
 - [x] Adicionar teste de backup, verificação e restauração lógica em SQLite descartável.
-- [x] Fortalecer duas assertivas de teste sem alterar o comportamento do runtime.
+- [x] Fortalecer a expectativa do teste de subcentavos com o tipo de erro público (`ErroValidacao`), sem alterar o runtime.
 - [x] Documentar o inventário de consumidores conhecido, a lacuna de exaustividade e a busca reproduzível.
 - [x] Documentar comandos operacionais; nenhum comando de alteração foi apontado para DB/CRM de produção.
 
