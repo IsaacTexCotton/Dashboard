@@ -354,7 +354,9 @@ def ativar_triggers_obrigatoriedade(con: sqlite3.Connection) -> list[str]:
             if ja_existe:
                 # Não considerar uma trigger de mesmo nome, mas definição
                 # divergente, como ativação válida.
-                if _normalizar_sql(str(ja_existe[0])) != _normalizar_sql(sql):
+                sql_existente = _normalizar_sql(str(ja_existe[0])).replace("ifnotexists", "")
+                sql_esperado = _normalizar_sql(sql).replace("ifnotexists", "")
+                if sql_existente != sql_esperado:
                     raise ErroMigracaoMonetaria(f"trigger preexistente divergente: {nome}")
             else:
                 con.execute(sql)
