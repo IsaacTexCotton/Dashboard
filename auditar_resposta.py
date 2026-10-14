@@ -53,6 +53,8 @@ def _decimal(valor: Any, campo: str) -> Decimal:
         raise importar.ErroValidacao(f"{campo}: número inválido") from exc
     if not numero.is_finite():
         raise importar.ErroValidacao(f"{campo}: número não finito")
+    if numero < 0:
+        raise importar.ErroValidacao(f"{campo}: valor monetário negativo não permitido")
     return numero
 
 
