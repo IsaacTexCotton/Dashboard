@@ -12,11 +12,84 @@
 | Tema | Decisão registrada | Estado técnico |
 |---|---|---|
 | Acordos por usuário | `valor = pagos + pendente` deve ser obrigatório após validar exceções | Ainda não bloqueante. É necessário definir como identificar e tratar renegociações, descontos, cancelamentos, parcelas não vencidas e pagamentos parciais antes de ativar o bloqueio |
-| Precisão monetária | Política revisada `POLITICA_PRECISAO_MONETARIA.md` v1.0 aprovada pela Diretoria Financeira | Escopo inclui explicitamente o dashboard de Cobrança dentro de Contas a Pagar/Financeiro. Resolver conflitos do runtime (sinais e tolerância), implementar precisão exata com testes e manter `REAL` legado congelado até plano de migração aprovado |
+| Precisão monetária | `POLITICA_PRECISAO_MONETARIA.md` v1.0 é a versão formalmente aprovada; proposta v1.1 registrada em branch documental, pendente de assinatura | A proposta v1.1 define valores finais com no máximo duas casas efetivas (zeros excedentes são aceitos), regras decimais exatas, sinais por campo, `REAL` congelado com escrita legada preservada até descomissionamento e colunas por métrica. Nenhuma regra nova é aplicada pelo runtime antes da assinatura e da integração da versão aprovada |
 | Timestamp da captura | Usar e preservar exatamente o campo `timestamp` enviado no JSON da origem, como referência temporal da posição atualizada | Decidido em 14/10/2026: não substituir por relógio local nem inferir/converter fuso; campo ausente ou vazio deve bloquear a importação |
 | Contatos únicos globais | Não existe chave/regra aprovada para deduplicação entre negociadores | Manter `contatosUnicosTotal` como não aditivo; não somar por usuário nem usar essa métrica como gate de reconciliação |
 
  
+## Proposta de contrato monetário v1.1 — pendente de assinatura
+
+Esta seção registra o contrato-alvo proposto para alinhar o esquema por métrica e a política v1.1. **Não descreve o comportamento atual do importador**, que ainda rejeita todos os valores negativos e faz parsing monetário por `float`. As mudanças não devem ser ativadas antes da assinatura formal da Política v1.1 e da aprovação do plano de migração.
+
+### Classificação campo a campo
+
+Todos os valores monetários do payload de cobrança atualmente descritos nesta tabela são classificados como **valores monetários finais**, não como grandezas intermediárias de cálculo. A entrada deve preservar o token decimal original e ser convertida diretamente para centavos sem passar por `float`. Um valor com mais de duas casas textuais é aceito apenas quando todos os dígitos após a segunda casa são zero: `1.230 → 123` centavos; `1.231` é rejeitado sem arredondamento. No payload observado, os valores são números JSON; aceitar strings monetárias só depois de confirmar e declarar esse formato para o campo no contrato de origem.
+
+| Campo lógico | Caminho JSON | Coluna-alvo INTEGER | Negativo permitido | Semântica do negativo |
+|---|---|---|---|---|
+| Depósito | `data.depositos.porUsuario[].valor` | `fatos.deposito_valor_centavos` | Sim | Estorno de depósito |
+| Valor de face do acordo | `data.acordos.porUsuario[].valor` | `fatos.acordo_valor_centavos` | Não | Não usar face negativa para cancelar/descontar |
+| Acordo pago | `data.acordos.porUsuario[].pagos` | `fatos.acordo_pago_centavos` | Não | Estorno por reclassificação, não pagamento negativo |
+| Acordo pendente | `data.acordos.porUsuario[].pendente` | `fatos.acordo_pendente_centavos` | Sim | Crédito do cliente/pagamento a maior |
+| Promessa de face | `data.promessas.porUsuario[].prometido` | `fatos.promessa_prometido_centavos` | Não | Cancelamento por status, não face negativa |
+| Promessa cumprida | `data.promessas.porUsuario[].cumprido` | `fatos.promessa_cumprido_centavos` | Não | Estorno por reclassificação |
+| Promessa em aberto | `data.promessas.porUsuario[].emAberto` | `fatos.promessa_em_aberto_centavos` | Sim | Crédito do cliente/pagamento a maior |
+| Promessa quebrada | `data.promessas.porUsuario[].quebrado` | `fatos.promessa_quebrado_centavos` | Não | Valor de classificação não negativo |
+| Recebido no período | `data.valoresAcordo.valorRecebidoPeriodo` | `acordos_posicao.recebido_periodo_centavos` | Sim | Recebimento líquido após estornos |
+| Posição a vencer | `data.valoresAcordo.valorAVencer` | `acordos_posicao.a_vencer_centavos` | Não | Posição de carteira não negativa |
+| Posição vencida | `data.valoresAcordo.valorVencido` | `acordos_posicao.vencido_centavos` | Não | Posição de carteira não negativa |
+
+Quantidades e contagens continuam inteiras, exatas e não negativas; não aceitam booleanos nem frações. No conjunto dos dados atualmente descritos não há taxa/preço unitário financeiro no payload de cobrança; se uma futura integração incluir grandeza intermediária, sua classificação e escala `_eN` deverão ser declaradas explicitamente antes da implementação.
+
+### Esquema-alvo de `fatos`
+
+O nome de cada coluna monetária é derivado da **métrica semântica** mais o sufixo `_centavos`, não do nome físico legado reutilizado. As oito colunas-alvo são:
+
+- `deposito_valor_centavos`
+- `acordo_valor_centavos`
+- `acordo_pago_centavos`
+- `acordo_pendente_centavos`
+- `promessa_prometido_centavos`
+- `promessa_cumprido_centavos`
+- `promessa_em_aberto_centavos`
+- `promessa_quebrado_centavos`
+
+Em `acordos_posicao`, as colunas-alvo são `recebido_periodo_centavos`, `a_vencer_centavos` e `vencido_centavos`.
+
+### Regras de NULL, CHECK e obrigatoriedade gradual
+
+**Semântica final:** em `fatos`, `NULL` significa que a métrica não se aplica ao `tipo` da linha; `0` significa valor zero aplicável. Uma linha `contato` não utiliza nenhuma das oito métricas monetárias. Em `acordos_posicao`, as três métricas são aplicáveis ao snapshot; `NULL` só pode existir temporariamente enquanto o legado aguarda backfill, nunca como estado final de um snapshot homologado.
+
+1. **CHECK imediato por coerência de tipo:** para cada coluna de métrica em `fatos`, aplicar uma condição equivalente a `CHECK (coluna IS NULL OR tipo = 'tipo_aplicavel')`. Assim, uma coluna não pode receber valor em tipo incorreto, mas valores `NULL` de linhas legadas ainda não preenchidas não invalidam a migração aditiva. As oito colunas devem ter condição própria; para `contato`, todas permanecem nulas.
+2. **CHECK de sinal:** `deposito_valor_centavos`, `acordo_pendente_centavos` e `promessa_em_aberto_centavos` aceitam inteiros com sinal. As outras cinco colunas de `fatos` exigem `NULL` ou valor `>= 0`. Em `acordos_posicao`, `recebido_periodo_centavos` aceita sinal; `a_vencer_centavos` e `vencido_centavos` exigem `NULL` ou valor `>= 0`. As expressões precisam ser explícitas, porque um `CHECK` SQLite cujo resultado é `NULL` não falha automaticamente.
+3. **Obrigatoriedade na aplicação:** após habilitar a escrita de centavos, o importador exige que toda métrica aplicável esteja presente; zero é válido e `NULL` não substitui zero. O payload completo é normalizado/validado antes de abrir a transação do dia, de modo que um único campo inválido bloqueia o dia sem gravação parcial.
+4. **Diagnóstico com consciência da fase:** `diagnosticar_banco.py` distingue o backfill pendente de violações nos dados novos. Enquanto o marcador da migração indicar backfill incompleto, ausência de centavos em linhas históricas elegíveis é reportada como pendência; linhas novas escritas depois da ativação da dupla escrita que não tenham métricas aplicáveis preenchidas são falha. Após o backfill, conciliação e avanço do marcador de fase, ausência de centavos numa métrica aplicável é falha de integridade.
+5. **Obrigatoriedade por trigger somente após backfill:** triggers que exigem métricas não nulas dentro de cada tipo só são criados depois que o backfill estiver concluído e conciliado. A migração aditiva inicial não pode bloquear os registros históricos ainda não convertidos.
+6. **Idempotência e preservação:** colunas são adicionadas por migração versionada e idempotente. Colunas `REAL` legadas não são renomeadas, reescritas, nem removidas nesta fase. A conversão suspeita do histórico é relatada, não corrigida silenciosamente.
+
+### Token decimal e validação antes da transação
+
+Para tokens numéricos JSON, o parser usa validadores `parse_int` e `parse_float` que inspecionam a grafia original antes de criar `Decimal`; o formato lexical permitido é `^-?\\d+(\\.\\d+)?# CAIXA FUTURO — Contrato de dados e homologação financeira
+
+## Estado da evidência
+
+- **Amostra observada:** `amostra_resposta.json`, versionada no repositório. É explicitamente fictícia; demonstra somente a forma ilustrativa abaixo.
+- **Payload sanitizado fornecido:** o JSON autorizado de um dia (2026-10-13) foi validado em 14/10/2026 com os scripts publicados no commit `b9754aa744b35bfd0d9f8604034887d2c160ecbd`; os blobs dos quatro scripts executados foram conferidos contra os hashes do GitHub. O arquivo não foi versionado. A auditoria terminou com 12 métricas aditivas `OK` e `contatosUnicosTotal` classificado como `NÃO ADITIVO`; o `--dry-run` aprovou 5 usuários e 17 fatos sem abrir banco; `validar_integracao_local.py` terminou `PASSED`, com zero consultas ao CRM e SQLite apenas temporário; o diagnóstico reportou 13 verificações `OK`, zero avisos e zero falhas. Reimportar o mesmo payload manteve os 17 fatos; o registro de importação passou de 1 para 2 e o snapshot com o mesmo timestamp permaneceu único.
+- **Decisões e estado de implementação:** `valorRecebidoPeriodo` identifica recebimentos do período; `valorAVencer` e `valorVencido` representam posição da carteira e cada captura deve permanecer no histórico. Em 14/10/2026 foi recebida a política `POLITICA_PRECISAO_MONETARIA.md` (v1.0, aprovada pela Diretoria Financeira no documento fornecido): aritmética monetária exata, centavos em `INTEGER` para novas colunas, arredondamento *half-up*, uma única vez no resultado final, comparação por igualdade exata e congelamento de `REAL` legado até plano aprovado. **A versão revisada da política declara expressamente o escopo do dashboard do setor de Cobrança dentro da área de Contas a Pagar/Financeiro, portanto o conflito de escopo foi resolvido.** Permanecem conflitos entre a política e o runtime: o importador rejeita valores monetários negativos, e o auditor aceita tolerância de R$ 0,01, enquanto a política permite sinal para créditos/estornos/abatimentos e exige igualdade exata. A política não autoriza migração imediata das colunas `REAL` legadas. A decisão anterior de rejeitar todos os valores negativos e aceitar tolerância de R$ 0,01 conflita com a política revisada; esse conflito precisa ser resolvido em alteração de código própria, sem modificar automaticamente o banco legado. A igualdade `valor = pagos + pendente` continua condicionada à validação das exceções e ainda não é bloqueante.
+- **Escopo:** contrato implementado por `importar.normalizar`, esquema SQLite atual e reconciliações implementadas em `auditar_resposta.py`. Este documento não afirma que os nomes são um contrato oficial do CRM.
+
+## Decisões de negócio recebidas em 14/10/2026
+
+| Tema | Decisão registrada | Estado técnico |
+|---|---|---|
+| Acordos por usuário | `valor = pagos + pendente` deve ser obrigatório após validar exceções | Ainda não bloqueante. É necessário definir como identificar e tratar renegociações, descontos, cancelamentos, parcelas não vencidas e pagamentos parciais antes de ativar o bloqueio |
+| Precisão monetária | `POLITICA_PRECISAO_MONETARIA.md` v1.0 é a versão formalmente aprovada; proposta v1.1 registrada em branch documental, pendente de assinatura | A proposta v1.1 define valores finais com no máximo duas casas efetivas (zeros excedentes são aceitos), regras decimais exatas, sinais por campo, `REAL` congelado com escrita legada preservada até descomissionamento e colunas por métrica. Nenhuma regra nova é aplicada pelo runtime antes da assinatura e da integração da versão aprovada |
+| Timestamp da captura | Usar e preservar exatamente o campo `timestamp` enviado no JSON da origem, como referência temporal da posição atualizada | Decidido em 14/10/2026: não substituir por relógio local nem inferir/converter fuso; campo ausente ou vazio deve bloquear a importação |
+| Contatos únicos globais | Não existe chave/regra aprovada para deduplicação entre negociadores | Manter `contatosUnicosTotal` como não aditivo; não somar por usuário nem usar essa métrica como gate de reconciliação |
+
+ 
+, sem notação científica. `parse_constant` rejeita `NaN`, `Infinity` e `-Infinity`. A normalização rejeita booleanos explicitamente, pois em Python `bool` é subtipo de `int`. Strings decimais só podem ser aceitas se a origem/formato estiver declarado como permitido para aquele campo; nesse caso passam pela mesma regra. A normalização de todo o payload precede a transação de gravação do dia.
+
 ## Registro da política de precisão monetária recebida em 14/10/2026
 
 A versão revisada recebida em 14/10/2026 foi registrada em [`POLITICA_PRECISAO_MONETARIA.md`](POLITICA_PRECISAO_MONETARIA.md). Além das regras de precisão e arredondamento, explicita o escopo do dashboard de Cobrança em Contas a Pagar/Financeiro e inclui regras para multa, juros simples *pro rata die*, valores de boleto e custas de cartório como dados de origem, pagamentos parciais e distinção entre pagamento confirmado e pagamento informado/pendente de baixa. A política solicita validação com TI/Contabilidade de que o ERP/módulo de títulos aplica *half-up* em juros, multas e descontos.
