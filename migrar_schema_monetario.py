@@ -367,3 +367,27 @@ def ativar_triggers_obrigatoriedade(con: sqlite3.Connection) -> list[str]:
             con.rollback()
         raise
     return criados
+
+
+def validar_schema_monetario(con: sqlite3.Connection) -> str:
+    """Valida as 11 colunas, seus CHECKs e o marcador de fase sem escrever."""
+    if not isinstance(con, sqlite3.Connection):
+        raise ErroMigracaoMonetaria("conexão SQLite inválida")
+    tabelas = _tabelas(con)
+    for tabela in ("fatos", "acordos_posicao"):
+        if tabela not in tabelas:
+            raise ErroMigracaoMonetaria(f"tabela obrigatória ausente: {tabela}")
+    for coluna in _COLUNAS:
+        tipos = _colunas_tabela(con, coluna.tabela)
+        if tipos.get(coluna.nome) != "INTEGER":
+            raise ErroMigracaoMonetaria(
+                f"{coluna.tabela}.{coluna.nome}: coluna INTEGER ausente ou incompatível"
+            )
+        if not _tem_check_esperado(tabelas[coluna.tabela], coluna):
+            raise ErroMigracaoMonetaria(
+                f"{coluna.tabela}.{coluna.nome}: CHECK ausente ou incompatível"
+            )
+    fase = _validar_estado(con, tabelas)
+    if fase is None:
+        raise ErroMigracaoMonetaria("marcador de fase monetária ausente")
+    return fase
