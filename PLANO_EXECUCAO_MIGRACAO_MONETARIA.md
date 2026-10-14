@@ -119,19 +119,23 @@ A execução deve ocorrer em branch de implementação própria e PRs revisávei
 ### Fase 8 — Corte de leitura e rollback
 
 **Pré-condições obrigatórias**
-- CI aprovado e testes automatizados verdes.
-- Backup, manifesto e hash verificados; restauração em homologação ensaiada.
-- 10 dias úteis concluídos; zero divergência inexplicada nos novos centavos.
-- Regras de sinais, parser, identidades contábeis e 30 títulos do ERP validados conforme aplicável.
+- Política monetária v1.1 e contrato de dados formalmente assinados/ratificados.
+- CI aprovado no head a integrar e testes específicos de parsing, schema, backfill, dupla escrita, diagnóstico e rollback verdes.
+- Backup, manifesto e SHA-256 verificados; restauração em homologação ensaiada.
+- Dez dias úteis consecutivos de conciliação válida; zero divergência inexplicada e 100% das divergências classificadas.
+- Regras de sinais validadas com evidência de origem; regras contábeis e 30 títulos do ERP validados conforme aplicável.
+- Inventário anexo lista os consumidores que ainda leem REAL e o gate/data planejada para cada um migrar leitura para centavos.
 - Aprovação da Controladoria e assinatura final da Diretoria Financeira.
 
 **Tarefas**
 - Alternar leitura para centavos com chave/configuração reversível.
 - Fazer smoke tests de dashboards, totais, filtros, exportações e auditoria.
-- Monitorar alertas e comparativos após corte; registrar responsável e procedimento de acionamento.
+- **Manter a escrita legada REAL ativa** durante e depois do corte; a chave de leitura não altera nem interrompe a gravação de compatibilidade.
+- Monitorar alertas e comparativos após o corte; registrar responsável e procedimento de acionamento.
+- Testar o rollback com dados criados/importados **depois do corte**: confirmar que as novas linhas foram escritas em REAL e INTEGER na mesma transação e que a reversão da leitura para REAL exibe esses mesmos dados.
 - Em divergência inexplicada, falha de integridade ou decisão da Controladoria, reverter leitura às colunas legadas imediatamente; restaurar backup somente se necessário e conforme plano ensaiado.
 
-**Saída:** corte registrado, métricas de saúde acompanhadas e rollback disponível/testado.
+**Saída:** corte registrado, escrita legada ainda ativa, métricas de saúde acompanhadas e rollback demonstrado com dados pós-corte.
 
 ### Fase 9 — Descomissionamento separado
 
@@ -149,7 +153,9 @@ A escrita legada em REAL permanece ativa durante os 90 dias corridos posteriores
 | Identidade contábil | Acordo pago total/parcial, pendente, crédito; promessa cumprida/em aberto/quebrada; cancelamento, desconto, renegociação e baixa pendente | Igualdades corretas ou exceção classificada; não contar pago antes de baixa |
 | Histórico REAL | `1.005`, `2.675`, `0.1 + 0.2`, nulo, valor negativo autorizado, valor com representação longa | Conversão determinística *half-up* e suspeitas listadas sem reescrita silenciosa do histórico |
 | Banco/transaction | Migração repetida, colunas já existentes, falha na gravação nova, falha na escrita legada, rollback, interrupção e retry | Migração idempotente; nenhuma transação parcial; registros/chaves preservados |
-| Regras temporais | fluxo `recebido_periodo`, snapshots `a_vencer`/`vencido`, timestamp original, dia sem carga | Fluxo e posição não confundidos; timestamp preservado; janela de alerta segue calendário formal |
+| Regras temporais | fluxo `recebido_periodo`, snapshots `a_vencer`/`vencido`, timestamp original, dia sem carga, contagem dos 10 dias úteis | Fluxo e posição não confundidos; timestamp preservado; janela de alerta segue calendário formal e dias sem carga não contam automaticamente |
+| CHECK/obrigatoriedade faseada | NULL legado antes de backfill, zero, coluna não aplicável ao tipo, sinal, marker de fase, triggers pós-backfill | Linhas históricas incompletas não bloqueiam a migração aditiva; dados novos inválidos falham; após backfill conciliado, ausência em métrica aplicável falha |
+| Rollback após corte | Importar um registro novo depois do corte, forçar mudança de chave de leitura, confirmar retorno a REAL | O registro pós-corte permanece visível ao voltar a REAL; a escrita legada não foi encerrada antes do descomissionamento |
 | Integração | CLI do importador, auditoria, dashboard, relatórios, exportações, workflow CI | Compatibilidade comprovada por testes de regressão e CI verde |
 
 ## 5. Critérios de conciliação e aprovação
@@ -171,7 +177,7 @@ A escrita legada em REAL permanece ativa durante os 90 dias corridos posteriores
 ## 7. Evidências a anexar ao PR de implementação
 
 - Decisões ratificadas e versão da política/contrato.
-- Matriz completa de leitores e escritores.
+- Matriz completa de leitores e escritores, incluindo anexo por consumidor que informa dependência atual de REAL e data/gate planejado para mudar a leitura.
 - Payload sanitizado e autorizado / resultados de 30 títulos mantidos fora do Git, mais relatório com hashes e resultados não sensíveis.
 - Resultados de testes unitários/integrados e CI.
 - Manifesto do backup, SHA-256 e relatório de restauração, mantendo artefatos sensíveis em armazenamento restrito.
