@@ -161,5 +161,48 @@ class TestHalfUpDeResultadoCalculado(unittest.TestCase):
             resultado_calculado_para_centavos(Decimal("1E100"))
 
 
+class TestConversaoRealHistorico(unittest.TestCase):
+    def test_float_legado_usa_repr_e_half_up(self):
+        from precisao_monetaria import real_legado_para_centavos
+
+        self.assertEqual(real_legado_para_centavos(1.005), 101)
+        self.assertEqual(real_legado_para_centavos(2.675), 268)
+        self.assertEqual(real_legado_para_centavos(0.1 + 0.2), 30)
+
+    def test_null_historico_continua_null(self):
+        from precisao_monetaria import real_legado_para_centavos
+
+        self.assertIsNone(real_legado_para_centavos(None))
+
+    def test_negativo_historico_depende_do_campo(self):
+        from precisao_monetaria import real_legado_para_centavos
+
+        with self.assertRaises(ErroMonetario):
+            real_legado_para_centavos(-1.005)
+        self.assertEqual(
+            real_legado_para_centavos(-1.005, negativos_permitidos=True), -101
+        )
+
+    def test_negativo_nao_autorizado_nao_e_ocultado_por_arredondamento(self):
+        from precisao_monetaria import real_legado_para_centavos
+
+        with self.assertRaises(ErroMonetario):
+            real_legado_para_centavos(-0.004)
+
+    def test_nao_finitos_e_rejeitado(self):
+        from precisao_monetaria import real_legado_para_centavos
+
+        for valor in (float("nan"), float("inf"), float("-inf")):
+            with self.subTest(valor=valor), self.assertRaises(ErroMonetario):
+                real_legado_para_centavos(valor)
+
+    def test_bool_e_texto_sao_rejeitados(self):
+        from precisao_monetaria import real_legado_para_centavos
+
+        for valor in (True, "1.23"):
+            with self.subTest(valor=valor), self.assertRaises(ErroMonetario):
+                real_legado_para_centavos(valor)
+
+
 if __name__ == "__main__":
     unittest.main()
