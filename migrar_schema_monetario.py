@@ -229,29 +229,8 @@ def definir_fase_migracao(con: sqlite3.Connection, fase: str) -> None:
     if ordem[fase] > ordem[estado] + 1:
         raise ErroMigracaoMonetaria("não é permitido pular fases da migração")
     if fase == "backfill_conciliado":
-        # Verifica ausência de NULLs aplicáveis apenas quando o gate for
-        # declarado; não inventa zero nem modifica dados históricos.
-        for tipo, metricas in {
-            "deposito": ("deposito_valor_centavos",),
-            "acordo": ("acordo_valor_centavos", "acordo_pago_centavos", "acordo_pendente_centavos"),
-            "promessa": ("promessa_prometido_centavos", "promessa_cumprido_centavos", "promessa_em_aberto_centavos", "promessa_quebrado_centavos"),
-        }.items():
-            for metrica in metricas:
-                nulos = con.execute(
-                    f"SELECT COUNT(*) FROM fatos WHERE tipo=? AND {metrica} IS NULL", (tipo,)
-                ).fetchone()[0]
-                if nulos:
-                    raise ErroMigracaoMonetaria(
-                        f"backfill não conciliado: {nulos} linhas aplicáveis com {metrica}=NULL"
-                    )
-        for metrica in ("recebido_periodo_centavos", "a_vencer_centavos", "vencido_centavos"):
-            nulos = con.execute(
-                f"SELECT COUNT(*) FROM acordos_posicao WHERE {metrica} IS NULL"
-            ).fetchone()[0]
-            if nulos:
-                raise ErroMigracaoMonetaria(
-                    f"backfill não conciliado: {nulos} snapshots com {metrica}=NULL"
-                )
+        validar_schema_monetario(con)
+        verificar_conciliacao_monetaria(con)
     try:
         con.execute("BEGIN IMMEDIATE")
         con.execute(
@@ -367,6 +346,124 @@ def ativar_triggers_obrigatoriedade(con: sqlite3.Connection) -> list[str]:
             con.rollback()
         raise
     return criados
+
+
+def verificar_conciliacao_monetaria(con: sqlite3.Connection) -> dict[str, int]:
+    """Compara cada coluna INTEGER com a conversão determinística do REAL legado.
+
+    Não altera dados e não conta uma métrica aplicável com origem NULL como
+    conciliada. A janela de dez dias úteis e a revisão humana são gates externos
+    e não são inferidos por esta verificação de igualdade.
+    """
+    from precisao_monetaria import ErroMonetario, real_legado_para_centavos
+
+    fase = validar_schema_monetario(con)
+    if fase not in ("backfill_em_andamento", "backfill_conciliado"):
+        raise ErroMigracaoMonetaria(
+            "conciliação só pode ser verificada após iniciar o backfill"
+        )
+
+    mapa_fatos = {
+        "deposito": (("valor", "deposito_valor_centavos", True),),
+        "acordo": (
+            ("valor", "acordo_valor_centavos", False),
+            ("valor_pago", "acordo_pago_centavos", False),
+            ("valor_aberto", "acordo_pendente_centavos", True),
+        ),
+        "promessa": (
+            ("valor", "promessa_prometido_centavos", False),
+            ("valor_pago", "promessa_cumprido_centavos", False),
+            ("valor_aberto", "promessa_em_aberto_centavos", True),
+            ("valor_quebrado", "promessa_quebrado_centavos", False),
+        ),
+        "contato": (),
+    }
+    colunas_centavos = {
+        "deposito_valor_centavos", "acordo_valor_centavos", "acordo_pago_centavos",
+        "acordo_pendente_centavos", "promessa_prometido_centavos",
+        "promessa_cumprido_centavos", "promessa_em_aberto_centavos",
+        "promessa_quebrado_centavos",
+    }
+    verificadas = 0
+    divergencias = 0
+    pendencias = 0
+    consulta = (
+        "SELECT data,usuario,tipo,valor,valor_pago,valor_aberto,valor_quebrado,"
+        + ",".join(sorted(colunas_centavos))
+        + " FROM fatos ORDER BY data,usuario,tipo"
+    )
+    # Usa a ordem fixa do schema, não depende da ordenação lexical ao comparar.
+    ordem_centavos = sorted(colunas_centavos)
+    for linha in con.execute(consulta):
+        data, usuario, tipo, valor, pago, aberto, quebrado = linha[:7]
+        if tipo not in mapa_fatos:
+            raise ErroMigracaoMonetaria(f"tipo histórico desconhecido: {tipo!r}")
+        fonte = {
+            "valor": valor,
+            "valor_pago": pago,
+            "valor_aberto": aberto,
+            "valor_quebrado": quebrado,
+        }
+        atuais = dict(zip(ordem_centavos, linha[7:]))
+        aplicaveis = {col for _src, col, _neg in mapa_fatos[tipo]}
+        for coluna in colunas_centavos - aplicaveis:
+            if atuais[coluna] is not None:
+                divergencias += 1
+        for origem, coluna, negativos in mapa_fatos[tipo]:
+            bruto = fonte[origem]
+            atual = atuais[coluna]
+            if bruto is None:
+                pendencias += 1
+                continue
+            try:
+                esperado = real_legado_para_centavos(
+                    bruto,
+                    campo=f"fatos[{data},{usuario},{tipo}].{origem}",
+                    negativos_permitidos=negativos,
+                )
+            except ErroMonetario as exc:
+                raise ErroMigracaoMonetaria(str(exc)) from exc
+            if atual is None:
+                pendencias += 1
+            elif isinstance(atual, bool) or not isinstance(atual, int) or atual != esperado:
+                divergencias += 1
+            else:
+                verificadas += 1
+
+    for linha in con.execute(
+        "SELECT capturado_em,recebido_periodo,a_vencer,vencido,"
+        "recebido_periodo_centavos,a_vencer_centavos,vencido_centavos "
+        "FROM acordos_posicao ORDER BY capturado_em"
+    ):
+        capturado_em, recebido, a_vencer, vencido, rec_c, vencer_c, vencido_c = linha
+        for origem, coluna, bruto, atual, negativos in (
+            ("recebido_periodo", "recebido_periodo_centavos", recebido, rec_c, True),
+            ("a_vencer", "a_vencer_centavos", a_vencer, vencer_c, False),
+            ("vencido", "vencido_centavos", vencido, vencido_c, False),
+        ):
+            if bruto is None:
+                pendencias += 1
+                continue
+            try:
+                esperado = real_legado_para_centavos(
+                    bruto,
+                    campo=f"acordos_posicao[{capturado_em}].{origem}",
+                    negativos_permitidos=negativos,
+                )
+            except ErroMonetario as exc:
+                raise ErroMigracaoMonetaria(str(exc)) from exc
+            if atual is None:
+                pendencias += 1
+            elif isinstance(atual, bool) or not isinstance(atual, int) or atual != esperado:
+                divergencias += 1
+            else:
+                verificadas += 1
+    if pendencias or divergencias:
+        raise ErroMigracaoMonetaria(
+            f"conciliação não aprovada: {pendencias} pendência(s), "
+            f"{divergencias} divergência(s); não marque backfill_conciliado"
+        )
+    return {"campos_verificados": verificadas, "pendencias": pendencias, "divergencias": divergencias}
 
 
 def validar_schema_monetario(con: sqlite3.Connection) -> str:
