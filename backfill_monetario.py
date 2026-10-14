@@ -13,6 +13,7 @@ from typing import Any
 from migrar_schema_monetario import (
     ErroMigracaoMonetaria,
     TABELA_ESTADO,
+    validar_schema_monetario,
 )
 from precisao_monetaria import ErroMonetario, real_legado_para_centavos
 
@@ -88,6 +89,10 @@ def _fase(con: sqlite3.Connection) -> str:
 
 
 def _verificar_schema(con: sqlite3.Connection) -> None:
+    try:
+        validar_schema_monetario(con)
+    except ErroMigracaoMonetaria as exc:
+        raise ErroBackfillMonetario(str(exc)) from exc
     for tabela, colunas_requeridas in (
         ("fatos", set(_CHAVES["fatos"]) | {
             "valor", "valor_pago", "valor_aberto", "valor_quebrado"
@@ -163,7 +168,7 @@ def _planejar_fato(linha: sqlite3.Row | tuple[Any, ...]) -> tuple[Atualizacao | 
             ja_corretas += 1
     chave = (data, usuario, tipo)
     atualizacao = Atualizacao("fatos", chave, tuple(alteracoes)) if alteracoes else None
-    return atualizacao, len(alteracoes), pendencias + ja_corretas
+    return atualizacao, len(alteracoes), pendencias
 
 
 def _planejar_posicao(linha: sqlite3.Row | tuple[Any, ...]) -> tuple[Atualizacao | None, int, int]:
