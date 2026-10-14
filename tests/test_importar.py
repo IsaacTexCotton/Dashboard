@@ -84,21 +84,35 @@ class NormalizacaoTestes(unittest.TestCase):
         with self.assertRaisesRegex(importar.ErroValidacao, "esperado número"):
             importar.normalizar(payload, "2026-10-13")
 
-    def test_valores_monetarios_negativos_sao_rejeitados(self):
-        caminhos = [
-            ("depositos", "porUsuario", 0, "valor"),
+    def test_negativos_so_sao_permitidos_nos_campos_contratados(self):
+        permitidos = [
+            (("depositos", "porUsuario", 0, "valor"), -1.25),
+            (("acordos", "porUsuario", 0, "pendente"), -1.25),
+            (("promessas", "porUsuario", 0, "emAberto"), -1.25),
+            (("valoresAcordo", "valorRecebidoPeriodo"), -1.25),
+        ]
+        for caminho, valor in permitidos:
+            with self.subTest(campo=".".join(map(str, caminho))):
+                payload = json.loads(json.dumps(AMOSTRA))
+                alvo = payload["data"]
+                for chave in caminho[:-1]:
+                    alvo = alvo[chave]
+                alvo[caminho[-1]] = valor
+                usuarios, fatos, pos = importar.normalizar(payload, "2026-10-13")
+                self.assertTrue(fatos)
+                if caminho[-1] == "valorRecebidoPeriodo":
+                    self.assertEqual(pos[2], -1.25)
+
+        proibidos = [
             ("acordos", "porUsuario", 0, "valor"),
             ("acordos", "porUsuario", 0, "pagos"),
-            ("acordos", "porUsuario", 0, "pendente"),
             ("promessas", "porUsuario", 0, "prometido"),
             ("promessas", "porUsuario", 0, "cumprido"),
-            ("promessas", "porUsuario", 0, "emAberto"),
             ("promessas", "porUsuario", 0, "quebrado"),
-            ("valoresAcordo", "valorRecebidoPeriodo"),
             ("valoresAcordo", "valorAVencer"),
             ("valoresAcordo", "valorVencido"),
         ]
-        for caminho in caminhos:
+        for caminho in proibidos:
             with self.subTest(campo=".".join(map(str, caminho))):
                 payload = json.loads(json.dumps(AMOSTRA))
                 alvo = payload["data"]
@@ -109,6 +123,33 @@ class NormalizacaoTestes(unittest.TestCase):
                     importar.ErroValidacao, "valor monetário negativo não permitido"
                 ):
                     importar.normalizar(payload, "2026-10-13")
+
+    def test_normalizar_duplo_aceita_zeros_finais_e_rejeita_subcentavos(self):
+        from decimal import Decimal
+
+        payload = importar.loads_json_estrito(json.dumps(AMOSTRA))
+        payload["data"]["depositos"]["porUsuario"][0]["valor"] = Decimal("1.230")
+        usuarios, fatos, _ = importar.normalizar_duplo(
+            payload, "2026-10-13", "2026-10-14T12:00:00"
+        )
+        deposito = next(f for f in fatos if f["legado"]["tipo"] == "deposito")
+        self.assertEqual(deposito["centavos"]["deposito_valor_centavos"], 123)
+
+        payload["data"]["depositos"]["porUsuario"][0]["valor"] = Decimal("1.231")
+        with self.assertRaisesRegex(
+            ValueError, "precisão excede 2 casas|arredondamento de entrada proibido"
+        ):
+            importar.normalizar_duplo(
+                payload, "2026-10-13", "2026-10-14T12:00:00"
+            )
+
+    def test_normalizar_duplo_rejeita_float_intermediario(self):
+        payload = json.loads(json.dumps(AMOSTRA))
+        with self.assertRaisesRegex(importar.ErroValidacao, "token Decimal/int"):
+            importar.normalizar_duplo(
+                payload, "2026-10-13", "2026-10-14T12:00:00"
+            )
+
 
     def test_grupos_vazios_com_totais_zero_sao_validos(self):
         payload = json.loads(json.dumps(AMOSTRA))
@@ -133,6 +174,54 @@ class NormalizacaoTestes(unittest.TestCase):
         self.assertEqual(usuarios, {})
         self.assertEqual(fatos, [])
         self.assertEqual(posicao[2:], (0.0, 0.0, 0.0))
+
+    def test_gravar_dupla_escrita_integrada_preserva_centavos_e_real(self):
+        from decimal import Decimal
+        from migrar_schema_monetario import migrar_schema_monetario
+
+        payload = importar.loads_json_estrito(json.dumps(AMOSTRA))
+        con = sqlite3.connect(":memory:")
+        try:
+            con.executescript(importar.SCHEMA)
+            migrar_schema_monetario(con)
+            total = importar.gravar(
+                con, "2026-10-13", payload, "teste", dupla_escrita=True
+            )
+            self.assertEqual(total, 5)
+            row = con.execute(
+                "SELECT valor, deposito_valor_centavos FROM fatos "
+                "WHERE tipo='deposito' ORDER BY usuario LIMIT 1"
+            ).fetchone()
+            self.assertIsInstance(row[0], float)
+            self.assertIsInstance(row[1], int)
+            self.assertEqual(
+                row[1],
+                importar.normalizar_duplo(
+                    payload, "2026-10-13", "2026-10-14T12:00:00"
+                )[1][0]["centavos"]["deposito_valor_centavos"],
+            )
+            self.assertEqual(
+                con.execute("SELECT COUNT(*) FROM importacoes").fetchone()[0], 1
+            )
+        finally:
+            con.close()
+
+    def test_dual_write_em_banco_legado_sem_migracao_falha_sem_modificar_schema(self):
+        from migrar_schema_monetario import migrar_schema_monetario
+
+        con = sqlite3.connect(":memory:")
+        try:
+            con.executescript(importar.SCHEMA)
+            before = {r[1] for r in con.execute("PRAGMA table_info(fatos)")}
+            payload = importar.loads_json_estrito(json.dumps(AMOSTRA))
+            with self.assertRaises(importar.ErroValidacao):
+                importar.gravar(
+                    con, "2026-10-13", payload, "teste", dupla_escrita=True
+                )
+            after = {r[1] for r in con.execute("PRAGMA table_info(fatos)")}
+            self.assertEqual(after, before)
+        finally:
+            con.close()
 
     def test_rejeita_quantidade_booleana(self):
         payload = json.loads(json.dumps(AMOSTRA))

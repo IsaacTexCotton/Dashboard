@@ -1,0 +1,304 @@
+"""Testes isolados da migração aditiva monetária em SQLite descartável."""
+import sqlite3
+import unittest
+
+from migrar_schema_monetario import (
+    ErroMigracaoMonetaria,
+    FASES_VALIDAS,
+    TABELA_ESTADO,
+    ativar_triggers_obrigatoriedade,
+    definir_fase_migracao,
+    migrar_schema_monetario,
+)
+
+SCHEMA_LEGADO = """
+CREATE TABLE usuarios (usuario TEXT PRIMARY KEY, nome TEXT);
+CREATE TABLE fatos (
+  data TEXT NOT NULL,
+  usuario TEXT NOT NULL,
+  tipo TEXT NOT NULL,
+  qtd INTEGER NOT NULL DEFAULT 0,
+  qtd_unicos INTEGER NOT NULL DEFAULT 0,
+  valor REAL NOT NULL DEFAULT 0,
+  valor_pago REAL NOT NULL DEFAULT 0,
+  valor_aberto REAL NOT NULL DEFAULT 0,
+  valor_quebrado REAL NOT NULL DEFAULT 0,
+  importado_em TEXT NOT NULL,
+  PRIMARY KEY (data, usuario, tipo)
+);
+CREATE TABLE acordos_posicao (
+  capturado_em TEXT PRIMARY KEY,
+  data TEXT,
+  recebido_periodo REAL,
+  a_vencer REAL,
+  vencido REAL
+);
+"""
+
+
+def banco_legado():
+    con = sqlite3.connect(":memory:")
+    con.executescript(SCHEMA_LEGADO)
+    con.execute("INSERT INTO usuarios(usuario,nome) VALUES ('ana','Ana')")
+    con.execute(
+        "INSERT INTO fatos(data,usuario,tipo,qtd,qtd_unicos,valor,valor_pago,"
+        "valor_aberto,valor_quebrado,importado_em) "
+        "VALUES ('2026-10-14','ana','deposito',1,0,12.34,0.0,0.0,0.0,'origem')"
+    )
+    con.commit()
+    return con
+
+
+class TestMigracaoSchemaMonetario(unittest.TestCase):
+    def test_adiciona_11_colunas_sem_alterar_valores_legados(self):
+        con = banco_legado()
+        try:
+            resultado = migrar_schema_monetario(con)
+            self.assertEqual(resultado["total_colunas"], 11)
+            self.assertEqual(len(resultado["colunas_criadas"]), 11)
+            self.assertEqual(resultado["fase"], "schema_adicionado")
+            self.assertEqual(
+                con.execute(
+                    "SELECT data, usuario, tipo, valor, valor_pago, valor_aberto, "
+                    "valor_quebrado, importado_em FROM fatos"
+                ).fetchone(),
+                ("2026-10-14", "ana", "deposito", 12.34, 0.0, 0.0, 0.0, "origem"),
+            )
+            self.assertIsNone(
+                con.execute(
+                    "SELECT deposito_valor_centavos FROM fatos"
+                ).fetchone()[0]
+            )
+        finally:
+            con.close()
+
+    def test_migracao_e_idempotente(self):
+        con = banco_legado()
+        try:
+            primeira = migrar_schema_monetario(con)
+            segunda = migrar_schema_monetario(con)
+            self.assertEqual(len(primeira["colunas_criadas"]), 11)
+            self.assertEqual(segunda["colunas_criadas"], [])
+            self.assertEqual(
+                con.execute("SELECT COUNT(*) FROM pragma_table_info('fatos')").fetchone()[0],
+                18,
+            )
+        finally:
+            con.close()
+
+    def test_checks_por_tipo_e_sinal(self):
+        con = banco_legado()
+        try:
+            migrar_schema_monetario(con)
+            # Completa a linha de depósito com um valor novo para que os CHECKs
+            # por tipo e de inteiro possam ser avaliados.
+            con.execute(
+                "UPDATE fatos SET deposito_valor_centavos=-1234 WHERE tipo='deposito'"
+            )
+            con.commit()
+            with self.assertRaises(sqlite3.IntegrityError):
+                con.execute(
+                    "UPDATE fatos SET acordo_valor_centavos=100 WHERE tipo='deposito'"
+                )
+            with self.assertRaises(sqlite3.IntegrityError):
+                con.execute(
+                    "UPDATE fatos SET deposito_valor_centavos=1.5 WHERE tipo='deposito'"
+                )
+            # Limpa a transação aberta pelas tentativas que falharam.
+            con.rollback()
+            con.execute(
+                "INSERT INTO fatos(data,usuario,tipo,qtd,qtd_unicos,valor,valor_pago,"
+                "valor_aberto,valor_quebrado,importado_em,acordo_valor_centavos,"
+                "acordo_pago_centavos,acordo_pendente_centavos) "
+                "VALUES ('2026-10-14','bia','acordo',1,0,10.0,5.0,5.0,0.0,'origem',"
+                "1000,500,-50)"
+            )
+            con.commit()
+            with self.assertRaises(sqlite3.IntegrityError):
+                con.execute(
+                    "UPDATE fatos SET acordo_pago_centavos=-1 "
+                    "WHERE usuario='bia' AND tipo='acordo'"
+                )
+            with self.assertRaises(sqlite3.IntegrityError):
+                con.execute(
+                    "UPDATE fatos SET promessa_quebrado_centavos=-1 "
+                    "WHERE usuario='bia' AND tipo='acordo'"
+                )
+        finally:
+            con.close()
+
+    def test_checks_de_posicao_permitindo_sinal_somente_em_recebido(self):
+        con = banco_legado()
+        try:
+            migrar_schema_monetario(con)
+            con.execute(
+                "INSERT INTO acordos_posicao(capturado_em,data,recebido_periodo,"
+                "a_vencer,vencido,recebido_periodo_centavos,a_vencer_centavos,"
+                "vencido_centavos) VALUES ('ts','2026-10-14',-1.0,2.0,3.0,-100,200,300)"
+            )
+            con.commit()
+            with self.assertRaises(sqlite3.IntegrityError):
+                con.execute(
+                    "UPDATE acordos_posicao SET a_vencer_centavos=-1 WHERE capturado_em='ts'"
+                )
+            with self.assertRaises(sqlite3.IntegrityError):
+                con.execute(
+                    "UPDATE acordos_posicao SET vencido_centavos=-1 WHERE capturado_em='ts'"
+                )
+        finally:
+            con.close()
+
+    def test_schema_incompativel_aborta_sem_alterar(self):
+        con = banco_legado()
+        try:
+            con.execute("ALTER TABLE fatos ADD COLUMN deposito_valor_centavos INTEGER")
+            con.commit()
+            antes = [r[1] for r in con.execute("PRAGMA table_info(fatos)")]
+            with self.assertRaises(ErroMigracaoMonetaria):
+                migrar_schema_monetario(con)
+            depois = [r[1] for r in con.execute("PRAGMA table_info(fatos)")]
+            self.assertEqual(depois, antes)
+            self.assertNotIn(TABELA_ESTADO, {
+                r[0] for r in con.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                )
+            })
+        finally:
+            con.close()
+
+    def test_tabela_legada_ausente_aborta(self):
+        con = sqlite3.connect(":memory:")
+        try:
+            con.execute("CREATE TABLE fatos (data TEXT, usuario TEXT, tipo TEXT)")
+            con.commit()
+            with self.assertRaises(ErroMigracaoMonetaria):
+                migrar_schema_monetario(con)
+            self.assertEqual(
+                con.execute("SELECT COUNT(*) FROM pragma_table_info('fatos')").fetchone()[0],
+                3,
+            )
+        finally:
+            con.close()
+
+    def test_fases_validas_e_progressao(self):
+        con = banco_legado()
+        try:
+            migrar_schema_monetario(con)
+            self.assertEqual(FASES_VALIDAS[0], "schema_adicionado")
+            definir_fase_migracao(con, "backfill_em_andamento")
+            with self.assertRaises(ErroMigracaoMonetaria):
+                definir_fase_migracao(con, "schema_adicionado")
+            with self.assertRaises(ErroMigracaoMonetaria):
+                definir_fase_migracao(con, "backfill_conciliado")
+            con.execute(
+                "UPDATE fatos SET deposito_valor_centavos=1234 WHERE tipo='deposito'"
+            )
+            con.commit()
+            definir_fase_migracao(con, "backfill_conciliado")
+            self.assertEqual(
+                con.execute(f"SELECT fase FROM {TABELA_ESTADO} WHERE id=1").fetchone()[0],
+                "backfill_conciliado",
+            )
+            with self.assertRaises(ErroMigracaoMonetaria):
+                definir_fase_migracao(con, "backfill_em_andamento")
+        finally:
+            con.close()
+
+    def test_fase_nao_pode_pular_backfill(self):
+        con = sqlite3.connect(":memory:")
+        try:
+            con.executescript(SCHEMA_LEGADO)
+            con.commit()
+            migrar_schema_monetario(con)
+            with self.assertRaises(ErroMigracaoMonetaria):
+                definir_fase_migracao(con, "backfill_conciliado")
+            self.assertEqual(
+                con.execute(f"SELECT fase FROM {TABELA_ESTADO}").fetchone()[0],
+                "schema_adicionado",
+            )
+        finally:
+            con.close()
+
+    def test_triggers_so_ativam_depois_de_backfill_conciliado(self):
+        con = banco_legado()
+        try:
+            migrar_schema_monetario(con)
+            with self.assertRaises(ErroMigracaoMonetaria):
+                ativar_triggers_obrigatoriedade(con)
+            definir_fase_migracao(con, "backfill_em_andamento")
+            con.execute(
+                "UPDATE fatos SET deposito_valor_centavos=1234 WHERE tipo='deposito'"
+            )
+            con.commit()
+            definir_fase_migracao(con, "backfill_conciliado")
+            criados = ativar_triggers_obrigatoriedade(con)
+            self.assertEqual(len(criados), 4)
+            self.assertEqual(ativar_triggers_obrigatoriedade(con), [])
+            with self.assertRaises(sqlite3.IntegrityError):
+                con.execute(
+                    "INSERT INTO fatos(data,usuario,tipo,qtd,qtd_unicos,valor,valor_pago,"
+                    "valor_aberto,valor_quebrado,importado_em) "
+                    "VALUES ('2026-10-15','sem-centavos','deposito',1,0,1.0,0,0,0,'agora')"
+                )
+            con.rollback()
+            con.execute(
+                "INSERT INTO fatos(data,usuario,tipo,qtd,qtd_unicos,valor,valor_pago,"
+                "valor_aberto,valor_quebrado,importado_em,deposito_valor_centavos) "
+                "VALUES ('2026-10-15','com-centavos','deposito',1,0,1.0,0,0,0,'agora',100)"
+            )
+            con.commit()
+            with self.assertRaises(sqlite3.IntegrityError):
+                con.execute(
+                    "UPDATE fatos SET deposito_valor_centavos=NULL "
+                    "WHERE usuario='com-centavos'"
+                )
+        finally:
+            con.close()
+
+    def test_trigger_posicao_exige_tres_metricas_apos_conciliacao(self):
+        con = banco_legado()
+        try:
+            migrar_schema_monetario(con)
+            definir_fase_migracao(con, "backfill_em_andamento")
+            con.execute(
+                "UPDATE fatos SET deposito_valor_centavos=1234 WHERE tipo='deposito'"
+            )
+            con.execute(
+                "INSERT INTO acordos_posicao(capturado_em,data,recebido_periodo,"
+                "a_vencer,vencido,recebido_periodo_centavos,a_vencer_centavos,"
+                "vencido_centavos) VALUES ('ts','2026-10-14',1,2,3,100,200,300)"
+            )
+            con.commit()
+            definir_fase_migracao(con, "backfill_conciliado")
+            ativar_triggers_obrigatoriedade(con)
+            with self.assertRaises(sqlite3.IntegrityError):
+                con.execute(
+                    "INSERT INTO acordos_posicao(capturado_em,data,recebido_periodo,a_vencer,vencido) "
+                    "VALUES ('ts2','2026-10-14',1,2,3)"
+                )
+        finally:
+            con.close()
+
+    def test_falha_no_meio_da_migracao_faria_rollback_ddl(self):
+        con = banco_legado()
+        try:
+            # Coluna preexistente sem CHECK detectada antes de qualquer DDL.
+            con.execute("ALTER TABLE acordos_posicao ADD COLUMN vencido_centavos TEXT")
+            con.commit()
+            antes_fatos = [r[1] for r in con.execute("PRAGMA table_info(fatos)")]
+            antes_pos = [r[1] for r in con.execute("PRAGMA table_info(acordos_posicao)")]
+            with self.assertRaises(ErroMigracaoMonetaria):
+                migrar_schema_monetario(con)
+            self.assertEqual([r[1] for r in con.execute("PRAGMA table_info(fatos)")], antes_fatos)
+            self.assertEqual([r[1] for r in con.execute("PRAGMA table_info(acordos_posicao)")], antes_pos)
+            self.assertNotIn(TABELA_ESTADO, {
+                r[0] for r in con.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                )
+            })
+        finally:
+            con.close()
+
+
+if __name__ == "__main__":
+    unittest.main()

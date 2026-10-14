@@ -2,7 +2,7 @@
 
 **Projeto:** Dashboard de Cobrança (CAIXA FUTURO), Contas a Pagar / Financeiro  
 **Data:** 14/10/2026  
-**Estado:** plano proposto; dependente de ratificação/assinatura e de gates técnicos.  
+**Estado:** Política v1.1 ratificada pelo solicitante em 14/10/2026; plano técnico em execução por etapas, com gates operacionais ainda obrigatórios.  
 **Branch de documentação:** `docs/analise-compatibilidade-monetaria`  
 **Regra de segurança:** nenhuma alteração de schema, migração, dupla escrita ou corte de produção está autorizada por este documento.
 
@@ -23,7 +23,7 @@ A execução deve ocorrer em branch de implementação própria e PRs revisávei
 | G-05 | Negativos em origem não comprovados para todos os campos listados e relação das promessas ainda não validada em dado real | Autorizar extração sanitizada e registrar evidência por campo/cenário; sem inferência a partir da amostra fictícia | TI + Controladoria |
 | G-06 | Fórmulas ERP/Systêxtil não validadas | Obter ao menos 30 títulos reais sanitizados e reproduzir ao centavo antes de habilitar qualquer cálculo próprio de encargo | Contabilidade + TI |
 
-**O desenho de G-01 a G-03 está registrado em minuta, mas código de migração e mudanças funcionais só podem começar depois da assinatura formal da Política v1.1/contrato e da aprovação dos gates técnicos.** Inventário e preparação de testes isolados podem avançar sem alterar produção.
+**A ratificação da Política v1.1 foi declarada em 14/10/2026.** A integração de código pode avançar em PR isolada e sob feature flag. DDL, backfill, ativação de dupla escrita em produção e cutover continuam bloqueados até os respectivos gates técnicos (backup/restauração verificados, revisão, evidência de origem, conciliação e aprovações documentadas).
 
 ## 3. Fases, tarefas e critérios de saída
 
@@ -186,7 +186,7 @@ A escrita legada em REAL permanece ativa durante os 90 dias corridos posteriores
 
 ## 8. Estado atual
 
-As propostas mais recentes resolvem o desenho documental dos três bloqueadores: nome semântico por métrica, `REAL congelado` com escrita legada mantida ao menos 90 dias pós-corte e até descomissionamento formal, e a distinção entre valores finais e grandezas de cálculo. A Política v1.1 e o contrato atualizado são minutas pendentes de assinatura; nenhum código funcional, esquema, coluna ou backfill deve ser alterado antes da ratificação formal.
+As decisões de desenho dos três bloqueadores foram ratificadas pelo solicitante em 14/10/2026: nome semântico por métrica, `REAL congelado` com escrita legada mantida ao menos 90 dias pós-corte e até descomissionamento formal, e distinção entre valores finais e grandezas de cálculo. A integração de código segue em branch/PR controlada. Nenhum backfill, corte ou alteração de banco real será executado até a aprovação dos gates operacionais e a verificação de backup/restauração.
 
 Este plano foi preparado a partir da análise documental e das decisões recebidas em 14/10/2026. O GitHub Actions `Testes CAIXA FUTURO` — execução [#42](https://github.com/IsaacTexCotton/Dashboard/actions/runs/38581680436) no head documental `82c5e3284a3e1db61c55ed77123e245639b93b27` — concluiu com sucesso nos testes automatizados existentes e na validação da amostra sem CRM. Isso não valida uma migração que ainda não foi implementada: testes específicos de centavos/schema/dupla escrita/rollback permanecem pendentes. Não foram executados backup, migração, alteração de schema, dupla escrita, acesso ao CRM/ERP ou corte de produção nesta etapa.
 

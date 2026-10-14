@@ -3,7 +3,7 @@
 
 Uso: python auditar_resposta.py amostra_resposta.json
 Não consulta o CRM e não abre nem altera banco de dados.
-A tolerância padrão para valores monetários é R$ 0,01.
+Valores monetários são conciliados por igualdade exata; não há tolerância de centavo.
 """
 from __future__ import annotations
 
@@ -44,23 +44,36 @@ REGRAS = (
 )
 
 
-def _decimal(valor: Any, campo: str) -> Decimal:
-    if isinstance(valor, bool) or not isinstance(valor, (int, float)):
+_NEGATIVOS_PERMITIDOS = {
+    ("depositos", "valor"),
+    ("acordos", "pendente"),
+    ("promessas", "emAberto"),
+}
+
+
+def _decimal(
+    valor: Any,
+    campo: str,
+    *,
+    negativos_permitidos: bool = False,
+) -> Decimal:
+    if isinstance(valor, bool) or not isinstance(valor, (int, float, Decimal)):
         raise importar.ErroValidacao(f"{campo}: esperado número JSON")
     try:
-        numero = Decimal(str(valor))
+        numero = valor if isinstance(valor, Decimal) else Decimal(str(valor))
     except (InvalidOperation, ValueError) as exc:
         raise importar.ErroValidacao(f"{campo}: número inválido") from exc
     if not numero.is_finite():
         raise importar.ErroValidacao(f"{campo}: número não finito")
-    if numero < 0:
+    if numero < 0 and not negativos_permitidos:
         raise importar.ErroValidacao(f"{campo}: valor monetário negativo não permitido")
     return numero
 
 
-def auditar(resp: Any, tolerancia: Decimal = Decimal("0.01")) -> list[Check]:
-    if tolerancia < 0 or not tolerancia.is_finite():
-        raise ValueError("tolerância precisa ser finita e não negativa")
+def auditar(resp: Any, tolerancia: Decimal | None = None) -> list[Check]:
+    if tolerancia is not None:
+        if not isinstance(tolerancia, Decimal) or not tolerancia.is_finite() or tolerancia != 0:
+            raise ValueError("tolerância monetária removida pela Política v1.1; a conciliação exige igualdade exata")
     if not isinstance(resp, dict) or not isinstance(resp.get("data"), dict):
         raise importar.ErroValidacao("resposta: estrutura data ausente ou inválida")
     dia = resp["data"].get("inicio")
@@ -83,16 +96,24 @@ def auditar(resp: Any, tolerancia: Decimal = Decimal("0.01")) -> list[Check]:
                 grupo_obj[total_campo], f"data.{grupo}.{total_campo}"
             ))
         else:
-            total = _decimal(grupo_obj[total_campo], f"data.{grupo}.{total_campo}")
+            total = _decimal(
+                grupo_obj[total_campo],
+                f"data.{grupo}.{total_campo}",
+                negativos_permitidos=(grupo, linha_campo) in _NEGATIVOS_PERMITIDOS,
+            )
         soma = Decimal("0")
         for indice, linha in enumerate(linhas):
             if not isinstance(linha, dict) or linha_campo not in linha:
                 raise importar.ErroValidacao(
                     f"data.{grupo}.porUsuario[{indice}].{linha_campo}: campo ausente"
                 )
-            soma += _decimal(linha[linha_campo], f"data.{grupo}.porUsuario[{indice}].{linha_campo}")
+            soma += _decimal(
+                linha[linha_campo],
+                f"data.{grupo}.porUsuario[{indice}].{linha_campo}",
+                negativos_permitidos=(grupo, linha_campo) in _NEGATIVOS_PERMITIDOS,
+            )
         diferenca = total - soma
-        limite = Decimal("0") if tipo == "inteiro" else tolerancia
+        limite = Decimal("0")
         fmt = lambda numero: format(numero, "f")
         checks.append(Check(grupo, total_campo, fmt(total), fmt(soma), fmt(diferenca),
                             "OK" if abs(diferenca) <= limite else "DIVERGÊNCIA"))
@@ -108,15 +129,10 @@ def auditar(resp: Any, tolerancia: Decimal = Decimal("0.01")) -> list[Check]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Audita totais versus soma por usuário; não grava dados")
     parser.add_argument("arquivo", help="caminho para JSON local")
-    parser.add_argument("--tolerancia", default="0.01", help="diferença monetária máxima (padrão: 0.01)")
     args = parser.parse_args(argv)
     try:
-        tolerancia = Decimal(args.tolerancia)
-        if not tolerancia.is_finite() or tolerancia < 0:
-            raise ValueError("tolerância precisa ser decimal finito e não negativo")
-        with Path(args.arquivo).open(encoding="utf-8-sig") as fh:
-            resp = json.load(fh)
-        checks = auditar(resp, tolerancia)
+        resp = importar._carregar_arquivo(args.arquivo)
+        checks = auditar(resp)
     except (OSError, json.JSONDecodeError, ValueError, importar.ErroValidacao) as exc:
         print(f"ERRO: {exc}", file=sys.stderr)
         return 2

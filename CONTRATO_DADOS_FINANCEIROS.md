@@ -12,14 +12,14 @@
 | Tema | Decisão registrada | Estado técnico |
 |---|---|---|
 | Acordos por usuário | `valor = pagos + pendente` deve ser obrigatório após validar exceções | Ainda não bloqueante. É necessário definir como identificar e tratar renegociações, descontos, cancelamentos, parcelas não vencidas e pagamentos parciais antes de ativar o bloqueio |
-| Precisão monetária | `POLITICA_PRECISAO_MONETARIA.md` v1.0 é a versão formalmente aprovada; proposta v1.1 registrada em branch documental, pendente de assinatura | A proposta v1.1 define valores finais com no máximo duas casas efetivas (zeros excedentes são aceitos), regras decimais exatas, sinais por campo, `REAL` congelado com escrita legada preservada até descomissionamento e colunas por métrica. Nenhuma regra nova é aplicada pelo runtime antes da assinatura e da integração da versão aprovada |
+| Precisão monetária | v1.1 ratificada pelo solicitante em 14/10/2026, conforme registro em `POLITICA_PRECISAO_MONETARIA.md` | Parsing exato, classificação por campo, sinais e colunas semânticas integrados ao código sob rollout controlado; DDL/backfill/cutover continuam submetidos aos gates de backup, conciliação e homologação |
 | Timestamp da captura | Usar e preservar exatamente o campo `timestamp` enviado no JSON da origem, como referência temporal da posição atualizada | Decidido em 14/10/2026: não substituir por relógio local nem inferir/converter fuso; campo ausente ou vazio deve bloquear a importação |
 | Contatos únicos globais | Não existe chave/regra aprovada para deduplicação entre negociadores | Manter `contatosUnicosTotal` como não aditivo; não somar por usuário nem usar essa métrica como gate de reconciliação |
 
  
-## Proposta de contrato monetário v1.1 — pendente de assinatura
+## Contrato monetário v1.1 — ratificação registrada em 14/10/2026
 
-Esta seção registra o contrato-alvo proposto para alinhar o esquema por métrica e a política v1.1. **Não descreve o comportamento atual do importador**, que ainda rejeita todos os valores negativos e faz parsing monetário por `float`. As mudanças não devem ser ativadas antes da assinatura formal da Política v1.1 e da aprovação do plano de migração.
+Esta seção registra o contrato-alvo proposto para alinhar o esquema por métrica e a política v1.1. **Não descreve o comportamento anterior do importador**, que rejeitava todos os valores negativos e fazia parsing monetário por `float`. A assinatura da Política v1.1 foi declarada pelo solicitante em 14/10/2026; a integração operacional prossegue sob feature flag e a ativação da migração/backfill/corte continua sujeita aos gates técnicos do plano.
 
 ### Classificação campo a campo
 
@@ -105,7 +105,7 @@ Esta evidência fecha a pendência de executar os scripts do projeto sobre **est
 
 Todas as propriedades abaixo são observadas na amostra fictícia e implementadas pelo importador. Isso não comprova que a API real sempre as envia.
 
-A tabela a seguir descreve o **estado atualmente observado** no importador legado, não as regras-alvo da proposta monetária v1.1. As regras de sinais, parsing, colunas por métrica e obrigatoriedade transicional constam na seção `Proposta de contrato monetário v1.1 — pendente de assinatura`, acima, e só podem ser aplicadas após ratificação formal.
+A tabela a seguir descreve o **estado atualmente observado** no importador legado, não as regras-alvo da proposta monetária v1.1. As regras de sinais, parsing, colunas por métrica e obrigatoriedade transicional constam na seção `Contrato monetário v1.1 — ratificação registrada em 14/10/2026`, acima. A ativação de schema/backfill continua sujeita aos gates técnicos e operacionais do plano.
 
 | Campo lógico | Caminho JSON | Tipo/obrigatoriedade atual | Validação atual | Destino SQLite |
 |---|---|---|---|---|

@@ -31,37 +31,52 @@ class AuditoriaTestes(unittest.TestCase):
         self.assertEqual(check.status, "DIVERGÊNCIA")
         self.assertEqual(check.diferenca, "1.0")
 
-    def test_respeita_tolerancia_de_centavo(self):
+    def test_divergencia_de_um_centavo_nao_e_tolerada(self):
         payload = copy.deepcopy(AMOSTRA)
         payload["data"]["depositos"]["valorTotal"] = 25000.01
-        checks = auditar_resposta.auditar(payload, Decimal("0.01"))
-        check = next(c for c in checks if c.metrica == "valorTotal")
-        self.assertEqual(check.status, "OK")
+        checks = auditar_resposta.auditar(payload)
+        check = next(c for c in checks if c.grupo == "depositos" and c.metrica == "valorTotal")
+        self.assertEqual(check.status, "DIVERGÊNCIA")
+        self.assertEqual(check.diferenca, "0.01")
 
-    def test_total_monetario_negativo_e_rejeitado(self):
+    def test_argumento_de_tolerancia_legado_e_rejeitado(self):
+        with self.assertRaisesRegex(ValueError, "tolerância monetária removida"):
+            auditar_resposta.auditar(AMOSTRA, Decimal("0.01"))
+
+    def test_agregado_monetario_negativo_nao_autorizado_e_rejeitado(self):
         payload = copy.deepcopy(AMOSTRA)
-        payload["data"]["depositos"]["valorTotal"] = -1
+        payload["data"]["acordos"]["valorTotal"] = -1
         with self.assertRaisesRegex(importar.ErroValidacao, "valor monetário negativo não permitido"):
             auditar_resposta.auditar(payload)
 
-    def test_todos_totais_monetarios_agregados_negativos_sao_rejeitados(self):
+    def test_sinais_negativos_permitidos_pelo_contrato_nao_falham_validacao(self):
+        casos = [
+            ("depositos", "valorTotal", "valor"),
+            ("acordos", "pendenteTotal", "pendente"),
+            ("promessas", "emAbertoTotal", "emAberto"),
+        ]
+        for grupo, total_campo, campo_linha in casos:
+            with self.subTest(grupo=grupo, campo=campo_linha):
+                payload = copy.deepcopy(AMOSTRA)
+                payload["data"][grupo][total_campo] = -1
+                for linha in payload["data"][grupo]["porUsuario"]:
+                    linha[campo_linha] = -1
+                checks = auditar_resposta.auditar(payload)
+                check = next(c for c in checks if c.grupo == grupo and c.metrica == total_campo)
+                self.assertIn(check.status, ("OK", "DIVERGÊNCIA"))
+
+    def test_totais_negativos_sao_rejeitados_quando_o_sinal_nao_e_permitido(self):
         caminhos = [
-            ("depositos", "valorTotal"),
             ("acordos", "valorTotal"),
             ("acordos", "pagosTotal"),
-            ("acordos", "pendenteTotal"),
             ("promessas", "prometidoTotal"),
             ("promessas", "cumpridoTotal"),
-            ("promessas", "emAbertoTotal"),
             ("promessas", "quebradoTotal"),
         ]
-        for caminho in caminhos:
-            with self.subTest(campo=".".join(caminho)):
+        for grupo, campo in caminhos:
+            with self.subTest(campo=f"{grupo}.{campo}"):
                 payload = copy.deepcopy(AMOSTRA)
-                alvo = payload["data"]
-                for chave in caminho[:-1]:
-                    alvo = alvo[chave]
-                alvo[caminho[-1]] = -1
+                payload["data"][grupo][campo] = -1
                 with self.assertRaisesRegex(
                     importar.ErroValidacao, "valor monetário negativo não permitido"
                 ):
@@ -70,7 +85,7 @@ class AuditoriaTestes(unittest.TestCase):
     def test_divergencia_de_dois_centavos_bloqueia(self):
         payload = copy.deepcopy(AMOSTRA)
         payload["data"]["depositos"]["valorTotal"] = 25000.02
-        checks = auditar_resposta.auditar(payload, Decimal("0.01"))
+        checks = auditar_resposta.auditar(payload)
         check = next(c for c in checks if c.grupo == "depositos" and c.metrica == "valorTotal")
         self.assertEqual(check.status, "DIVERGÊNCIA")
         self.assertEqual(check.diferenca, "0.02")
