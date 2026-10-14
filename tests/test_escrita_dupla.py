@@ -110,19 +110,21 @@ def fatos_exemplo():
 
 
 def argumentos(fatos=None):
+    posicao_legada, posicao_centavos = preparar_posicao_dupla(
+        capturado_em="2026-10-14T12:00:00",
+        dia=DIA,
+        campos_monetarios={
+            "valorRecebidoPeriodo": Decimal("20.00"),
+            "valorAVencer": Decimal("30.00"),
+            "valorVencido": Decimal("40.00"),
+        },
+    )
     return {
         "dia": DIA,
         "usuarios": {"ana": "Ana", "bia": "Bia"},
         "fatos": fatos if fatos is not None else fatos_exemplo(),
-        "posicao_dupla": preparar_posicao_dupla(
-            capturado_em="2026-10-14T12:00:00",
-            dia=DIA,
-            campos_monetarios={
-                "valorRecebidoPeriodo": Decimal("20.00"),
-                "valorAVencer": Decimal("30.00"),
-                "valorVencido": Decimal("40.00"),
-            },
-        ),
+        "posicao_legada": posicao_legada,
+        "posicao_centavos": posicao_centavos,
         "origem": "fixture",
         "quando": "2026-10-14T12:01:00",
     }
@@ -146,14 +148,7 @@ class TestEscritaDupla(unittest.TestCase):
     def test_grava_legado_e_centavos_no_mesmo_lote(self):
         con = criar_banco()
         try:
-            args = argumentos()
-            posicao_legada, posicao_centavos = args.pop("posicao_dupla")
-            total = gravar_dia_duplo(
-                con,
-                **args,
-                posicao_legada=posicao_legada,
-                posicao_centavos=posicao_centavos,
-            )
+            total = gravar_dia_duplo(con, **argumentos())
             self.assertEqual(total, 2)
             rows = con.execute(
                 "SELECT usuario, valor, deposito_valor_centavos, "
@@ -199,14 +194,7 @@ class TestEscritaDupla(unittest.TestCase):
     def test_rollback_pos_corte_encontra_registro_novo_nas_colunas_real(self):
         con = criar_banco()
         try:
-            args = argumentos()
-            posicao_legada, posicao_centavos = args.pop("posicao_dupla")
-            gravar_dia_duplo(
-                con,
-                **args,
-                posicao_legada=posicao_legada,
-                posicao_centavos=posicao_centavos,
-            )
+            gravar_dia_duplo(con, **argumentos())
             # Simulação de rollback da leitura: query usa REAL legado, mas
             # confirma que registros pós-corte também foram atualizados ali.
             self.assertEqual(
