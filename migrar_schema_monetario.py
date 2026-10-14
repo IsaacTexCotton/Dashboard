@@ -226,6 +226,8 @@ def definir_fase_migracao(con: sqlite3.Connection, fase: str) -> None:
     ordem = {nome: i for i, nome in enumerate(FASES_VALIDAS)}
     if ordem[fase] < ordem[estado]:
         raise ErroMigracaoMonetaria("não é permitido retroceder a fase sem procedimento de reparo")
+    if ordem[fase] > ordem[estado] + 1:
+        raise ErroMigracaoMonetaria("não é permitido pular fases da migração")
     if fase == "backfill_conciliado":
         # Verifica ausência de NULLs aplicáveis apenas quando o gate for
         # declarado; não inventa zero nem modifica dados históricos.
@@ -261,3 +263,105 @@ def definir_fase_migracao(con: sqlite3.Connection, fase: str) -> None:
         if con.in_transaction:
             con.rollback()
         raise
+
+
+
+def ativar_triggers_obrigatoriedade(con: sqlite3.Connection) -> list[str]:
+    """Instala triggers de NOT NULL semântico só após backfill conciliado.
+
+    A função não converte nem escreve valores de negócio. A ativação verifica
+    novamente o marcador e a ausência de NULLs aplicáveis; a criação de todos
+    os triggers é transacional e idempotente.
+    """
+    if not isinstance(con, sqlite3.Connection):
+        raise ErroMigracaoMonetaria("conexão SQLite inválida")
+    if con.in_transaction:
+        raise ErroMigracaoMonetaria("ativação de triggers exige conexão fora de transação")
+    tabelas = _tabelas(con)
+    if TABELA_ESTADO not in tabelas:
+        raise ErroMigracaoMonetaria("schema monetário ainda não foi preparado")
+    fase = _validar_estado(con, tabelas)
+    if fase != "backfill_conciliado":
+        raise ErroMigracaoMonetaria(
+            "triggers de obrigatoriedade só podem ser ativados após backfill_conciliado"
+        )
+
+    # A fase somente pode ser declarada conciliada se todas as métricas
+    # aplicáveis estiverem preenchidas; esta verificação é repetida como defesa.
+    for tipo, metricas in {
+        "deposito": ("deposito_valor_centavos",),
+        "acordo": ("acordo_valor_centavos", "acordo_pago_centavos", "acordo_pendente_centavos"),
+        "promessa": ("promessa_prometido_centavos", "promessa_cumprido_centavos", "promessa_em_aberto_centavos", "promessa_quebrado_centavos"),
+    }.items():
+        for metrica in metricas:
+            nulos = con.execute(
+                f"SELECT COUNT(*) FROM fatos WHERE tipo=? AND {metrica} IS NULL", (tipo,)
+            ).fetchone()[0]
+            if nulos:
+                raise ErroMigracaoMonetaria(
+                    f"obrigatoriedade não ativada: {nulos} linhas com {metrica}=NULL"
+                )
+    for metrica in ("recebido_periodo_centavos", "a_vencer_centavos", "vencido_centavos"):
+        nulos = con.execute(
+            f"SELECT COUNT(*) FROM acordos_posicao WHERE " + metrica + " IS NULL"
+        ).fetchone()[0]
+        if nulos:
+            raise ErroMigracaoMonetaria(
+                f"obrigatoriedade não ativada: {nulos} snapshots com {metrica}=NULL"
+            )
+
+    fato_incompleto = (
+        "(NEW.tipo='deposito' AND NEW.deposito_valor_centavos IS NULL) OR "
+        "(NEW.tipo='acordo' AND (NEW.acordo_valor_centavos IS NULL OR "
+        "NEW.acordo_pago_centavos IS NULL OR NEW.acordo_pendente_centavos IS NULL)) OR "
+        "(NEW.tipo='promessa' AND (NEW.promessa_prometido_centavos IS NULL OR "
+        "NEW.promessa_cumprido_centavos IS NULL OR NEW.promessa_em_aberto_centavos IS NULL OR "
+        "NEW.promessa_quebrado_centavos IS NULL))"
+    )
+    sql_triggers = {
+        "trg_monetario_fatos_obrigatorio_insert": (
+            f"CREATE TRIGGER IF NOT EXISTS trg_monetario_fatos_obrigatorio_insert "
+            f"BEFORE INSERT ON fatos WHEN {fato_incompleto} "
+            "BEGIN SELECT RAISE(ABORT, 'métrica monetária aplicável obrigatória após backfill'); END"
+        ),
+        "trg_monetario_fatos_obrigatorio_update": (
+            f"CREATE TRIGGER IF NOT EXISTS trg_monetario_fatos_obrigatorio_update "
+            f"BEFORE UPDATE ON fatos WHEN {fato_incompleto} "
+            "BEGIN SELECT RAISE(ABORT, 'métrica monetária aplicável obrigatória após backfill'); END"
+        ),
+        "trg_monetario_posicao_obrigatoria_insert": (
+            "CREATE TRIGGER IF NOT EXISTS trg_monetario_posicao_obrigatoria_insert "
+            "BEFORE INSERT ON acordos_posicao WHEN "
+            "NEW.recebido_periodo_centavos IS NULL OR NEW.a_vencer_centavos IS NULL OR "
+            "NEW.vencido_centavos IS NULL "
+            "BEGIN SELECT RAISE(ABORT, 'métricas monetárias da posição são obrigatórias após backfill'); END"
+        ),
+        "trg_monetario_posicao_obrigatoria_update": (
+            "CREATE TRIGGER IF NOT EXISTS trg_monetario_posicao_obrigatoria_update "
+            "BEFORE UPDATE ON acordos_posicao WHEN "
+            "NEW.recebido_periodo_centavos IS NULL OR NEW.a_vencer_centavos IS NULL OR "
+            "NEW.vencido_centavos IS NULL "
+            "BEGIN SELECT RAISE(ABORT, 'métricas monetárias da posição são obrigatórias após backfill'); END"
+        ),
+    }
+    criados: list[str] = []
+    try:
+        con.execute("BEGIN IMMEDIATE")
+        for nome, sql in sql_triggers.items():
+            ja_existe = con.execute(
+                "SELECT sql FROM sqlite_master WHERE type='trigger' AND name=?", (nome,)
+            ).fetchone()
+            if ja_existe:
+                # Não considerar uma trigger de mesmo nome, mas definição
+                # divergente, como ativação válida.
+                if _normalizar_sql(str(ja_existe[0])) != _normalizar_sql(sql):
+                    raise ErroMigracaoMonetaria(f"trigger preexistente divergente: {nome}")
+            else:
+                con.execute(sql)
+                criados.append(nome)
+        con.commit()
+    except BaseException:
+        if con.in_transaction:
+            con.rollback()
+        raise
+    return criados
