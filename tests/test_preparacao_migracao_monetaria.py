@@ -13,6 +13,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 import backup_sqlite
+from backfill_monetario import backfill_monetario
+from migrar_schema_monetario import TABELA_ESTADO, migrar_schema_monetario
 from precisao_monetaria import (
     ErroMonetario,
     grandeza_para_escala,
@@ -78,6 +80,115 @@ class PreparacaoMigracaoMonetariaTestes(unittest.TestCase):
 
         self.assertGreaterEqual(aceitos, 25)
         self.assertGreaterEqual(rejeitados, 5)
+
+    def test_backfill_simulacao_30_fatos_e_3_snapshots_sem_escrita(self):
+        with tempfile.TemporaryDirectory() as td:
+            banco = Path(td) / "backfill-sintetico.sqlite3"
+            con = sqlite3.connect(banco)
+            try:
+                con.executescript("""
+                    CREATE TABLE usuarios (usuario TEXT PRIMARY KEY, nome TEXT);
+                    CREATE TABLE fatos (
+                        data TEXT NOT NULL, usuario TEXT NOT NULL, tipo TEXT NOT NULL,
+                        qtd INTEGER NOT NULL DEFAULT 0, qtd_unicos INTEGER NOT NULL DEFAULT 0,
+                        valor REAL NOT NULL DEFAULT 0, valor_pago REAL NOT NULL DEFAULT 0,
+                        valor_aberto REAL NOT NULL DEFAULT 0, valor_quebrado REAL NOT NULL DEFAULT 0,
+                        importado_em TEXT NOT NULL, PRIMARY KEY (data, usuario, tipo)
+                    );
+                    CREATE TABLE acordos_posicao (
+                        capturado_em TEXT PRIMARY KEY, data TEXT,
+                        recebido_periodo REAL, a_vencer REAL, vencido REAL
+                    );
+                """)
+                tipos = ("deposito", "acordo", "promessa", "contato")
+                for i in range(30):
+                    tipo = tipos[i % len(tipos)]
+                    usuario = f"SINTETICO-{i:02d}"
+                    dia = f"2026-10-{(i % 28) + 1:02d}"
+                    if tipo == "deposito":
+                        valor, pago, aberto, quebrado = (1001 + i) / 100, 0.0, 0.0, 0.0
+                    elif tipo == "acordo":
+                        valor, pago, aberto, quebrado = 100.0 + i / 100, 25.0, 75.0 + i / 100, 0.0
+                    elif tipo == "promessa":
+                        valor, pago, aberto, quebrado = 50.0 + i / 100, 10.0, 40.0 + i / 100, 0.0
+                    else:
+                        valor, pago, aberto, quebrado = 0.0, 0.0, 0.0, 0.0
+                    con.execute(
+                        "INSERT INTO usuarios(usuario,nome) VALUES (?,?)",
+                        (usuario, "Fixture sintética"),
+                    )
+                    con.execute(
+                        "INSERT INTO fatos(data,usuario,tipo,qtd,qtd_unicos,valor,valor_pago,"
+                        "valor_aberto,valor_quebrado,importado_em) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                        (dia, usuario, tipo, 1, 0, valor, pago, aberto, quebrado, "SINTETICO"),
+                    )
+                for i in range(3):
+                    con.execute(
+                        "INSERT INTO acordos_posicao(capturado_em,data,recebido_periodo,a_vencer,vencido) "
+                        "VALUES (?,?,?,?,?)",
+                        (f"2026-10-{i+1:02d}T12:00:00", f"2026-10-{i+1:02d}", -10.5, 100.0 + i, 200.0 + i),
+                    )
+                con.commit()
+                migrar_schema_monetario(con)
+                con.commit()
+
+                antes_real = con.execute(
+                    "SELECT data,usuario,tipo,valor,valor_pago,valor_aberto,valor_quebrado "
+                    "FROM fatos ORDER BY data,usuario,tipo"
+                ).fetchall()
+                antes_centavos = con.execute(
+                    "SELECT data,usuario,tipo,deposito_valor_centavos,acordo_valor_centavos,"
+                    "acordo_pago_centavos,acordo_pendente_centavos,promessa_prometido_centavos,"
+                    "promessa_cumprido_centavos,promessa_em_aberto_centavos,promessa_quebrado_centavos "
+                    "FROM fatos ORDER BY data,usuario,tipo"
+                ).fetchall()
+                antes_snapshot = con.execute(
+                    "SELECT capturado_em,recebido_periodo,a_vencer,vencido,"
+                    "recebido_periodo_centavos,a_vencer_centavos,vencido_centavos "
+                    "FROM acordos_posicao ORDER BY capturado_em"
+                ).fetchall()
+
+                resultado = backfill_monetario(con)  # aplicar=False por padrão
+                self.assertEqual(resultado["modo"], "simulacao")
+                self.assertEqual(resultado["linhas_fatos"], 30)
+                self.assertEqual(resultado["snapshots_posicao"], 3)
+                self.assertEqual(resultado["updates_previstos"], 26)
+                self.assertEqual(resultado["colunas_a_preencher"], 69)
+                self.assertEqual(resultado["campos_pendentes_origem_null"], 0)
+                self.assertEqual(resultado["colunas_real_alteradas"], 0)
+                self.assertFalse(resultado["conciliacao_concluida"])
+                self.assertEqual(
+                    con.execute(
+                        f"SELECT fase FROM {TABELA_ESTADO} WHERE id=1"
+                    ).fetchone()[0],
+                    "schema_adicionado",
+                )
+                self.assertEqual(
+                    con.execute(
+                        "SELECT data,usuario,tipo,valor,valor_pago,valor_aberto,valor_quebrado "
+                        "FROM fatos ORDER BY data,usuario,tipo"
+                    ).fetchall(),
+                    antes_real,
+                )
+                self.assertEqual(
+                    con.execute(
+                        "SELECT data,usuario,tipo,deposito_valor_centavos,acordo_valor_centavos,"
+                        "acordo_pago_centavos,acordo_pendente_centavos,promessa_prometido_centavos,"
+                        "promessa_cumprido_centavos,promessa_em_aberto_centavos,promessa_quebrado_centavos "
+                        "FROM fatos ORDER BY data,usuario,tipo"
+                    ).fetchall(),
+                    antes_centavos,
+                )
+                self.assertEqual(
+                    con.execute(
+                        "SELECT capturado_em,recebido_periodo,a_vencer,vencido,"
+                        "recebido_periodo_centavos,a_vencer_centavos,vencido_centavos "
+                        "FROM acordos_posicao ORDER BY capturado_em"
+                    ).fetchall(),
+                    antes_snapshot,
+                )
+            finally:
+                con.close()
 
     def test_backup_verificacao_e_restauracao_em_sqlite_descartavel(self):
         registros = self._carregar_fixture()
