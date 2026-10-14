@@ -1,20 +1,20 @@
 # Análise de compatibilidade monetária — CAIXA FUTURO
 
-**Status:** análise documental atualizada com decisões recebidas em 14/10/2026; pendente de ratificação/assinatura formal e de verificações técnicas; migração não autorizada nem executada  
+**Status:** análise e minutas v1.1 atualizadas com propostas recebidas em 14/10/2026; assinatura formal pendente; nenhuma alteração funcional ou migração autorizada/executada.  
 **Data:** 2026-10-14  
 **Branch:** docs/analise-compatibilidade-monetaria  
-**Base observada:** main, commit 80791885a5b906d3e14d71091932eabe53a203da.
+**Base observada mais recente:** main, commit 7fbe7fa8d16a3d604381b0511d2b080d1f26d5cb.
 
 ## 1. Resumo e limites
 
-Foram consultados POLITICA_PRECISAO_MONETARIA.md, CONTRATO_DADOS_FINANCEIROS.md, RUNBOOK_OPERACIONAL.md, importar.py e auditar_resposta.py no GitHub. O inventário abaixo registra evidência observada e pendências separadamente. Não foi aberto banco local ou de produção, não houve consulta ao CRM nem uso de credenciais, não houve migração, alteração de schema ou corte de leitura. O inventário de todos os consumidores da interface e o estado do CI ainda precisam ser completados; não se afirma que testes ou backup tenham sido executados nesta sessão.
+Foram consultados POLITICA_PRECISAO_MONETARIA.md, CONTRATO_DADOS_FINANCEIROS.md, RUNBOOK_OPERACIONAL.md, importar.py, auditar_resposta.py, os seis módulos de teste e o workflow CI. As propostas v1.1 foram registradas em documentos separados como minutas pendentes de assinatura; v1.0 continua formalmente aprovada até a ratificação. O inventário dos leitores de REAL permanece incompleto porque `caixa-futuro-fase1.zip` não foi inspecionado. O CI #40 passou no commit documental anterior, mas ainda deve ser confirmado para o novo head. Nenhum banco local/de produção foi aberto; não houve consulta ao CRM nem uso de credenciais; nenhuma migração, alteração de schema ou corte de leitura foi executado.
 
 ## 2. Evidências verificadas
 
-- A política v1.0 aprova INTEGER em centavos com sufixo _centavos para valores monetários finais novos, aritmética inteira/decimal exata, half-up, igualdade exata e preservação das colunas REAL legadas até análise e plano aprovados.
+- A Política v1.0 formalmente aprovada estabelece INTEGER em centavos para valores monetários finais novos, aritmética inteira/decimal exata, half-up e igualdade exata. A minuta v1.1 nesta branch propõe regras de entrada por classe de campo e mantém o writer legado REAL ativo até descomissionamento formal.
 - O contrato de dados registra que valorRecebidoPeriodo é fluxo do período, enquanto valorAVencer e valorVencido são posições por captura; snapshots devem permanecer no histórico e não ser somados como fluxo.
 - O runbook exige diagnóstico e backup verificado antes de operações de banco, e proíbe versionar banco, backup, payload real ou dados pessoais.
-- O commit mais recente observado em main durante a consulta foi 80791885a5b906d3e14d71091932eabe53a203da. Isso é a base observada, não o commit desta entrega.
+- A base atual observada durante a atualização foi `main` em `7fbe7fa8d16a3d604381b0511d2b080d1f26d5cb`; esse hash identifica a base consultada, não o head documental desta branch.
 
 Referências: [Política](POLITICA_PRECISAO_MONETARIA.md) · [Contrato](CONTRATO_DADOS_FINANCEIROS.md) · [Runbook](RUNBOOK_OPERACIONAL.md) · [Importador](importar.py) · [Auditor](auditar_resposta.py)
 
@@ -255,7 +255,7 @@ As propostas complementares mais recentes resolveram o desenho técnico dos trê
 - [x] Revisão de consistência técnica e plano de execução preparados em documentos da mesma branch.
 - [ ] Assinatura formal da Política v1.1 e do contrato monetário proposto; issues #3–#5 permanecem abertas até registro da ratificação.
 - [x] Inventário da árvore textual, workflow CI e seis módulos de teste concluído; total de 65 métodos de teste identificados na revisão. [ ] Inventário de todos os consumidores/leitores ainda pendente, incluindo inspeção interna de `caixa-futuro-fase1.zip`.
-- [x] GitHub Actions `Testes CAIXA FUTURO` — execução [#38](https://github.com/IsaacTexCotton/Dashboard/actions/runs/38568801738) concluiu `success` no head documental `a113a97401d067330944373dcaf3bd6933c4b428`, incluindo os testes automatizados existentes e validação da amostra sem CRM; testes específicos da migração ainda não foram implementados/executados.
+- [x] GitHub Actions `Testes CAIXA FUTURO` — execução [#40](https://github.com/IsaacTexCotton/Dashboard/actions/runs/38578606271) concluiu `success` no head documental anterior `53426230126fc138a0ad97ca7b81d8bb37530804`, incluindo testes automatizados existentes e amostra sem CRM; [ ] confirmar CI no head desta atualização. Testes específicos da migração ainda não foram implementados/executados.
 - [ ] Backup real verificado/restauração testada: não executados.
 - [ ] Payload do CRM/ERP real sanitizado: não consultado nem recebido nesta análise.
 - [ ] Migração, alteração de schema, dupla escrita, corte ou descomissionamento de REAL: não executados.
