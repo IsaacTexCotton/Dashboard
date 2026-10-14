@@ -179,4 +179,32 @@ Só iniciar depois de 90 dias corridos de operação sem incidente após o corte
 
 ## 8. Estado atual
 
-Este plano foi preparado a partir da análise documental e das decisões recebidas em 14/10/2026. O GitHub Actions `Testes CAIXA FUTURO` — execução [#36](https://github.com/IsaacTexCotton/Dashboard/actions/runs/38568526243) no commit `c3f50f4cb8c4b62d483ad924e7ce8076487c137e` — concluiu com sucesso nos testes automatizados existentes e na validação da amostra sem CRM. Isso não valida uma migração que ainda não foi implementada: testes específicos de centavos/schema/dupla escrita/rollback permanecem pendentes. Não foram executados backup, migração, alteração de schema, dupla escrita, acesso ao CRM/ERP ou corte de produção nesta etapa.
+Este plano foi preparado a partir da análise documental e das decisões recebidas em 14/10/2026. O GitHub Actions `Testes CAIXA FUTURO` — execução [#38](https://github.com/IsaacTexCotton/Dashboard/actions/runs/38568801738) no head documental `a113a97401d067330944373dcaf3bd6933c4b428` — concluiu com sucesso nos testes automatizados existentes e na validação da amostra sem CRM. Isso não valida uma migração que ainda não foi implementada: testes específicos de centavos/schema/dupla escrita/rollback permanecem pendentes. Não foram executados backup, migração, alteração de schema, dupla escrita, acesso ao CRM/ERP ou corte de produção nesta etapa.
+
+
+### Bloqueadores rastreados no GitHub
+
+- [Issue #3 — Ratificar regra de entrada com mais de 2 casas](https://github.com/IsaacTexCotton/Dashboard/issues/3)
+- [Issue #4 — Definir contrato de dupla escrita REAL/INTEGER](https://github.com/IsaacTexCotton/Dashboard/issues/4)
+- [Issue #5 — Definir colunas INTEGER específicas por métrica](https://github.com/IsaacTexCotton/Dashboard/issues/5)
+
+Os três itens precisam ser decididos e fechados com evidência/aprovação antes da PR funcional de migração.
+
+## 9. Inventário de testes/CI confirmado
+
+A árvore de `main` inspecionada em 14/10/2026 lista seis módulos de teste e 65 métodos `test_*`:
+
+| Arquivo | Número de testes | Implicação para o plano |
+|---|---:|---|
+| `tests/test_importar.py` | 28 | Aproveitar as regressões existentes de timestamp, transação, reimportação/idempotência, dry-run e validação; rever expectativas de sinal |
+| `tests/test_auditar_resposta.py` | 12 | Atualizar `test_respeita_tolerancia_de_centavo`: tolerância de R$ 0,01 não está conforme a política de igualdade exata para os novos centavos |
+| `tests/test_validar_integracao_local.py` | 3 | Preservar o fluxo local com amostra sem CRM, adicionando fixtures para as novas semânticas quando aprovadas |
+| `tests/test_backup_recuperacao.py` | 2 | Cobertura automatizada em DB temporário; não substitui restauração operacional em homologação |
+| `tests/test_backup_sqlite.py` | 12 | Reutilizar testes de manifesto, hash, corrupção e preservação de registros |
+| `tests/test_diagnosticar_banco.py` | 8 | Preservar garantias de diagnóstico read-only/não destrutivo |
+
+Workflow `.github/workflows/testes.yml`: Python 3.11, `unittest discover`, dry-run de importação da amostra, auditoria da amostra e validação de integração local. A última execução confirmada é [#38](https://github.com/IsaacTexCotton/Dashboard/actions/runs/38568801738), `success`, no commit documental `a113a97401d067330944373dcaf3bd6933c4b428`; uma execução nova precisa confirmar o head desta atualização.
+
+**Atenção:** os testes atuais de auditoria/importação codificam as regras antigas (aceitar diferença de um centavo em contexto de auditoria e rejeitar todo negativo). Devem ser revisados de acordo com as decisões ratificadas. Não há evidência de testes de centavos, backfill, dupla escrita, constraints do schema monetário ou rollback de leitura; esses testes precisam existir antes do corte. A amostra é fictícia e os testes automatizados de backup usam bancos temporários; nenhum dos dois comprova segurança operacional em banco real.
+
+A árvore também contém `caixa-futuro-fase1.zip`, cujo conteúdo não foi inspecionado. Fechar o inventário de consumidores exige verificar esse artefato ou documentar formalmente que ele está fora do escopo operacional.

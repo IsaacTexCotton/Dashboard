@@ -61,6 +61,30 @@ Os campos valor, valor_pago e valor_aberto são polimórficos: o significado dep
 
 A inspeção acima não prova que todos os leitores e escritores foram localizados. Antes de migração, pesquisar referências SQL/Python a fatos.valor, valor_pago, valor_aberto, valor_quebrado e acordos_posicao, além de SUM, views, interface, gráficos, relatórios, exportações, integrações e scripts de manutenção. O inventário de testes e o estado do workflow CI também permanecem pendentes.
 
+## 3.1 Inventário verificado de testes e CI
+
+A árvore versionada de `main` foi inspecionada em 14/10/2026. O workflow `.github/workflows/testes.yml` dispara em `push` para `main` e em `pull_request` destinado a `main`, configura Python 3.11 e executa `python -m unittest discover -s tests -v`; depois, valida a amostra versionada sem CRM por meio de `importar.py --dry-run`, `auditar_resposta.py` e `validar_integracao_local.py`.
+
+Foram identificados **6 módulos de teste, com 65 métodos `test_*`** na revisão inspecionada:
+
+| Arquivo | Testes | Cobertura observada |
+|---|---:|---|
+| `tests/test_importar.py` | 28 | Validação de payload, timestamp, negativos rejeitados, dry-run, idempotência por dia, rollback transacional e falha antes de criar DB |
+| `tests/test_auditar_resposta.py` | 12 | Reconciliação de totais, divergência, métricas não aditivas, negativos rejeitados e CLI; inclui `test_respeita_tolerancia_de_centavo` |
+| `tests/test_validar_integracao_local.py` | 3 | Fluxo local com amostra fictícia e bloqueio de divergência |
+| `tests/test_backup_recuperacao.py` | 2 | Exercício de backup/verificação/restauração e manifesto inválido em banco de teste |
+| `tests/test_backup_sqlite.py` | 12 | Criação, manifesto, SHA-256/contagens, adulteração, destino e CLI de backup |
+| `tests/test_diagnosticar_banco.py` | 8 | Diagnóstico read-only, integridade estrutural e não criação/não alteração do banco |
+
+### Lacunas relevantes para a migração
+
+- Os testes existentes **afirmam o comportamento antigo** de tolerar divergência de R$ 0,01 na auditoria e rejeitar todos os valores negativos. Eles precisarão ser alterados conforme as regras ratificadas por campo; não basta adicionar novos testes mantendo assertions incompatíveis.
+- Não foram identificados testes específicos para parsing monetário decimal exato, escala de entrada ratificada, conversão `Decimal → INTEGER`, nomes/constraints das novas colunas, backfill idempotente, dupla escrita atômica, alternância de leitura/rollback ou janela de dez dias úteis.
+- Os testes de backup e recuperação usam banco isolado/de teste; **não equivalem** a um backup real verificado nem a um ensaio operacional autorizado em homologação.
+- A amostra `amostra_resposta.json` é fictícia segundo o contrato. Não serve como prova do comportamento de sinais no CRM nem da equação de promessas em produção.
+- A árvore contém `caixa-futuro-fase1.zip`, artefato binário que não foi inspecionado internamente nesta etapa. Por isso, não declaro fechado o inventário de todos os possíveis consumidores/leitores embutidos nele. A varredura de consumidores permanece um gate antes do corte.
+- Resultado CI confirmado para a revisão documental anterior: [workflow #38](https://github.com/IsaacTexCotton/Dashboard/actions/runs/38568801738), `success` no commit `a113a97401d067330944373dcaf3bd6933c4b428`. Isso confirma apenas os testes existentes e a amostra sanitizada/fictícia nesse commit; não prova compatibilidade monetária futura e uma nova execução deve ser confirmada para o head desta atualização.
+
 ## 4. Conflitos e riscos
 
 ### Fatos observados
@@ -218,14 +242,20 @@ O arquivo **`DECISOES_PENDENCIAS_MIGRACAO.md`**, recebido em 14/10/2026, registr
 - [ ] Dez dias úteis de conciliação diária, divergências 100% classificadas, zero divergência inexplicada, aprovação da Controladoria e assinatura da Diretoria.
 - [ ] Plano de rollback testado antes do corte; descomissionamento de REAL tratado em release separada após 90 dias corridos sem incidentes e aprovação própria.
 
+### Acompanhamento explícito dos bloqueadores no GitHub
+
+- [ ] [Issue #3 — Ratificar regra de entrada com mais de 2 casas](https://github.com/IsaacTexCotton/Dashboard/issues/3) — decisão da Diretoria Financeira e revisão versionada da política.
+- [ ] [Issue #4 — Definir contrato de dupla escrita REAL/INTEGER](https://github.com/IsaacTexCotton/Dashboard/issues/4) — redação formal aprovada por TI/Controladoria/Diretoria.
+- [ ] [Issue #5 — Definir colunas INTEGER específicas por métrica](https://github.com/IsaacTexCotton/Dashboard/issues/5) — aprovação do modelo por métrica e das constraints.
+ 
 ## 12. Estado desta entrega
 
 - [x] Política, contrato, runbook, importador, auditoria e esquema atual consultados remotamente.
 - [x] Decisões recebidas comparadas com política, contrato e implementação observável.
 - [x] Revisão de consistência técnica e plano de execução preparados em documentos da mesma branch.
 - [ ] Ratificação/assinatura formal das decisões e das resoluções dos bloqueadores.
-- [ ] Inventário completo dos consumidores, testes e workflows CI: pendente.
-- [x] GitHub Actions `Testes CAIXA FUTURO` — execução [#36](https://github.com/IsaacTexCotton/Dashboard/actions/runs/38568526243) concluiu `success` no commit `c3f50f4cb8c4b62d483ad924e7ce8076487c137e`, incluindo os testes automatizados existentes e validação da amostra sem CRM; testes específicos da migração ainda não foram implementados/executados.
+- [x] Inventário da árvore textual, workflow CI e seis módulos de teste concluído; total de 65 métodos de teste identificados na revisão. [ ] Inventário de todos os consumidores/leitores ainda pendente, incluindo inspeção interna de `caixa-futuro-fase1.zip`.
+- [x] GitHub Actions `Testes CAIXA FUTURO` — execução [#38](https://github.com/IsaacTexCotton/Dashboard/actions/runs/38568801738) concluiu `success` no head documental `a113a97401d067330944373dcaf3bd6933c4b428`, incluindo os testes automatizados existentes e validação da amostra sem CRM; testes específicos da migração ainda não foram implementados/executados.
 - [ ] Backup real verificado/restauração testada: não executados.
 - [ ] Payload do CRM/ERP real sanitizado: não consultado nem recebido nesta análise.
 - [ ] Migração, alteração de schema, dupla escrita, corte ou descomissionamento de REAL: não executados.
