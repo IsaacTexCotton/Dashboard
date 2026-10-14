@@ -4,8 +4,23 @@
 
 - **Amostra observada:** `amostra_resposta.json`, versionada no repositório. É explicitamente fictícia; demonstra somente a forma ilustrativa abaixo.
 - **Payload sanitizado fornecido:** o JSON autorizado de um dia (2026-10-13) foi validado em 14/10/2026 com os scripts publicados no commit `b9754aa744b35bfd0d9f8604034887d2c160ecbd`; os blobs dos quatro scripts executados foram conferidos contra os hashes do GitHub. O arquivo não foi versionado. A auditoria terminou com 12 métricas aditivas `OK` e `contatosUnicosTotal` classificado como `NÃO ADITIVO`; o `--dry-run` aprovou 5 usuários e 17 fatos sem abrir banco; `validar_integracao_local.py` terminou `PASSED`, com zero consultas ao CRM e SQLite apenas temporário; o diagnóstico reportou 13 verificações `OK`, zero avisos e zero falhas. Reimportar o mesmo payload manteve os 17 fatos; o registro de importação passou de 1 para 2 e o snapshot com o mesmo timestamp permaneceu único.
-- **Decisões informadas para a homologação:** valores monetários negativos devem bloquear a importação; a tolerância de reconciliação monetária de R$ 0,01 é aceita; `valorRecebidoPeriodo` identifica recebimentos dentro do período; `valorAVencer` e `valorVencido` representam posição da carteira conforme vencimento; cada captura da posição deve permanecer como registro histórico. A regra `valor do acordo = pago + pendente` ainda não foi confirmada.
+- **Decisões informadas para a homologação:** valores monetários negativos devem bloquear a importação; a tolerância de reconciliação monetária de R$ 0,01 é aceita; `valorRecebidoPeriodo` identifica recebimentos dentro do período; `valorAVencer` e `valorVencido` representam posição da carteira conforme vencimento; cada captura da posição deve permanecer como registro histórico. Em 14/10/2026, foi decidida a obrigatoriedade de `valor = pagos + pendente` por usuário **após validar exceções**; essa relação ainda não é bloqueante no código enquanto os casos de exceção não estiverem especificados e testados.
 - **Escopo:** contrato implementado por `importar.normalizar`, esquema SQLite atual e reconciliações implementadas em `auditar_resposta.py`. Este documento não afirma que os nomes são um contrato oficial do CRM.
+
+## Decisões de negócio recebidas em 14/10/2026
+
+| Tema | Decisão registrada | Estado técnico |
+|---|---|---|
+| Acordos por usuário | `valor = pagos + pendente` deve ser obrigatório após validar exceções | Ainda não bloqueante. É necessário definir como identificar e tratar renegociações, descontos, cancelamentos, parcelas não vencidas e pagamentos parciais antes de ativar o bloqueio |
+| Precisão monetária | O responsável informou que a política de precisão/arredondamento já foi aprovada | O texto exato da política não foi fornecido nesta decisão nem encontrado no contrato atual. Registrar os parâmetros aprovados antes de alterar validação, armazenamento ou esquema |
+| Timestamp | Definição deve ser acordada com a origem dos dados | Pendente: formato canônico, fuso horário e comportamento quando o campo estiver ausente |
+| Contatos únicos globais | Não existe chave/regra aprovada para deduplicação entre negociadores | Manter `contatosUnicosTotal` como não aditivo; não somar por usuário nem usar essa métrica como gate de reconciliação |
+
+### Evidência e limite para a igualdade dos acordos
+
+No payload sanitizado de 2026-10-13, as cinco linhas de `acordos.porUsuario` satisfazem a igualdade observada: `valor` coincide com `pagos + pendente`; os totais agregados também coincidem nessa amostra. Isso valida apenas as linhas presentes. O payload não demonstra como a tela classifica renegociações, descontos, cancelamentos, parcelas ainda não vencidas ou casos específicos de pagamentos parciais. Portanto, não generalizar a amostra para todos os cenários e não habilitar rejeição automática até que esses casos tenham regra aprovada e testes de regressão.
+
+A tolerância de R$ 0,01 definida para reconciliação de totais agregados contra somas por usuário não deve ser aplicada automaticamente à igualdade interna do acordo. A regra numérica para arredondamento/precisão e a regra de exceções precisam estar explícitas antes de implementar o bloqueio.
 
 ## Resultado da validação controlada do payload sanitizado (14/10/2026)
 
@@ -63,30 +78,32 @@ Desde a proteção da Fase 6, os caminhos de gravação por arquivo e API e o mo
 - `auditar_resposta.py` compara totais agregados disponíveis contra soma por usuário. Campos agregados ausentes viram `PENDENTE` e resultam em código 1; divergência monetária acima de R$ 0,01 ou divergência inteira resulta em código 1. Estrutura/JSON inválidos resultam em código 2.
 - A importação local valida estrutura e campos obrigatórios, mas não reconcilia por si só todos os totais agregados. A rotina integrada bloqueia a importação se a auditoria não retorna código 0.
 - Grupos `porUsuario` vazios são aceitos se a lista existir. Totais agregados ausentes na resposta ainda podem impedir a homologação integrada pela auditoria.
-- O auditor não reconcilia `valorRecebidoPeriodo`, `valorAVencer` ou `valorVencido` com fatos por usuário; não há base comprovada para tal igualdade. Da mesma forma, os campos `acordos.valorTotal`, `pagosTotal` e `pendenteTotal` são auditados individualmente contra as somas por usuário, mas o sistema ainda não impõe a relação entre os três totais. A tela indica somas de valor de face por status, não necessariamente caixa recebido.
+- O auditor não reconcilia `valorRecebidoPeriodo`, `valorAVencer` ou `valorVencido` com fatos por usuário; não há base comprovada para tal igualdade. Os campos `acordos.valorTotal`, `pagosTotal` e `pendenteTotal` continuam auditados individualmente contra as somas por usuário. A decisão de tornar `valor = pagos + pendente` obrigatório por usuário foi recebida em 14/10/2026, condicionada à validação dos casos de exceção; o código ainda não impõe essa relação. A tela indica valores de face classificados por status, não necessariamente caixa recebido.
 - Os números de contato único por negociador não podem ser somados como clientes únicos globais sem chave de pessoa e regra de deduplicação aprovada.
 
 ## Questões que exigem decisão financeira
 
 1. **Decidido:** qualquer campo monetário negativo bloqueia a validação/importação. Estornos e ajustes, se representados negativamente pelo CRM, precisam ser tratados fora desta regra ou ter formato aprovado explicitamente; o importador não os aceitará como valores monetários negativos.
-2. **Decidido provisoriamente para reconciliação:** tolerância monetária de R$ 0,01. Diferenças superiores a um centavo bloqueiam; quantidades inteiras precisam coincidir exatamente. O esquema SQLite continua usando `REAL`, então a política de precisão para persistência/migração permanece pendente.
-3. **Semântica observada na tela de acordos por usuário:** `valor` representa o valor de face do acordo; `pagos` e `pendente` são colunas separadas que classificam parcelas por status e somam seus valores de face. A descrição da tela informa que `pagos` inclui pagamentos parciais e que `pendente` se refere às vencidas. Portanto, `pagos` não deve ser interpretado automaticamente como dinheiro efetivamente recebido. **Ainda pendente:** confirmar se `valor = pagos + pendente` é uma igualdade obrigatória e se essas duas categorias cobrem todas as parcelas em casos de renegociação, descontos, cancelamentos ou parcelas ainda não vencidas.
+2. **Decidido para reconciliação:** tolerância monetária de R$ 0,01. Diferenças superiores a um centavo bloqueiam; quantidades inteiras precisam coincidir exatamente. O responsável informou que a política de precisão/arredondamento de armazenamento já foi aprovada, mas seus parâmetros não estão registrados neste documento. O esquema SQLite continua usando `REAL`; nenhuma migração deve ser feita até a regra aprovada estar transcrita e a compatibilidade, o backup e o plano de migração serem revistos.
+3. **Semântica e decisão para acordos por usuário:** `valor` representa o valor de face do acordo; `pagos` e `pendente` são colunas distintas por status e somam valores de face. `pagos` pode incluir pagamentos parciais e não significa automaticamente caixa recebido no período. **Decidido em 14/10/2026:** `valor = pagos + pendente` deverá ser obrigatório após validar exceções. **Pendente para implementação bloqueante:** inventariar e aprovar o tratamento para renegociações, descontos, cancelamentos, parcelas ainda não vencidas e pagamentos parciais, e criar testes de regressão para esses cenários.
 4. **Decidido conforme a definição informada:** `valorRecebidoPeriodo` é o total efetivamente recebido no intervalo; `valorAVencer` é o saldo ainda pendente cujo vencimento não chegou; `valorVencido` é o saldo pendente cujo vencimento passou. Estes dois últimos representam a posição da carteira, não valores que devam ser somados entre snapshots.
 5. **Comportamento atual e histórico:** a tabela `acordos_posicao` preserva capturas com diferentes `capturado_em`; não somar snapshots de dias/horários diferentes. Os fatos do mesmo dia são substituídos quando esse dia é reimportado; isso é distinto do histórico de posições.
-6. Aprovar o formato e a semântica de `timestamp`; quando ausente, o importador inventa um horário local de captura, que não representa o horário da resposta do CRM.
+6. **Pendente com a origem dos dados:** aprovar formato canônico, fuso horário e comportamento quando `timestamp` estiver ausente. Atualmente o importador inventa um horário local de captura nesse caso, que não representa necessariamente o horário da resposta da origem.
 
 ## Precisão monetária e histórico
 
-O esquema atual usa SQLite `REAL` (ponto flutuante binário), sujeito a pequenas diferenças de representação. Não migrar automaticamente: antes, comparar todos os valores existentes em centavos, definir política para valores com mais de duas casas e preparar migração com backup, verificação de contagens e reconciliação antes/depois. Recomendação provisória: usar `Decimal` na camada de validação/cálculo e persistir centavos inteiros somente após aprovação e plano de migração compatível; até lá, converter de strings decimais quando possível, explicitar tolerância e evitar igualdade exata entre floats.
+O esquema atual usa SQLite `REAL` (ponto flutuante binário), sujeito a pequenas diferenças de representação. O responsável informou que a política de precisão/arredondamento já foi aprovada, mas o texto e seus parâmetros concretos ainda precisam ser transcritos aqui (regra de arredondamento, tratamento de valores com mais de duas casas e representação de armazenamento). Não migrar automaticamente: antes, comparar os valores existentes, preparar backup e elaborar plano compatível com verificação de contagens e reconciliação antes/depois. Até que a política aprovada e o plano estejam documentados, manter o esquema atual e não alegar que uma migração foi homologada.
 
 Fatos diários (`fatos`) e snapshots (`acordos_posicao`) são conjuntos diferentes. Conforme definição recebida, `valorRecebidoPeriodo` representa o fluxo recebido no intervalo; `valorAVencer` e `valorVencido` são a posição da carteira na captura, classificada pela data de vencimento. Cada snapshot deve ser preservado como fotografia daquele instante, não como movimentação e não deve ser somado aos snapshots de outros instantes.
 
 ## Pendências para fechamento integral e produção
 
-- Aprovar ou rejeitar formalmente a regra `valor do acordo = pago + pendente`, incluindo renegociações, descontos, cancelamentos e pagamentos parciais.
-- Definir como validar contatos únicos globalmente, sem somar contagens por negociador sem regra de deduplicação.
-- Confirmar precisão/arredondamento e aprovar eventual migração do SQLite `REAL`, com análise de compatibilidade e backup.
-- Executar o exercício operacional de backup/recuperação em banco de homologação autorizado, mantendo o banco de origem e o backup preservados; os testes automatizados isolados não substituem essa aprovação operacional.
-- Manter a evidência do payload sanitizado fora do Git e repetir os comandos quando houver mudança relevante no contrato ou nos scripts. Não consultar o CRM para gerar evidência de homologação.
+- Validar e documentar os casos de exceção à regra `valor = pagos + pendente`; só depois ativar o bloqueio e incluir testes para cada exceção aprovada.
+- Transcrever no contrato o texto exato da política de precisão/arredondamento informada como aprovada e decidir, separadamente, se haverá migração de `REAL` após análise de compatibilidade e backup.
+- Definir com a origem o formato, fuso horário e comportamento para `timestamp` ausente.
+- Manter contatos únicos globais como não aditivos até existir chave e regra aprovada de deduplicação.
+- Executar exercício operacional de backup/recuperação em banco de homologação autorizado, mantendo origem e backup preservados; testes automatizados isolados não substituem a aprovação operacional.
+- Proteger `main` exigindo a verificação do workflow antes de integrar futuras alterações.
+- Manter a evidência do payload sanitizado fora do Git e repetir comandos se o contrato ou os scripts mudarem. Não consultar o CRM para gerar evidências.
 
-A validação automatizada deste payload sanitizado está concluída; as pendências acima continuam sendo gates antes de produção.
+A validação automatizada deste payload sanitizado está concluída. A igualdade dos acordos e a precisão monetária foram decididas em princípio, mas seus requisitos ainda não estão todos prontos para bloqueio/alteração de esquema; as pendências acima continuam sendo gates antes de produção.
