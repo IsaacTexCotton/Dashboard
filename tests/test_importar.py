@@ -271,6 +271,7 @@ class PersistenciaTestes(unittest.TestCase):
             )
             self.assertEqual(proc.returncode, 2, proc.stdout + proc.stderr)
             self.assertIn("valor monetário negativo não permitido", proc.stderr)
+            self.assertNotIn("Traceback", proc.stderr)
             self.assertFalse(db.exists())
 
     def test_importacao_api_bloqueia_valor_negativo_antes_de_criar_banco(self):

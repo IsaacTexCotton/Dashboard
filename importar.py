@@ -356,6 +356,9 @@ def main(argv: list[str] | None = None) -> int:
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
-    except (ErroValidacao, RuntimeError, OSError, sqlite3.Error) as exc:
+    except (ValueError, RuntimeError, OSError, sqlite3.Error) as exc:
+        # auditar_resposta também importa este módulo como "importar"; ambas
+        # as instâncias de ErroValidacao herdam ValueError, mesmo se este arquivo
+        # estiver sendo executado como __main__.
         print(f"ERRO: {exc}", file=sys.stderr)
         raise SystemExit(2)
