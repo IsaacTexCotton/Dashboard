@@ -176,6 +176,54 @@ class NormalizacaoTestes(unittest.TestCase):
         self.assertEqual(fatos, [])
         self.assertEqual(posicao[2:], (0.0, 0.0, 0.0))
 
+    def test_gravar_dupla_escrita_integrada_preserva_centavos_e_real(self):
+        from decimal import Decimal
+        from migrar_schema_monetario import migrar_schema_monetario
+
+        payload = importar.loads_json_estrito(json.dumps(AMOSTRA))
+        con = sqlite3.connect(":memory:")
+        try:
+            con.executescript(importar.SCHEMA)
+            migrar_schema_monetario(con)
+            total = importar.gravar(
+                con, "2026-10-13", payload, "teste", dupla_escrita=True
+            )
+            self.assertEqual(total, 5)
+            row = con.execute(
+                "SELECT valor, deposito_valor_centavos FROM fatos "
+                "WHERE tipo='deposito' ORDER BY usuario LIMIT 1"
+            ).fetchone()
+            self.assertIsInstance(row[0], float)
+            self.assertIsInstance(row[1], int)
+            self.assertEqual(
+                row[1],
+                importar.normalizar_duplo(
+                    payload, "2026-10-13", "2026-10-14T12:00:00"
+                )[1][0]["centavos"]["deposito_valor_centavos"],
+            )
+            self.assertEqual(
+                con.execute("SELECT COUNT(*) FROM importacoes").fetchone()[0], 1
+            )
+        finally:
+            con.close()
+
+    def test_dual_write_em_banco_legado_sem_migracao_falha_sem_modificar_schema(self):
+        from migrar_schema_monetario import migrar_schema_monetario
+
+        con = sqlite3.connect(":memory:")
+        try:
+            con.executescript(importar.SCHEMA)
+            before = {r[1] for r in con.execute("PRAGMA table_info(fatos)")}
+            payload = importar.loads_json_estrito(json.dumps(AMOSTRA))
+            with self.assertRaises(importar.ErroValidacao):
+                importar.gravar(
+                    con, "2026-10-13", payload, "teste", dupla_escrita=True
+                )
+            after = {r[1] for r in con.execute("PRAGMA table_info(fatos)")}
+            self.assertEqual(after, before)
+        finally:
+            con.close()
+
     def test_rejeita_quantidade_booleana(self):
         payload = json.loads(json.dumps(AMOSTRA))
         payload["data"]["depositos"]["porUsuario"][0]["quantidade"] = True
