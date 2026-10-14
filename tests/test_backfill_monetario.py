@@ -203,7 +203,7 @@ class TestBackfillMonetario(unittest.TestCase):
             )
             con.commit()
             resultado = backfill_monetario(con, aplicar=True)
-            self.assertGreaterEqual(resultado["campos_pendentes_origem_null"], 1)
+            self.assertEqual(resultado["campos_pendentes_origem_null"], 1)
             self.assertEqual(
                 con.execute(
                     "SELECT recebido_periodo_centavos,a_vencer_centavos,vencido_centavos "
