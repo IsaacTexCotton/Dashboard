@@ -25,7 +25,13 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import date, datetime, timedelta
+from decimal import Decimal
+from pathlib import Path
 from typing import Any
+
+from precisao_monetaria import ErroMonetario, loads_json_estrito
+from escrita_dupla import gravar_dia_duplo, preparar_fato_duplo, preparar_posicao_dupla
+from migrar_schema_monetario import ErroMigracaoMonetaria, validar_schema_monetario
 
 DB = os.environ.get("DASHBOARD_DB", "cobranca.db")
 JANELA_PADRAO = 7
@@ -74,8 +80,13 @@ def _objeto(valor: Any, campo: str) -> dict:
     return valor
 
 
-def _numero(valor: Any, campo: str) -> float:
-    if isinstance(valor, bool) or not isinstance(valor, (int, float)):
+def _numero(
+    valor: Any,
+    campo: str,
+    *,
+    negativos_permitidos: bool = False,
+) -> float:
+    if isinstance(valor, bool) or not isinstance(valor, (int, float, Decimal)):
         raise ErroValidacao(f"{campo}: esperado número JSON finito")
     try:
         numero = float(valor)
@@ -83,7 +94,7 @@ def _numero(valor: Any, campo: str) -> float:
         raise ErroValidacao(f"{campo}: número fora do intervalo suportado") from exc
     if not math.isfinite(numero):
         raise ErroValidacao(f"{campo}: número não finito")
-    if numero < 0:
+    if numero < 0 and not negativos_permitidos:
         raise ErroValidacao(f"{campo}: valor monetário negativo não permitido")
     return numero
 
@@ -96,10 +107,20 @@ def _inteiro(valor: Any, campo: str) -> int:
     return valor
 
 
-def _campo_numero(item: dict, campo: str, contexto: str) -> float:
+def _campo_numero(
+    item: dict,
+    campo: str,
+    contexto: str,
+    *,
+    negativos_permitidos: bool = False,
+) -> float:
     if campo not in item:
         raise ErroValidacao(f"{contexto}: campo obrigatório ausente: {campo}")
-    return _numero(item[campo], f"{contexto}.{campo}")
+    return _numero(
+        item[campo],
+        f"{contexto}.{campo}",
+        negativos_permitidos=negativos_permitidos,
+    )
 
 
 def _campo_inteiro(item: dict, campo: str, contexto: str) -> int:
@@ -156,22 +177,22 @@ def normalizar(resp: Any, dia: str):
 
     for ctx, usuario, x in percorrer("depositos"):
         fatos.append((dia, usuario, "deposito", _campo_inteiro(x, "quantidade", ctx), 0,
-                      _campo_numero(x, "valor", ctx), 0, 0, 0))
+                      _campo_numero(x, "valor", ctx, negativos_permitidos=True), 0, 0, 0))
     for ctx, usuario, x in percorrer("acordos"):
         fatos.append((dia, usuario, "acordo", _campo_inteiro(x, "quantidade", ctx), 0,
                       _campo_numero(x, "valor", ctx), _campo_numero(x, "pagos", ctx),
-                      _campo_numero(x, "pendente", ctx), 0))
+                      _campo_numero(x, "pendente", ctx, negativos_permitidos=True), 0))
     for ctx, usuario, x in percorrer("promessas"):
         fatos.append((dia, usuario, "promessa", _campo_inteiro(x, "quantidade", ctx), 0,
                       _campo_numero(x, "prometido", ctx), _campo_numero(x, "cumprido", ctx),
-                      _campo_numero(x, "emAberto", ctx), _campo_numero(x, "quebrado", ctx)))
+                      _campo_numero(x, "emAberto", ctx, negativos_permitidos=True), _campo_numero(x, "quebrado", ctx)))
     for ctx, usuario, x in percorrer("contatos"):
         fatos.append((dia, usuario, "contato", _campo_inteiro(x, "registrosTotais", ctx),
                       _campo_inteiro(x, "contatosUnicos", ctx), 0, 0, 0, 0))
 
     valores = _objeto(d.get("valoresAcordo"), "data.valoresAcordo")
     totais = (
-        _campo_numero(valores, "valorRecebidoPeriodo", "data.valoresAcordo"),
+        _campo_numero(valores, "valorRecebidoPeriodo", "data.valoresAcordo", negativos_permitidos=True),
         _campo_numero(valores, "valorAVencer", "data.valoresAcordo"),
         _campo_numero(valores, "valorVencido", "data.valoresAcordo"),
     )
@@ -179,6 +200,127 @@ def normalizar(resp: Any, dia: str):
     if not isinstance(timestamp, str) or not timestamp.strip():
         raise ErroValidacao("timestamp: campo obrigatório da origem; esperado texto não vazio")
     return usuarios, fatos, (timestamp, dia, *totais)
+
+
+def _campo_decimal_exato(item: dict, campo: str, contexto: str) -> Decimal | int:
+    if campo not in item:
+        raise ErroValidacao(f"{contexto}: campo obrigatório ausente: {campo}")
+    valor = item[campo]
+    if isinstance(valor, bool) or not isinstance(valor, (Decimal, int)):
+        raise ErroValidacao(
+            f"{contexto}.{campo}: payload monetário exato exige token Decimal/int; "
+            "float ou texto intermediário não é permitido"
+        )
+    decimal = Decimal(valor) if isinstance(valor, int) else valor
+    if not decimal.is_finite():
+        raise ErroValidacao(f"{contexto}.{campo}: número não finito")
+    return valor
+
+
+def _modo_dupla_escrita() -> bool:
+    valor = os.environ.get("DASHBOARD_MONETARIO_DUAL_WRITE", "0").strip()
+    if valor not in ("0", "1"):
+        raise ErroValidacao(
+            "DASHBOARD_MONETARIO_DUAL_WRITE deve ser exatamente 0 ou 1"
+        )
+    return valor == "1"
+
+
+def normalizar_duplo(resp: Any, dia: str, importado_em: str):
+    """Normaliza a origem exata em pares legacy REAL/centavos sem escrever.
+
+    O parser estrito deve ter produzido int/Decimal a partir dos tokens JSON.
+    Esta função valida a estrutura geral antes de criar os pares e exige todas
+    as métricas aplicáveis para os tipos de fato.
+    """
+    usuarios, _fatos_legados, _posicao_legada_tuple = normalizar(resp, dia)
+    d = resp["data"]
+    fatos_duplos: list[dict[str, Any]] = []
+
+    def grupo(nome: str) -> list[dict[str, Any]]:
+        objeto = _objeto(d.get(nome), f"data.{nome}")
+        linhas = objeto.get("porUsuario")
+        if not isinstance(linhas, list):
+            raise ErroValidacao(f"data.{nome}.porUsuario: esperado lista")
+        return linhas
+
+    for nome, tipo, money_fields in (
+        ("depositos", "deposito", {"valor": "valor"}),
+        ("acordos", "acordo", {"valor": "valor", "pagos": "pagos", "pendente": "pendente"}),
+        ("promessas", "promessa", {
+            "prometido": "prometido", "cumprido": "cumprido",
+            "emAberto": "emAberto", "quebrado": "quebrado",
+        }),
+    ):
+        for i, item in enumerate(grupo(nome)):
+            ctx = f"data.{nome}.porUsuario[{i}]"
+            item = _objeto(item, ctx)
+            campos = {
+                destino: _campo_decimal_exato(item, origem, ctx)
+                for destino, origem in money_fields.items()
+            }
+            fatos_duplos.append(preparar_fato_duplo(
+                dia=dia,
+                usuario=item["usuario"],
+                tipo=tipo,
+                quantidade=_campo_inteiro(item, "quantidade", ctx),
+                importado_em=importado_em,
+                campos_monetarios=campos,
+            ))
+
+    for i, item in enumerate(grupo("contatos")):
+        ctx = f"data.contatos.porUsuario[{i}]"
+        item = _objeto(item, ctx)
+        fatos_duplos.append(preparar_fato_duplo(
+            dia=dia,
+            usuario=item["usuario"],
+            tipo="contato",
+            quantidade=_campo_inteiro(item, "registrosTotais", ctx),
+            qtd_unicos=_campo_inteiro(item, "contatosUnicos", ctx),
+            importado_em=importado_em,
+            campos_monetarios={},
+        ))
+
+    valores = _objeto(d.get("valoresAcordo"), "data.valoresAcordo")
+    campos_posicao = {
+        nome: _campo_decimal_exato(valores, nome, "data.valoresAcordo")
+        for nome in ("valorRecebidoPeriodo", "valorAVencer", "valorVencido")
+    }
+    timestamp = resp.get("timestamp")
+    if not isinstance(timestamp, str) or not timestamp.strip():
+        raise ErroValidacao("timestamp: campo obrigatório da origem; esperado texto não vazio")
+    posicao_legada, posicao_centavos = preparar_posicao_dupla(
+        capturado_em=timestamp,
+        dia=dia,
+        campos_monetarios=campos_posicao,
+    )
+    return usuarios, fatos_duplos, (posicao_legada, posicao_centavos)
+
+
+def _validar_schema_duplo(con: sqlite3.Connection) -> str:
+    try:
+        return validar_schema_monetario(con)
+    except (ErroMigracaoMonetaria, sqlite3.Error) as exc:
+        raise ErroValidacao(f"schema monetário não está pronto para dupla escrita: {exc}") from exc
+
+
+def _abrir_banco(duplo: bool) -> sqlite3.Connection:
+    if duplo:
+        caminho = Path(DB).expanduser()
+        if not caminho.is_file():
+            raise ErroValidacao(
+                f"dupla escrita exige banco existente e migrado; nenhum banco foi criado: {caminho}"
+            )
+        con = sqlite3.connect(str(caminho))
+        try:
+            _validar_schema_duplo(con)
+        except Exception:
+            con.close()
+            raise
+        return con
+    con = sqlite3.connect(DB)
+    con.executescript(SCHEMA)
+    return con
 
 
 def _url_do_dia(url_base: str, dia: str) -> str:
@@ -205,7 +347,11 @@ def buscar(dia: str):
     req = urllib.request.Request(_url_do_dia(url, dia), headers=headers, method="GET")
     try:
         with urllib.request.urlopen(req, timeout=120) as response:
-            return json.load(response)
+            texto = response.read().decode("utf-8-sig")
+            try:
+                return loads_json_estrito(texto)
+            except ErroMonetario as exc:
+                raise RuntimeError(f"CRM retornou JSON numérico inválido para o dia {dia}: {exc}") from exc
     except urllib.error.HTTPError as exc:
         raise RuntimeError(f"CRM retornou HTTP {exc.code} para o dia {dia}") from exc
     except urllib.error.URLError as exc:
@@ -214,9 +360,33 @@ def buscar(dia: str):
         raise RuntimeError(f"CRM retornou JSON inválido para o dia {dia}") from exc
 
 
-def gravar(con: sqlite3.Connection, dia: str, resp: Any, origem: str) -> int:
-    usuarios, fatos, posicao = normalizar(resp, dia)
+def gravar(
+    con: sqlite3.Connection,
+    dia: str,
+    resp: Any,
+    origem: str,
+    *,
+    dupla_escrita: bool = False,
+) -> int:
     agora = datetime.now().isoformat(timespec="seconds")
+    if dupla_escrita:
+        _validar_schema_duplo(con)
+        usuarios, fatos, pares_posicao = normalizar_duplo(resp, dia, agora)
+        posicao_legada, posicao_centavos = pares_posicao
+        try:
+            return gravar_dia_duplo(
+                con,
+                dia=dia,
+                usuarios=usuarios,
+                fatos=fatos,
+                posicao_legada=posicao_legada,
+                posicao_centavos=posicao_centavos,
+                origem=origem,
+                quando=agora,
+            )
+        except ErroMonetario as exc:
+            raise ErroValidacao(str(exc)) from exc
+    usuarios, fatos, posicao = normalizar(resp, dia)
     with con:
         for usuario, nome in usuarios.items():
             con.execute(
@@ -250,9 +420,11 @@ def dias(inicio: str, fim: str):
 def _carregar_arquivo(caminho: str):
     try:
         with open(caminho, encoding="utf-8-sig") as fh:
-            return json.load(fh)
+            return loads_json_estrito(fh.read())
     except json.JSONDecodeError as exc:
         raise RuntimeError(f"Arquivo JSON inválido: {caminho}, linha {exc.lineno}") from exc
+    except ErroMonetario as exc:
+        raise RuntimeError(f"Arquivo JSON numérico inválido: {caminho}: {exc}") from exc
 
 
 def _auditoria_financeira_ok(resp: Any) -> bool:
@@ -293,6 +465,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.arquivo and (args.desde or args.dia):
         parser.error("--arquivo não pode ser combinado com --desde ou --dia")
 
+    dupla_escrita = _modo_dupla_escrita()
     if args.arquivo:
         resp = _carregar_arquivo(args.arquivo)
         if not isinstance(resp, dict) or not isinstance(resp.get("data"), dict):
@@ -301,16 +474,31 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         dia_ref = _dia_iso(resp["data"].get("inicio"), "data.inicio")
         if args.dry_run:
-            usuarios, fatos, _ = normalizar(resp, dia_ref)
-            contagens = {tipo: sum(1 for linha in fatos if linha[2] == tipo) for tipo in TIPOS}
+            if dupla_escrita:
+                usuarios, fatos, _ = normalizar_duplo(
+                    resp, dia_ref, datetime.now().isoformat(timespec="seconds")
+                )
+                contagens = {
+                    tipo: sum(1 for fato in fatos if fato["legado"]["tipo"] == tipo)
+                    for tipo in TIPOS
+                }
+            else:
+                # O dry-run valida também a precisão v1.1, independentemente
+                # de a escrita dupla estar ativada no banco.
+                usuarios, fatos, _ = normalizar_duplo(
+                    resp, dia_ref, datetime.now().isoformat(timespec="seconds")
+                )
+                contagens = {
+                    tipo: sum(1 for fato in fatos if fato["legado"]["tipo"] == tipo)
+                    for tipo in TIPOS
+                }
             print(f"VALIDAÇÃO OK — dia {dia_ref}; {len(usuarios)} usuários; {len(fatos)} fatos")
             print("Linhas previstas: " + ", ".join(f"{tipo}={contagens[tipo]}" for tipo in TIPOS))
             print("DRY-RUN: nenhum banco foi aberto ou alterado; nenhuma chamada ao CRM foi feita.")
             return 0
-        con = sqlite3.connect(DB)
+        con = _abrir_banco(dupla_escrita)
         try:
-            con.executescript(SCHEMA)
-            total = gravar(con, dia_ref, resp, "arquivo")
+            total = gravar(con, dia_ref, resp, "arquivo", dupla_escrita=dupla_escrita)
         finally:
             con.close()
         print(f"{total} linhas gravadas ({dia_ref}) em {DB}")
@@ -339,9 +527,8 @@ def main(argv: list[str] | None = None) -> int:
                 return 1
             # Só cria/abre o banco depois que a primeira resposta foi auditada.
             if con is None:
-                con = sqlite3.connect(DB)
-                con.executescript(SCHEMA)
-            total += gravar(con, dia, resposta, "api")
+                con = _abrir_banco(dupla_escrita)
+            total += gravar(con, dia, resposta, "api", dupla_escrita=dupla_escrita)
             print(f"  {dia} ok")
             time.sleep(0.3)
     finally:
