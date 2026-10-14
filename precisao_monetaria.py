@@ -222,3 +222,42 @@ def resultado_calculado_para_centavos(
         campo=campo,
         negativos_permitidos=negativos_permitidos,
     )
+
+
+def real_legado_para_centavos(
+    valor: Any,
+    *,
+    campo: str = "valor legado",
+    negativos_permitidos: bool = False,
+) -> int | None:
+    """Interpreta um valor histórico de SQLite REAL para centavos.
+
+    Para float vindo da coluna REAL, usa Decimal(repr(valor)) e half-up como
+    interpretação determinística do valor já armazenado. Isso não recupera
+    o token JSON original. None permanece None; a função não executa backfill.
+    """
+    if valor is None:
+        return None
+    if isinstance(valor, bool):
+        raise ErroMonetario(f"{campo}: booleano não é valor REAL legado")
+    if isinstance(valor, float):
+        # O repr é intencional: a origem já é o float lido do SQLite.
+        try:
+            numero = Decimal(repr(valor))
+        except InvalidOperation as exc:
+            raise ErroMonetario(f"{campo}: REAL legado inválido") from exc
+    elif isinstance(valor, Decimal):
+        numero = valor
+    elif isinstance(valor, int):
+        numero = Decimal(valor)
+    else:
+        raise ErroMonetario(f"{campo}: esperado REAL legado, inteiro, Decimal ou None")
+    if not numero.is_finite():
+        raise ErroMonetario(f"{campo}: REAL legado não finito")
+    if numero < 0 and not negativos_permitidos:
+        raise ErroMonetario(f"{campo}: valor legado negativo não permitido")
+    return resultado_calculado_para_centavos(
+        numero,
+        campo=campo,
+        negativos_permitidos=negativos_permitidos,
+    )
