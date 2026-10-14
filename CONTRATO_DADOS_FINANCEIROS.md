@@ -13,7 +13,7 @@
 |---|---|---|
 | Acordos por usuário | `valor = pagos + pendente` deve ser obrigatório após validar exceções | Ainda não bloqueante. É necessário definir como identificar e tratar renegociações, descontos, cancelamentos, parcelas não vencidas e pagamentos parciais antes de ativar o bloqueio |
 | Precisão monetária | O responsável informou que a política de precisão/arredondamento já foi aprovada | O texto exato da política não foi fornecido nesta decisão nem encontrado no contrato atual. Registrar os parâmetros aprovados antes de alterar validação, armazenamento ou esquema |
-| Timestamp | Definição deve ser acordada com a origem dos dados | Pendente: formato canônico, fuso horário e comportamento quando o campo estiver ausente |
+| Timestamp da captura | Usar e preservar exatamente o campo `timestamp` enviado no JSON da origem, como referência temporal da posição atualizada | Decidido em 14/10/2026: não substituir por relógio local nem inferir/converter fuso; campo ausente ou vazio deve bloquear a importação |
 | Contatos únicos globais | Não existe chave/regra aprovada para deduplicação entre negociadores | Manter `contatosUnicosTotal` como não aditivo; não somar por usuário nem usar essa métrica como gate de reconciliação |
 
 ### Evidência e limite para a igualdade dos acordos
@@ -67,7 +67,7 @@ Todas as propriedades abaixo são observadas na amostra fictícia e implementada
 | Recebido no período | `data.valoresAcordo.valorRecebidoPeriodo` | número finito não negativo, obrigatório | sem total por usuário para reconciliar | `acordos_posicao.recebido_periodo` |
 | Valores a vencer | `data.valoresAcordo.valorAVencer` | número finito não negativo, obrigatório | rejeita negativos | `acordos_posicao.a_vencer` |
 | Valores vencidos | `data.valoresAcordo.valorVencido` | número finito não negativo, obrigatório | rejeita negativos | `acordos_posicao.vencido` |
-| Timestamp da resposta | `timestamp` | texto não vazio; se ausente, gerado localmente | não valida formato temporal | `acordos_posicao.capturado_em` |
+| Timestamp da resposta | `timestamp` | texto não vazio, obrigatório e fornecido pela origem | preserva exatamente a string original; rejeita ausente/vazio; não converte nem infere fuso | `acordos_posicao.capturado_em` |
 
 O usuário é identificado por `usuario` (texto não vazio) e o nome é opcional (`nome`, texto ou null). Um mesmo identificador com nomes não vazios conflitantes dentro do payload bloqueia a normalização. Usuários repetidos dentro do mesmo grupo bloqueiam; um usuário pode aparecer em grupos diferentes. A tabela `usuarios` é atualizada pelo identificador global.
 
@@ -88,7 +88,7 @@ Desde a proteção da Fase 6, os caminhos de gravação por arquivo e API e o mo
 3. **Semântica e decisão para acordos por usuário:** `valor` representa o valor de face do acordo; `pagos` e `pendente` são colunas distintas por status e somam valores de face. `pagos` pode incluir pagamentos parciais e não significa automaticamente caixa recebido no período. **Decidido em 14/10/2026:** `valor = pagos + pendente` deverá ser obrigatório após validar exceções. **Pendente para implementação bloqueante:** inventariar e aprovar o tratamento para renegociações, descontos, cancelamentos, parcelas ainda não vencidas e pagamentos parciais, e criar testes de regressão para esses cenários.
 4. **Decidido conforme a definição informada:** `valorRecebidoPeriodo` é o total efetivamente recebido no intervalo; `valorAVencer` é o saldo ainda pendente cujo vencimento não chegou; `valorVencido` é o saldo pendente cujo vencimento passou. Estes dois últimos representam a posição da carteira, não valores que devam ser somados entre snapshots.
 5. **Comportamento atual e histórico:** a tabela `acordos_posicao` preserva capturas com diferentes `capturado_em`; não somar snapshots de dias/horários diferentes. Os fatos do mesmo dia são substituídos quando esse dia é reimportado; isso é distinto do histórico de posições.
-6. **Pendente com a origem dos dados:** aprovar formato canônico, fuso horário e comportamento quando `timestamp` estiver ausente. Atualmente o importador inventa um horário local de captura nesse caso, que não representa necessariamente o horário da resposta da origem.
+6. **Decidido em 14/10/2026 — timestamp da origem:** usar o campo `timestamp` do JSON como referência temporal da posição atualizada e preservar seu texto exatamente como recebido. Não substituir por relógio local, não converter horário e não inferir ou completar fuso. O campo é obrigatório; se estiver ausente, vazio ou não for texto não vazio, bloquear a importação com erro de validação controlado. Se o valor não explicitar fuso, armazená-lo como veio, sem presumir um fuso.
 
 ## Precisão monetária e histórico
 
@@ -100,7 +100,7 @@ Fatos diários (`fatos`) e snapshots (`acordos_posicao`) são conjuntos diferent
 
 - Validar e documentar os casos de exceção à regra `valor = pagos + pendente`; só depois ativar o bloqueio e incluir testes para cada exceção aprovada.
 - Transcrever no contrato o texto exato da política de precisão/arredondamento informada como aprovada e decidir, separadamente, se haverá migração de `REAL` após análise de compatibilidade e backup.
-- Definir com a origem o formato, fuso horário e comportamento para `timestamp` ausente.
+- O timestamp de referência vem do campo `timestamp` do JSON. Preservar seu valor original; ausência ou vazio bloqueia a importação. Não gerar horário local nem inferir/converter fuso.
 - Manter contatos únicos globais como não aditivos até existir chave e regra aprovada de deduplicação.
 - Executar exercício operacional de backup/recuperação em banco de homologação autorizado, mantendo origem e backup preservados; testes automatizados isolados não substituem a aprovação operacional.
 - Proteger `main` exigindo a verificação do workflow antes de integrar futuras alterações.
