@@ -71,13 +71,31 @@ class NormalizacaoTestes(unittest.TestCase):
         with self.assertRaisesRegex(importar.ErroValidacao, "esperado número"):
             importar.normalizar(payload, "2026-10-13")
 
-    def test_negativo_monetario_nao_e_bloqueado_sem_politica_aprovada(self):
-        # Comportamento temporário deliberado: negatividade requer definição de negócio.
-        payload = json.loads(json.dumps(AMOSTRA))
-        payload["data"]["depositos"]["porUsuario"][0]["valor"] = -1.25
-        usuarios, fatos, _ = importar.normalizar(payload, "2026-10-13")
-        deposito = next(f for f in fatos if f[2] == "deposito" and f[1] == "NEGOCIADOR.A")
-        self.assertEqual(deposito[5], -1.25)
+    def test_valores_monetarios_negativos_sao_rejeitados(self):
+        caminhos = [
+            ("depositos", "porUsuario", 0, "valor"),
+            ("acordos", "porUsuario", 0, "valor"),
+            ("acordos", "porUsuario", 0, "pagos"),
+            ("acordos", "porUsuario", 0, "pendente"),
+            ("promessas", "porUsuario", 0, "prometido"),
+            ("promessas", "porUsuario", 0, "cumprido"),
+            ("promessas", "porUsuario", 0, "emAberto"),
+            ("promessas", "porUsuario", 0, "quebrado"),
+            ("valoresAcordo", "valorRecebidoPeriodo"),
+            ("valoresAcordo", "valorAVencer"),
+            ("valoresAcordo", "valorVencido"),
+        ]
+        for caminho in caminhos:
+            with self.subTest(campo=".".join(map(str, caminho))):
+                payload = json.loads(json.dumps(AMOSTRA))
+                alvo = payload["data"]
+                for chave in caminho[:-1]:
+                    alvo = alvo[chave]
+                alvo[caminho[-1]] = -1.25
+                with self.assertRaisesRegex(
+                    importar.ErroValidacao, "valor monetário negativo não permitido"
+                ):
+                    importar.normalizar(payload, "2026-10-13")
 
     def test_grupos_vazios_com_totais_zero_sao_validos(self):
         payload = json.loads(json.dumps(AMOSTRA))
