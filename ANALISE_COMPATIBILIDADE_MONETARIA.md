@@ -1,6 +1,6 @@
 # Análise de compatibilidade monetária — CAIXA FUTURO
 
-**Status:** análise documental inicial; migração não autorizada nem executada  
+**Status:** análise documental atualizada com decisões recebidas em 14/10/2026; pendente de ratificação/assinatura formal e de verificações técnicas; migração não autorizada nem executada  
 **Data:** 2026-10-14  
 **Branch:** docs/analise-compatibilidade-monetaria  
 **Base observada:** main, commit 80791885a5b906d3e14d71091932eabe53a203da.
@@ -166,26 +166,68 @@ Estes são testes especificados, não resultados de execução. A integração G
 
 Entregar inventário final, baseline reproduzível, relatório por período/campo com totais e diferenças em centavos, justificativa aprovada para cada divergência, decisão sobre sinais e pagamentos pendentes, testes e CI ligados ao commit, backup verificado e rollback ensaiado. Gate: nenhuma divergência inexplicada; não substituir igualdade exata por tolerância informal.
 
-## 9. Pendências humanas
+## 9. Decisões recebidas e estado de ratificação
 
-- [ ] Confirmar formato decimal oficial da origem, precisão e arredondamento.
-- [ ] Aprovar sinal por campo e semântica de estornos, créditos, abatimentos e excesso de pagamento.
-- [ ] Definir relação contábil entre valor, pagos, pendente, prometido, cumprido, emAberto e quebrado; distinguir pagamento confirmado de informado/pendente de baixa.
-- [ ] Resolver formalmente legado somente leitura versus dupla escrita.
-- [ ] Aprovar nomes/modelo de novas colunas.
-- [ ] Aprovar estratégia de conversão REAL legado e seus limites.
-- [ ] TI/Contabilidade confirmar half-up do ERP para cálculos próprios.
-- [ ] Definir janela de conciliação, aprovação das divergências e corte.
-- [ ] Aprovar plano de rollback e corte definitivo.
+O arquivo **`DECISOES_PENDENCIAS_MIGRACAO.md`**, recebido em 14/10/2026, registra as decisões de negócio abaixo. O próprio cabeçalho informa que estão **para ratificação e assinatura**; portanto, devem ser tratadas como regras propostas para implementação, sujeitas ao gate formal, e não como evidência de assinatura já concluída.
 
-## 10. Estado desta entrega
+| Tema | Decisão registrada | Estado/gate técnico |
+|---|---|---|
+| Sinais negativos | Permitidos somente em depósitos (estorno), `valorRecebidoPeriodo`, `acordos.porUsuario[].pendente` e `promessas.porUsuario[].emAberto`; alerta visível; demais valores e todas as quantidades não negativos | Validar com extração real sanitizada/autorizada e testes por campo; sem payload de CRM nesta análise |
+| Entrada decimal | Duas casas para valor monetário final; sem passagem por `float`; mais de duas casas bloqueia o registro; rejeitar notação científica, NaN, infinito e texto inválido | **Conflita com a seção 4 da Política v1.0**, que prevê valores com mais casas em entrada e arredondamento ao final. Ratificar e versionar a política antes de codificar |
+| Compatibilidade com REAL | Manter as colunas legadas; novas colunas `INTEGER` em centavos; escrita na mesma transação | “REAL somente leitura” conflita com a necessidade registrada de manter a gravação pelo caminho legado existente durante a transição; corrigir o texto da decisão antes da implementação |
+| Esquema | Colunas específicas por métrica, sufixo `_centavos`, `CHECK` para sinal onde aplicável | A regra “nome da coluna legada + sufixo” não resolve `fatos.valor`, cujo significado depende de `tipo`. Aprovar nomes/modelo explícitos para depósitos, acordos e promessas |
+| Conversão do histórico | `Decimal(repr(valor))`, *half-up*, função única `real_para_centavos`, relatório de conversões suspeitas | `repr(float)` não recupera de forma garantida a grafia original do JSON. A conversão serve como interpretação determinística do REAL existente, com perda histórica explicitada; definir a regra exata de suspeita |
+| Relações contábeis | Acordos: `valor = pagos + pendente`; promessas: `prometido = cumprido + emAberto + quebrado` | A amostra fictícia versionada não comprova a relação das promessas em dados reais. Verificar com extração autorizada antes do alerta |
+| Pagamento sem baixa | Continua em pendente/em aberto; só é considerado pago/recebido após baixa confirmada; campo próprio, se existir, deve ser exibido separado e não somado a pagos | Inventariar se a origem fornece esse campo e comprovar como os totais são montados |
+| ERP/Systêxtil | Valor calculado pela origem prevalece; app não apresenta cálculo próprio de juros/multa/desconto antes de validar a fórmula contra pelo menos 30 títulos sanitizados | Gate de TI/Contabilidade antes de habilitar cálculo próprio |
+| Corte e rollback | Dez dias úteis de conciliação; centavos novos com tolerância zero; 100% das divergências classificadas; Controladoria aprova e Diretoria assina; restauração testada; REAL descomissionado em etapa posterior após 90 dias sem incidentes | Definir calendário/critério para “dia útil”, produzir relatórios reais, obter aprovações e ensaiar rollback em homologação |
 
-- [x] Política, contrato, runbook, importar.py e auditar_resposta.py consultados remotamente.
-- [x] Branch de documentação criada.
-- [ ] Inventário de todos os consumidores, testes e workflow CI: pendente.
-- [ ] Testes automatizados executados nesta sessão: pendente.
-- [ ] Banco/backup verificado: não executado, fora do escopo.
-- [ ] Migração, alteração de schema e corte: não executados.
-- [ ] Aprovação da Controladoria: pendente.
+## 10. Revisão de consistência técnica
 
-Este documento não autoriza migração nem certifica compatibilidade completa.
+| ID / severidade | Inconsistência ou risco | Tratamento necessário |
+|---|---|---|
+| TC-01 — **Bloqueador** | Política monetária v1.0 permite tratar entradas com mais de duas casas como decimal exato e arredondar o resultado final; a decisão complementar manda bloquear valores finais com mais de duas casas | Diretoria Financeira deve ratificar a regra prevalente e publicar revisão versionada da política. Não usar o documento complementar para alterar silenciosamente uma política aprovada |
+| TC-02 — **Bloqueador** | “REAL somente leitura” não é compatível, literalmente, com “a gravação em REAL continua pelo caminho existente”, enquanto se mantém o dashboard legado | Especificar que não haverá **novo caminho de escrita** para REAL, mas que o escritor legado permanecerá ativo e inalterado até o corte; se essa não for a intenção, redesenhar a transição. Testar rollback por chave de leitura |
+| TC-03 — **Bloqueador** | “Colunas específicas por métrica” conflita com adicionar apenas o sufixo à coluna física legada `fatos.valor`, reutilizada para depósito, acordo e promessa | Aprovar o modelo antes de criar colunas. Recomendação para decisão: preservar as métricas distintas com nomes semanticamente explícitos; para `fatos.valor`, não presumir que um único `valor_centavos` atende ao requisito sem ratificação. Rever também como `CHECK` expressa regras condicionadas por `tipo` |
+| TC-04 — **Alto** | `json.load(parse_float=Decimal)` preserva precisão numérica decimal, mas não rejeita automaticamente toda notação científica; `parse_float` recebe o token numérico e pode validá-lo antes de construir o Decimal | Usar parser comum para importador e auditoria; inspecionar o token bruto para rejeitar `e/E`, aceitar apenas formatos contratuais e validar separadamente strings decimais, booleanos, nulos e limites |
+| TC-05 — **Alto** | `Decimal(repr(x))` é determinístico para a representação curta do float, mas não recupera com garantia o texto original (ex.: zeros finais ou grafia equivalente podem já ter sido perdidos) | Documentar conversão de REAL histórico como estimativa técnica auditável, não como reconstrução do payload. Não classificar o centavo convertido como mais verdadeiro que o legado sem reconciliação |
+| TC-06 — **Alto** | Os sinais permitidos variam conforme o campo e, em `fatos`, também conforme `tipo`; uma regra genérica de “não negativo” ou um `CHECK` apenas por coluna pode aceitar/rejeitar casos errados | Criar matriz de validação centralizada campo+tipo, restrições `CHECK` compatíveis com o desenho escolhido e testes para negativos permitidos/proibidos, zero, nulo e fronteiras |
+| TC-07 — **Alto** | SQLite não vincula `Decimal` diretamente sem adaptação. A dupla escrita precisa definir como o valor exato em centavos alimenta as colunas novas e como o fluxo legado mantém compatibilidade com REAL | Manter cálculos e reconciliação no domínio Decimal/inteiro; confinar a eventual conversão para REAL ao adaptador legado explicitamente aprovado; realizar ambas as gravações na mesma transação e testar falha de cada lado |
+| TC-08 — **Alto** | A relação das promessas está aprovada no documento de decisão, mas não foi comprovada pela evidência atualmente versionada. Os 10 dias úteis de alerta não definem como tratar dias sem carga, falhas nem feriados | Verificar a relação com payload autorizado; definir critério de contagem da janela e exigir carga/auditoria válida por dia antes de avançar o gate |
+| TC-09 — **Alto** | A validação de 30 títulos do ERP ainda não foi produzida; arredondar *half-up* pelo app não prova que a fórmula do ERP, sua base de dias e o momento do arredondamento sejam iguais | Deixar cálculo próprio desligado; validar 30 casos reais sanitizados contra a origem e documentar divergências antes de alterar a política |
+| TC-10 — **Médio** | O inventário completo de consumidores, testes e CI ainda não está demonstrado | Inspecionar todo o repositório, identificar leituras e escritas de REAL, automatizar os testes e exigir execução verde de CI no PR. Ausência de resultado observado não equivale a CI aprovado nem prova que inexiste workflow |
+| TC-11 — **Médio** | A regra de “conversão suspeita” menciona “fração mínima” sem limite numérico operacional | Definir escala, algoritmo, epsilon/limite e formato do relatório em especificação versionada. Não usar tolerância para relaxar a igualdade exata dos dados novos |
+
+### Recomendação de desenho
+
+1. Separar três operações que não devem compartilhar semântica: **parse da origem** (validar formato e escala contratados), **conversão monetária exata** (Decimal para centavos, ou cálculo interno com arredondamento *half-up* apenas no resultado) e **conversão histórica de REAL** (diagnóstico e trilha de auditoria).
+2. Manter a regra de igualdade exata para os novos valores em centavos; classificar divergências de legado como evidências de conversão ou erro, sem aplicar tolerância monetária ao dado novo.
+3. Manter juros/multa/desconto calculados pelo app desabilitados até aprovação dos 30 títulos e não promover a amostra fictícia a evidência de produção.
+4. Não fazer migração de esquema, corte ou modificação de caminho de gravação enquanto TC-01, TC-02 e TC-03 não forem resolvidos formalmente.
+
+## 11. Gates obrigatórios antes da implementação/migração
+
+- [ ] Ratificação e assinatura das decisões de negócio; atualização versionada da Política de Precisão Monetária para resolver TC-01.
+- [ ] Decisão escrita sobre a continuidade da escrita legada em REAL durante a dupla escrita (TC-02).
+- [ ] Modelo e nomes finais de colunas por métrica, incluindo o caso de `fatos.valor` (TC-03).
+- [ ] Especificação do parser: tipos JSON/strings aceitos, rejeição de notação científica, escala, booleanos/nulos, limites e política para mais de duas casas.
+- [ ] Extração real sanitizada e autorizada para validar sinais, semântica do pagamento sem baixa e equação das promessas.
+- [ ] Evidência de ao menos 30 títulos sanitizados comparados com ERP/Systêxtil antes de habilitar cálculos próprios de encargos.
+- [ ] Inventário completo de consumidores, testes e CI; testes automatizados verdes.
+- [ ] Backup com manifesto/SHA-256 e restauração verificada em homologação, seguindo `RUNBOOK_OPERACIONAL.md`.
+- [ ] Dez dias úteis de conciliação diária, divergências 100% classificadas, zero divergência inexplicada, aprovação da Controladoria e assinatura da Diretoria.
+- [ ] Plano de rollback testado antes do corte; descomissionamento de REAL tratado em release separada após 90 dias corridos sem incidentes e aprovação própria.
+
+## 12. Estado desta entrega
+
+- [x] Política, contrato, runbook, importador, auditoria e esquema atual consultados remotamente.
+- [x] Decisões recebidas comparadas com política, contrato e implementação observável.
+- [x] Revisão de consistência técnica e plano de execução preparados em documentos da mesma branch.
+- [ ] Ratificação/assinatura formal das decisões e das resoluções dos bloqueadores.
+- [ ] Inventário completo dos consumidores, testes e workflows CI: pendente.
+- [ ] Testes automatizados executados nesta sessão: não executados.
+- [ ] Backup real verificado/restauração testada: não executados.
+- [ ] Payload do CRM/ERP real sanitizado: não consultado nem recebido nesta análise.
+- [ ] Migração, alteração de schema, dupla escrita, corte ou descomissionamento de REAL: não executados.
+
+A análise é documental e propositiva. Ela não autoriza acesso ao CRM, migração ou alteração de produção e não certifica compatibilidade integral.
