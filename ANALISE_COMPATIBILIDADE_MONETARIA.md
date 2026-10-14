@@ -218,6 +218,12 @@ O arquivo **`DECISOES_PENDENCIAS_MIGRACAO.md`**, recebido em 14/10/2026, registr
 - [ ] Dez dias úteis de conciliação diária, divergências 100% classificadas, zero divergência inexplicada, aprovação da Controladoria e assinatura da Diretoria.
 - [ ] Plano de rollback testado antes do corte; descomissionamento de REAL tratado em release separada após 90 dias corridos sem incidentes e aprovação própria.
 
+### Acompanhamento explícito dos bloqueadores no GitHub
+
+- [ ] [Issue #3 — Ratificar regra de entrada com mais de 2 casas](https://github.com/IsaacTexCotton/Dashboard/issues/3) — decisão da Diretoria Financeira e revisão versionada da política.
+- [ ] [Issue #4 — Definir contrato de dupla escrita REAL/INTEGER](https://github.com/IsaacTexCotton/Dashboard/issues/4) — redação formal aprovada por TI/Controladoria/Diretoria.
+- [ ] [Issue #5 — Definir colunas INTEGER específicas por métrica](https://github.com/IsaacTexCotton/Dashboard/issues/5) — aprovação do modelo por métrica e das constraints.
+ 
 ## 12. Estado desta entrega
 
 - [x] Política, contrato, runbook, importador, auditoria e esquema atual consultados remotamente.
@@ -225,7 +231,7 @@ O arquivo **`DECISOES_PENDENCIAS_MIGRACAO.md`**, recebido em 14/10/2026, registr
 - [x] Revisão de consistência técnica e plano de execução preparados em documentos da mesma branch.
 - [ ] Ratificação/assinatura formal das decisões e das resoluções dos bloqueadores.
 - [ ] Inventário completo dos consumidores, testes e workflows CI: pendente.
-- [x] GitHub Actions `Testes CAIXA FUTURO` — execução [#36](https://github.com/IsaacTexCotton/Dashboard/actions/runs/38568526243) concluiu `success` no commit `c3f50f4cb8c4b62d483ad924e7ce8076487c137e`, incluindo os testes automatizados existentes e validação da amostra sem CRM; testes específicos da migração ainda não foram implementados/executados.
+- [x] GitHub Actions `Testes CAIXA FUTURO` — execução [#38](https://github.com/IsaacTexCotton/Dashboard/actions/runs/38568801738) concluiu `success` no head documental `a113a97401d067330944373dcaf3bd6933c4b428`, incluindo os testes automatizados existentes e validação da amostra sem CRM; testes específicos da migração ainda não foram implementados/executados.
 - [ ] Backup real verificado/restauração testada: não executados.
 - [ ] Payload do CRM/ERP real sanitizado: não consultado nem recebido nesta análise.
 - [ ] Migração, alteração de schema, dupla escrita, corte ou descomissionamento de REAL: não executados.
