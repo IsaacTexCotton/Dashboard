@@ -179,4 +179,4 @@ Só iniciar depois de 90 dias corridos de operação sem incidente após o corte
 
 ## 8. Estado atual
 
-Este plano foi preparado a partir da análise documental e das decisões recebidas em 14/10/2026. Não foram executados testes, backup, migração, alteração de schema, dupla escrita, acesso ao CRM/ERP ou corte de produção nesta etapa.
+Este plano foi preparado a partir da análise documental e das decisões recebidas em 14/10/2026. O GitHub Actions `Testes CAIXA FUTURO` — execução [#36](https://github.com/IsaacTexCotton/Dashboard/actions/runs/38568526243) no commit `c3f50f4cb8c4b62d483ad924e7ce8076487c137e` — concluiu com sucesso nos testes automatizados existentes e na validação da amostra sem CRM. Isso não valida uma migração que ainda não foi implementada: testes específicos de centavos/schema/dupla escrita/rollback permanecem pendentes. Não foram executados backup, migração, alteração de schema, dupla escrita, acesso ao CRM/ERP ou corte de produção nesta etapa.
