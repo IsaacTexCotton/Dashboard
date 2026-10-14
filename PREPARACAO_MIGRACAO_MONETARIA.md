@@ -154,10 +154,9 @@ finally:
     destino.close()
     origem.close()
 PY
-python backup_sqlite.py verificar /tmp/migracao-monetaria/restaurado.sqlite3
 ```
 
-O último comando verifica o arquivo restaurado contra seu manifesto e, por não existir manifesto para a cópia restaurada, poderá indicar falha por manifesto ausente. Para validar a restauração, use `PRAGMA integrity_check`, contagens por tabela e comparações de conteúdo com a origem/backup. Não interprete hash do arquivo restaurado como igual ao hash do arquivo copiado em todo cenário de cópia lógica. O teste automatizado faz as comparações de linhas e integridade.
+A verificação do manifesto é feita sobre o backup original antes da restauração. Para validar a cópia restaurada, use `PRAGMA integrity_check`, contagens por tabela e comparação de conteúdo com a origem/backup. Não interprete hash do arquivo restaurado como igual ao hash do backup em todo cenário de cópia lógica. O teste automatizado compara as linhas restauradas com as linhas da origem e verifica a integridade.
 
 Para operação futura em ambiente real, gerar backup novo com acesso restrito, guardar arquivo e manifesto juntos, conferir o resultado `OK`, testar a restauração em arquivo separado e registrar o hash e as contagens antes de iniciar qualquer etapa mutável. Backup validado não é autorização para migrar.
 
