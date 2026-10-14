@@ -104,7 +104,7 @@ class NormalizacaoTestes(unittest.TestCase):
                     self.assertEqual(pos[2], -1.25)
 
         proibidos = [
-            ("depositos", "porUsuario", 0, "valor", False),
+            ("depositos", "porUsuario", 0, "valor"),
             ("acordos", "porUsuario", 0, "valor"),
             ("acordos", "porUsuario", 0, "pagos"),
             ("promessas", "porUsuario", 0, "prometido"),
