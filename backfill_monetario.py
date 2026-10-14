@@ -210,7 +210,7 @@ def _planejar_posicao(linha: sqlite3.Row | tuple[Any, ...]) -> tuple[Atualizacao
     atualizacao = Atualizacao(
         "acordos_posicao", (capturado_em,), tuple(alteracoes)
     ) if alteracoes else None
-    return atualizacao, len(alteracoes), pendencias + ja_corretas
+    return atualizacao, len(alteracoes), pendencias
 
 
 def backfill_monetario(
