@@ -212,7 +212,7 @@ A árvore de `main` inspecionada em 14/10/2026 lista seis módulos de teste e 65
 | `tests/test_backup_sqlite.py` | 12 | Reutilizar testes de manifesto, hash, corrupção e preservação de registros |
 | `tests/test_diagnosticar_banco.py` | 8 | Preservar garantias de diagnóstico read-only/não destrutivo |
 
-Workflow `.github/workflows/testes.yml`: Python 3.11, `unittest discover`, dry-run de importação da amostra, auditoria da amostra e validação de integração local. A última execução confirmada é [#38](https://github.com/IsaacTexCotton/Dashboard/actions/runs/38568801738), `success`, no commit documental `a113a97401d067330944373dcaf3bd6933c4b428`; uma execução nova precisa confirmar o head desta atualização.
+Workflow `.github/workflows/testes.yml`: Python 3.11, `unittest discover`, dry-run de importação da amostra, auditoria da amostra e validação de integração local. A última execução confirmada antes desta edição é [#42](https://github.com/IsaacTexCotton/Dashboard/actions/runs/38581680436), `success`, no head documental `82c5e3284a3e1db61c55ed77123e245639b93b27`; uma nova execução precisa confirmar o head desta atualização.
 
 **Atenção:** os testes atuais de auditoria/importação codificam as regras antigas (aceitar diferença de um centavo em contexto de auditoria e rejeitar todo negativo). Devem ser revisados de acordo com as decisões ratificadas. Não há evidência de testes de centavos, backfill, dupla escrita, constraints do schema monetário ou rollback de leitura; esses testes precisam existir antes do corte. A amostra é fictícia e os testes automatizados de backup usam bancos temporários; nenhum dos dois comprova segurança operacional em banco real.
 
