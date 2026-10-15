@@ -1991,11 +1991,11 @@ function buildCsv(days){
  if(!Array.isArray(days)||days.length===0)return null;
  const lines=[csvColumns.map(([label])=>csvCell(label)).join(";")];
  days.forEach(day=>lines.push(csvColumns.map(([,get])=>csvCell(get(day))).join(";")));
- return "\\uFEFF"+lines.join("\\r\\n")+"\\r\\n";
+ return "\uFEFF"+lines.join("\r\n")+"\r\n";
 }
 function downloadCsv(){
  const start=$("start").value,end=$("end").value;
- if(!start||!end||!/^\\d{4}-\\d{2}-\\d{2}$/.test(start)||!/^\\d{4}-\\d{2}-\\d{2}$/.test(end)||start>end){
+ if(!start||!end||!/^\d{4}-\d{2}-\d{2}$/.test(start)||!/^\d{4}-\d{2}-\d{2}$/.test(end)||start>end){
   setText("status","Período inválido. Corrija as datas antes de exportar.");$("status").classList.add("error");$("exportCsv").disabled=true;return;
  }
  const days=selectDays(start,end),csv=buildCsv(days);
