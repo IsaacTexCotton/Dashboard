@@ -70,10 +70,10 @@ Se qualquer critério não for atendido, não promova a rotina para produção.
 
 ### Gate específico para a transição REAL/INTEGER (contrato em revisão)
 
-Estado de referência: Issues [#4](https://github.com/IsaacTexCotton/Dashboard/issues/4), [#5](https://github.com/IsaacTexCotton/Dashboard/issues/5) e [#17](https://github.com/IsaacTexCotton/Dashboard/issues/17). Este trecho é preparação documental; não substitui ratificação nem aceite operacional.
+Estado de referência: Issues [#4](https://github.com/IsaacTexCotton/Dashboard/issues/4), [#5](https://github.com/IsaacTexCotton/Dashboard/issues/5) e [#17](https://github.com/IsaacTexCotton/Dashboard/issues/17). Este trecho documenta pré-requisitos técnicos e operacionais; não autoriza ativar flags, executar migração ou alterar dados.
 
-- [ ] Issue #5 ratificada: nomes semânticos, sinais, `monetario_fase`, nulabilidade e regra de entrada decimal.
-- [ ] Issue #4 ratificada e contrato revisado; o diagnóstico de igualdade REAL→centavos e a configuração de leitura/dupla escrita passaram por revisão.
+- [ ] Issue #5: nomes semânticos, sinais, `monetario_fase`, nulabilidade e regra de entrada decimal definidos e cobertos por verificação técnica.
+- [ ] Issue #4: contrato revisado tecnicamente; o diagnóstico de igualdade REAL→centavos e a configuração de leitura/dupla escrita passaram por revisão e testes.
 - [ ] Issue #17 concluída: consumidores externos registrados, donos avisados, runbook revisado com os operadores e exercício de restauração em homologação autorizado documentado.
 - [ ] Testes de reimportação dupla revisados/integrados; CI verde no HEAD exato da versão candidata.
 - [ ] Backup criado e verificado antes de qualquer ensaio mutável em homologação.
