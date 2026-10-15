@@ -1,0 +1,12 @@
+{"success":true,"data":{"inicio":"2026-10-13","fim":"2026-10-13","usuarioFiltro":null,
+"depositos":{"quantidadeTotal":15,"valorTotal":25000.0,"porUsuario":[
+ {"usuario":"NEGOCIADOR.A","nome":"Negociador A","quantidade":10,"valor":18000.0},
+ {"usuario":"NEGOCIADOR.B","nome":"Negociador B","quantidade":5,"valor":7000.0}]},
+"acordos":{"quantidadeTotal":3,"valorTotal":20000.0,"pagosTotal":0,"pendenteTotal":20000.0,"porUsuario":[
+ {"usuario":"NEGOCIADOR.B","nome":"Negociador B","quantidade":3,"valor":20000.0,"pagos":0,"pendente":20000.0}]},
+"promessas":{"quantidadeTotal":30,"prometidoTotal":40000.0,"cumpridoTotal":0,"emAbertoTotal":40000.0,"quebradoTotal":0,"porUsuario":[
+ {"usuario":"NEGOCIADOR.A","nome":"Negociador A","quantidade":30,"prometido":40000.0,"cumprido":0,"emAberto":40000.0,"quebrado":0}]},
+"contatos":{"contatosUnicosTotal":100,"registrosTotaisTotal":130,"porUsuario":[
+ {"usuario":"NEGOCIADOR.A","nome":"Negociador A","contatosUnicos":100,"registrosTotais":130}]},
+"valoresAcordo":{"valorRecebidoPeriodo":0,"valorAVencer":1000000.0,"valorVencido":200000.0}},
+"timestamp":"2026-10-13T15:08:31.0551703"}

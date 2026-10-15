@@ -1,0 +1,100 @@
+{
+  "arquivo": "amostra_resposta.json",
+  "banco_persistente": false,
+  "crm_consultas": 0,
+  "etapas": [
+    {
+      "detalhe": "Arquivo legível e JSON sintaticamente válido",
+      "etapa": "arquivo_local",
+      "status": "OK"
+    },
+    {
+      "codigo_saida": 0,
+      "erro": "",
+      "etapa": "auditoria_financeira",
+      "saida": "GRUPO | MÉTRICA | TOTAL API | SOMA POR USUÁRIO | DIFERENÇA | STATUS\ndepositos | quantidadeTotal | 15 | 15 | 0 | OK\ndepositos | valorTotal | 25000.0 | 25000.0 | 0.0 | OK\nacordos | quantidadeTotal | 3 | 3 | 0 | OK\nacordos | valorTotal | 20000.0 | 20000.0 | 0.0 | OK\nacordos | pagosTotal | 0 | 0 | 0 | OK\nacordos | pendenteTotal | 20000.0 | 20000.0 | 0.0 | OK\npromessas | quantidadeTotal | 30 | 30 | 0 | OK\npromessas | prometidoTotal | 40000.0 | 40000.0 | 0.0 | OK\npromessas | cumpridoTotal | 0 | 0 | 0 | OK\npromessas | emAbertoTotal | 40000.0 | 40000.0 | 0.0 | OK\npromessas | quebradoTotal | 0 | 0 | 0 | OK\ncontatos | registrosTotaisTotal | 130 | 130 | 0 | OK\ncontatos | contatosUnicosTotal (não aditivo) | 100 | não comparada | — | NÃO ADITIVO\nResultado: todos os totais aditivos reconciliados.\nObservação: semântica contábil das métricas não foi inferida por esta auditoria.",
+      "status": "OK"
+    },
+    {
+      "banco_nao_criado": true,
+      "codigo_saida": 0,
+      "erro": "",
+      "etapa": "dry_run",
+      "saida": "VALIDAÇÃO OK — dia 2026-10-13; 2 usuários; 5 fatos\nLinhas previstas: deposito=2, acordo=1, promessa=1, contato=1\nDRY-RUN: nenhum banco foi aberto ou alterado; nenhuma chamada ao CRM foi feita.",
+      "status": "OK"
+    },
+    {
+      "codigo_saida": 0,
+      "erro": "",
+      "etapa": "importacao_temporaria_1",
+      "saida": "5 linhas gravadas (2026-10-13) em <sqlite-temporario>",
+      "status": "OK"
+    },
+    {
+      "codigo_saida": 0,
+      "erro": "",
+      "etapa": "reimportacao_mesmo_dia",
+      "saida": "5 linhas gravadas (2026-10-13) em <sqlite-temporario>",
+      "status": "OK"
+    },
+    {
+      "antes": {
+        "dias_com_fatos": 1,
+        "fatos": 5,
+        "fatos_por_tipo": {
+          "acordo": 1,
+          "contato": 1,
+          "deposito": 2,
+          "promessa": 1
+        },
+        "registros_log_importacao": 1,
+        "snapshots_acordo": 1
+      },
+      "depois": {
+        "diagnostico_status": "OK",
+        "dias_com_fatos": 1,
+        "fatos": 5,
+        "fatos_por_tipo": {
+          "acordo": 1,
+          "contato": 1,
+          "deposito": 2,
+          "promessa": 1
+        },
+        "registros_log_importacao": 2,
+        "snapshots_acordo": 1
+      },
+      "detalhe": "Reimportar a mesma resposta mantém o conjunto de fatos e registra a nova execução",
+      "etapa": "idempotencia_fatos",
+      "status": "OK"
+    },
+    {
+      "codigo_saida": 0,
+      "erro": "",
+      "etapa": "diagnostico_banco",
+      "resumo": {
+        "checks": 13,
+        "failures": 0,
+        "ok": 13,
+        "warnings": 0
+      },
+      "status": "OK"
+    }
+  ],
+  "ferramenta": "validar_integracao_local",
+  "gerado_em_utc": "2026-10-13T19:34:04+00:00",
+  "metricas": {
+    "diagnostico_status": "OK",
+    "dias_com_fatos": 1,
+    "fatos": 5,
+    "fatos_por_tipo": {
+      "acordo": 1,
+      "contato": 1,
+      "deposito": 2,
+      "promessa": 1
+    },
+    "registros_log_importacao": 2,
+    "snapshots_acordo": 1
+  },
+  "sha256_arquivo": "d9072351e333528770916de25551e1301b64c91fec58a3751168425943ec654f",
+  "status": "PASSED"
+}

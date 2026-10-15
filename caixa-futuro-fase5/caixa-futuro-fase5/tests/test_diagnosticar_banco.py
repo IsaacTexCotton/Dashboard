@@ -1,0 +1,122 @@
+import json
+import sqlite3
+import subprocess
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+import diagnosticar_banco
+import importar
+import json as jsonlib
+
+with (ROOT / "amostra_resposta.json").open(encoding="utf-8") as arquivo:
+    AMOSTRA = jsonlib.load(arquivo)
+
+
+class DiagnosticoBancoTestes(unittest.TestCase):
+    def _criar_banco_valido(self, path):
+        con = sqlite3.connect(path)
+        con.executescript(importar.SCHEMA)
+        importar.gravar(con, "2026-10-13", AMOSTRA, "teste")
+        con.close()
+
+    def test_banco_valido_retorna_ok_e_metricas(self):
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "teste.db"
+            self._criar_banco_valido(path)
+            report = diagnosticar_banco.diagnosticar(path)
+        self.assertEqual(report["status"], "OK", report["checks"])
+        self.assertEqual(report["metrics"]["fact_rows"], 5)
+        self.assertEqual(report["metrics"]["fact_days"], 1)
+        self.assertEqual(report["metrics"]["facts_by_type"]["deposito"]["rows"], 2)
+        self.assertEqual(report["mode"], "read-only")
+
+    def test_banco_inexistente_nao_e_criado(self):
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "ausente.db"
+            with self.assertRaises(FileNotFoundError):
+                diagnosticar_banco.diagnosticar(path)
+            self.assertFalse(path.exists())
+
+    def test_banco_com_tabela_ausente_retorna_fail(self):
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "parcial.db"
+            con = sqlite3.connect(path)
+            con.execute("CREATE TABLE fatos (data TEXT)")
+            con.commit()
+            con.close()
+            report = diagnosticar_banco.diagnosticar(path)
+        self.assertEqual(report["status"], "FAIL")
+        self.assertTrue(any(c["check"] == "schema_tabelas" and c["status"] == "FAIL" for c in report["checks"]))
+
+    def test_detecta_tipo_de_fato_desconhecido(self):
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "tipo.db"
+            con = sqlite3.connect(path)
+            con.executescript(importar.SCHEMA)
+            con.execute("INSERT INTO usuarios(usuario,nome) VALUES ('U','Usuário')")
+            con.execute(
+                "INSERT INTO fatos VALUES (?,?,?,?,?,?,?,?,?,?)",
+                ("2026-10-13", "U", "tipo_invalido", 1, 0, 10.0, 0.0, 0.0, 0.0, "agora"),
+            )
+            con.commit()
+            con.close()
+            report = diagnosticar_banco.diagnosticar(path)
+        self.assertEqual(report["status"], "FAIL")
+        check = next(c for c in report["checks"] if c["check"] == "tipos_fato")
+        self.assertEqual(check["status"], "FAIL")
+
+    def test_referencia_usuario_ausente_gera_aviso(self):
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "orfaos.db"
+            con = sqlite3.connect(path)
+            con.executescript(importar.SCHEMA)
+            con.execute(
+                "INSERT INTO fatos VALUES (?,?,?,?,?,?,?,?,?,?)",
+                ("2026-10-13", "SEM_USUARIO", "contato", 1, 1, 0.0, 0.0, 0.0, 0.0, "agora"),
+            )
+            con.commit()
+            con.close()
+            report = diagnosticar_banco.diagnosticar(path)
+        self.assertEqual(report["status"], "WARN")
+        check = next(c for c in report["checks"] if c["check"] == "referencias_usuarios")
+        self.assertEqual(check["status"], "WARN")
+
+    def test_nao_modifica_bytes_do_banco(self):
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "teste.db"
+            self._criar_banco_valido(path)
+            antes = path.read_bytes()
+            diagnosticar_banco.diagnosticar(path)
+            depois = path.read_bytes()
+        self.assertEqual(antes, depois)
+
+    def test_cli_json(self):
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "teste.db"
+            self._criar_banco_valido(path)
+            proc = subprocess.run(
+                [sys.executable, str(ROOT / "diagnosticar_banco.py"), str(path), "--json"],
+                cwd=ROOT, capture_output=True, text=True, check=False,
+            )
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        report = json.loads(proc.stdout)
+        self.assertEqual(report["status"], "OK")
+        self.assertEqual(report["mode"], "read-only")
+
+    def test_cli_arquivo_ausente_retorna_codigo_2_sem_criar(self):
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "nao-existe.db"
+            proc = subprocess.run(
+                [sys.executable, str(ROOT / "diagnosticar_banco.py"), str(path)],
+                cwd=ROOT, capture_output=True, text=True, check=False,
+            )
+            self.assertEqual(proc.returncode, 2)
+            self.assertFalse(path.exists())
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)
