@@ -33,7 +33,7 @@ Executar somente em ambiente autorizado, com payload sanitizado fora do Git:
 
 1. Identificar localmente cada execução, sem publicar nome de cliente, valores, conteúdo do payload, hash do arquivo ou caminho interno.
 2. Confirmar se os dois relatórios usaram exatamente o mesmo payload. Se a identidade não puder ser demonstrada, classificar os relatos como execuções distintas, sem tentar fazê-los coincidir.
-3. Executar no mesmo checkout e payload: auditoria, `--dry-run` e validação integrada em SQLite temporário. Para cada execução, registrar em local restrito:
+3. Executar no mesmo checkout e payload: auditoria, `--dry-run` e validação integrada em SQLite temporário. A validação integrada agora emite `contagem_fatos` com itens por grupo, contagem por tipo da origem, fatos normalizados e fatos persistidos na primeira importação e após a reimportação; cada etapa falha quando a contagem por tipo diverge. Para cada execução, registrar em local restrito:
    - contagem `porUsuario` de cada grupo;
    - quantidade normalizada por tipo e quantidade total;
    - total esperado e observado em SQLite temporário;
@@ -47,7 +47,8 @@ Executar somente em ambiente autorizado, com payload sanitizado fora do Git:
 |---|---|---:|---:|---:|---:|---:|---|
 | Validação anterior | `b9754aa744b35bfd0d9f8604034887d2c160ecbd` | Não registrado | Não registrado | Não registrado | Não registrado | 17 reportados | Evidência histórica; entrada exata não versionada |
 | Validação posterior (relato) | Não informado | 5 | 5 | 3 | 5 | Não confirmado | 18 itens de origem; precisa comprovar saída correspondente |
-| Teste sintético reproduzível adicionado nesta etapa | Commit desta alteração (ver PR vinculada) | 5 | 5 | 3 | 5 | 18 normalizados e gravados em SQLite em memória | Valida a regra do código; não identifica o payload histórico |
+| Teste sintético de normalização adicionado na etapa anterior | Commit da PR #54 | 5 | 5 | 3 | 5 | 18 normalizados e gravados em SQLite em memória | Valida a regra da função de normalização, não a execução integrada completa |
+| Validação integrada sintética adicionada nesta etapa | Commit desta alteração (ver PR vinculada) | 5 | 5 | 3 | 5 | 18 normalizados, gravados e regravados no SQLite temporário; relatório compara contagens por tipo | Valida o fluxo completo do código; não identifica o payload histórico |
 
 ## 2. Inventário de leitores/escritores
 
