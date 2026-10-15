@@ -142,26 +142,26 @@ tbody tr:last-child td{border-bottom:0}
   <div class="kpi-grid grid" aria-label="Indicadores de cobrança">
     <article class="kpi teal">
       <div class="kpi-label"><span class="kpi-icon" aria-hidden="true">D</span>Depósitos registrados</div>
-      <div class="kpi-value" id="depValue">R$ 25.000,00</div>
-      <div class="kpi-detail" id="depCount">15 depósitos na amostra</div>
+      <div class="kpi-value" id="depValue">R$ 95.000,00</div>
+      <div class="kpi-detail" id="depCount">66 depósitos no período</div>
     </article>
     <article class="kpi navy">
       <div class="kpi-label"><span class="kpi-icon" aria-hidden="true">A</span>Acordos · valor de face</div>
-      <div class="kpi-value" id="agrValue">R$ 20.000,00</div>
-      <div class="kpi-detail" id="agrCount">3 acordos na amostra</div>
-      <div class="kpi-split"><div><span>Pago</span><strong id="agrPaid">R$ 0,00</strong></div><div><span>Pendente</span><strong id="agrOpen">R$ 20.000,00</strong></div></div>
+      <div class="kpi-value" id="agrValue">R$ 80.900,00</div>
+      <div class="kpi-detail" id="agrCount">44 acordos no período</div>
+      <div class="kpi-split"><div><span>Pago</span><strong id="agrPaid">R$ 53.300,00</strong></div><div><span>Pendente</span><strong id="agrOpen">R$ 27.600,00</strong></div></div>
     </article>
     <article class="kpi amber">
       <div class="kpi-label"><span class="kpi-icon" aria-hidden="true">P</span>Promessas · valor prometido</div>
-      <div class="kpi-value" id="promValue">R$ 40.000,00</div>
-      <div class="kpi-detail" id="promCount">30 promessas na amostra</div>
-      <div class="kpi-split"><div><span>Cumprido</span><strong id="promPaid">R$ 0,00</strong></div><div><span>Em aberto</span><strong id="promOpen">R$ 40.000,00</strong></div></div>
+      <div class="kpi-value" id="promValue">R$ 128.100,00</div>
+      <div class="kpi-detail" id="promCount">100 promessas no período</div>
+      <div class="kpi-split"><div><span>Cumprido</span><strong id="promPaid">R$ 94.700,00</strong></div><div><span>Em aberto</span><strong id="promOpen">R$ 33.400,00</strong></div></div>
     </article>
     <article class="kpi blue">
       <div class="kpi-label"><span class="kpi-icon" aria-hidden="true">C</span>Atividade de contato</div>
-      <div class="kpi-value" id="contactRecords">130</div>
+      <div class="kpi-value" id="contactRecords">593</div>
       <div class="kpi-detail">Registros de contato</div>
-      <div class="kpi-split"><div><span>Únicos por usuário · última data</span><strong id="contacts">A: 75 · B: 60</strong></div><div><span>Promessas quebradas</span><strong id="broken">R$ 9.500,00</strong></div></div>
+      <div class="kpi-split"><div><span>Únicos por usuário · última data</span><strong id="contacts">A: 75 · B: 60</strong></div><div><span>Promessas quebradas</span><strong id="broken">R$ 10.500,00</strong></div></div>
     </article>
   </div>
 </section>
@@ -201,9 +201,9 @@ tbody tr:last-child td{border-bottom:0}
       <h3 class="panel-title">Valores em aberto ou classificados na amostra</h3>
       <p class="panel-caption">Leitura descritiva; não representa priorização automática.</p>
       <div class="attention-list">
-        <div class="attention-item"><div class="attention-mark" aria-hidden="true">!</div><div><div class="attention-label">Posição vencida</div><div class="attention-desc">Saldo na captura de referência</div></div><div class="attention-value" id="focusOverdue">R$ 200.000,00</div></div>
-        <div class="attention-item"><div class="attention-mark" aria-hidden="true">P</div><div><div class="attention-label">Promessas em aberto</div><div class="attention-desc">Valor prometido ainda classificado em aberto</div></div><div class="attention-value" id="focusPromise">R$ 40.000,00</div></div>
-        <div class="attention-item"><div class="attention-mark" aria-hidden="true">A</div><div><div class="attention-label">Acordos pendentes</div><div class="attention-desc">Valor pendente dos acordos do período</div></div><div class="attention-value" id="focusAgreement">R$ 20.000,00</div></div>
+        <div class="attention-item"><div class="attention-mark" aria-hidden="true">!</div><div><div class="attention-label">Posição vencida</div><div class="attention-desc">Saldo na captura de referência</div></div><div class="attention-value" id="focusOverdue">R$ 268.000,00</div></div>
+        <div class="attention-item"><div class="attention-mark" aria-hidden="true">P</div><div><div class="attention-label">Promessas em aberto</div><div class="attention-desc">Valor prometido ainda classificado em aberto</div></div><div class="attention-value" id="focusPromise">R$ 33.400,00</div></div>
+        <div class="attention-item"><div class="attention-mark" aria-hidden="true">A</div><div><div class="attention-label">Acordos pendentes</div><div class="attention-desc">Valor pendente dos acordos do período</div></div><div class="attention-value" id="focusAgreement">R$ 27.600,00</div></div>
       </div>
       <div class="attention-foot" id="focusFoot">A posição vencida é da última captura selecionada; os valores de promessas e acordos correspondem ao período. Não somar entre si. Nenhum título individual é identificado.</div>
     </div>
@@ -211,9 +211,9 @@ tbody tr:last-child td{border-bottom:0}
       <h3 class="panel-title">Posição da carteira</h3>
       <p class="panel-caption">Captura mais recente disponível dentro do período — posição não é fluxo acumulado.</p>
       <div class="snapshot-grid">
-        <div class="snapshot-metric"><span>Recebido no período</span><strong id="received">R$ 0,00</strong></div>
-        <div class="snapshot-metric"><span>A vencer</span><strong id="due">R$ 1.000.000,00</strong></div>
-        <div class="snapshot-metric"><span>Vencido</span><strong id="overdue">R$ 200.000,00</strong></div>
+        <div class="snapshot-metric"><span>Recebido no período</span><strong id="received">R$ 22.000,00</strong></div>
+        <div class="snapshot-metric"><span>A vencer</span><strong id="due">R$ 950.000,00</strong></div>
+        <div class="snapshot-metric"><span>Vencido</span><strong id="overdue">R$ 268.000,00</strong></div>
       </div>
       <div class="snapshot-stamp"><span id="snapshotDate">Data da captura: 15 out 2026</span><span>Horário: não simulado</span></div>
     </div>
@@ -229,8 +229,8 @@ tbody tr:last-child td{border-bottom:0}
       <h3 class="panel-title">Depósitos por negociador</h3>
       <p class="panel-caption">Valores acumulados no período fictício selecionado; não são, isoladamente, uma avaliação de produtividade.</p>
       <div id="bars" class="bar-list">
-        <div class="bar-row"><span class="bar-name">Negociador A</span><div class="track"><div class="bar" style="width:100%"></div></div><span class="bar-value">R$ 18.000,00</span></div>
-        <div class="bar-row"><span class="bar-name">Negociador B</span><div class="track"><div class="bar" style="width:38.89%"></div></div><span class="bar-value">R$ 7.000,00</span></div>
+        <div class="bar-row"><span class="bar-name">Negociador A</span><div class="track"><div class="bar" style="width:100%"></div></div><span class="bar-value">R$ 58.900,00</span></div>
+        <div class="bar-row"><span class="bar-name">Negociador B</span><div class="track"><div class="bar" style="width:61.29%"></div></div><span class="bar-value">R$ 36.100,00</span></div>
       </div>
       <div class="empty" id="barsEmpty">Sem movimento de depósitos na amostra para o período.</div>
       <div class="chart-legend"><span><i class="legend-dot"></i>Valor depositado</span></div>
@@ -240,7 +240,7 @@ tbody tr:last-child td{border-bottom:0}
       <div class="table-wrap">
         <table id="usersTable">
           <thead><tr><th>Usuário</th><th>Depósitos</th><th>Valor depositado</th><th>Acordos</th><th>Valor acordado</th><th>Promessas</th><th>Valor prometido</th><th>Contatos únicos* (última data)</th></tr></thead>
-          <tbody id="users"><tr><td class="user-name">Negociador A</td><td>10</td><td>R$ 18.000,00</td><td>0</td><td>R$ 0,00</td><td>30</td><td>R$ 40.000,00</td><td>100</td></tr><tr><td class="user-name">Negociador B</td><td>5</td><td>R$ 7.000,00</td><td>3</td><td>R$ 20.000,00</td><td>0</td><td>R$ 0,00</td><td>0</td></tr></tbody>
+          <tbody id="users"><tr><td class="user-name">Negociador A</td><td>41</td><td>R$ 58.900,00</td><td>27</td><td>R$ 50.158,00</td><td>63</td><td>R$ 79.422,00</td><td>75</td></tr><tr><td class="user-name">Negociador B</td><td>25</td><td>R$ 36.100,00</td><td>17</td><td>R$ 30.742,00</td><td>37</td><td>R$ 48.678,00</td><td>60</td></tr></tbody>
         </table>
       </div>
       <div class="empty" id="tableEmpty">Nenhum registro na amostra dentro do período.</div>
