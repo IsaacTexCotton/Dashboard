@@ -49,7 +49,7 @@ class WebDemoPeriodValidationTests(unittest.TestCase):
         self.assertIn('id="focusAgreement"', self.html)
 
     def test_user_contact_metric_has_non_global_deduplication_caveat(self):
-        self.assertIn("Contatos únicos não são deduplicação global", self.html)
+        self.assertIn("contatos únicos não são deduplicação global", self.html)
         self.assertIn("Únicos por usuário", self.html)
 
     def test_demo_discloses_missing_individual_case_data_and_history(self):
