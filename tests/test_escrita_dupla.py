@@ -423,12 +423,10 @@ con = sqlite3.connect(caminho, timeout=3)
 def encerrar_processso_no_meio():
     os._exit(86)
 con.create_function("encerrar_processso_no_meio", 0, encerrar_processso_no_meio)
-con.execute("""
-    CREATE TRIGGER interromper_escrita
-    BEFORE INSERT ON fatos
-    WHEN NEW.usuario = 'bia'
-    BEGIN SELECT encerrar_processso_no_meio(); END
-""")
+con.execute(
+    "CREATE TRIGGER interromper_escrita BEFORE INSERT ON fatos "
+    "WHEN NEW.usuario = 'bia' BEGIN SELECT encerrar_processso_no_meio(); END"
+)
 con.commit()
 gravar_dia_duplo(con, **argumentos())
 """
