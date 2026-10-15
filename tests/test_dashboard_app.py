@@ -53,6 +53,11 @@ class TestPainelDemo(unittest.TestCase):
         self.assertEqual(result["resumo"]["promessas_centavos"], 4_670_000)
         self.assertEqual(result["resumo"]["contatos_registros"], 148)
         self.assertEqual(result["resumo"]["contatos_unicos_por_usuario"], 108)
+        self.assertEqual(result["cobertura_dados"]["estado"], "fatos_presentes")
+        self.assertEqual(result["cobertura_dados"]["linhas_fatos_no_periodo"], 18)
+        self.assertEqual(result["cobertura_dados"]["linhas_por_tipo"], {
+            "deposito": 5, "acordo": 5, "promessa": 3, "contato": 5,
+        })
         self.assertEqual(result["snapshot"]["a_vencer_centavos"], 88_000_000)
         self.assertEqual(result["snapshot"]["vencido_centavos"], 17_500_000)
 
@@ -76,6 +81,30 @@ class TestPainelDemo(unittest.TestCase):
         self.assertEqual(result["resumo"]["contatos_registros"], 0)
         self.assertIsNone(result["snapshot"])
         self.assertEqual(result["diario"], [])
+        self.assertEqual(result["cobertura_dados"]["estado"], "sem_fatos_demo")
+        self.assertEqual(result["cobertura_dados"]["linhas_fatos_no_periodo"], 0)
+        self.assertEqual(result["cobertura_dados"]["linhas_por_tipo"], {
+            "deposito": 0, "acordo": 0, "promessa": 0, "contato": 0,
+        })
+        self.assertIn("não confirmam", result["cobertura_dados"]["mensagem"])
+        self.assertFalse(result["cobertura_dados"]["snapshot_disponivel"])
+
+    def test_ausencia_de_um_tipo_nao_e_apresentada_como_valor_zero_confirmado(self):
+        self.con.execute("DELETE FROM fatos WHERE tipo = 'deposito'")
+        result = montar_dados_painel(self.con, leitura_centavos=True, demo=True)
+        coverage = result["cobertura_dados"]
+        self.assertEqual(coverage["estado"], "fatos_presentes")
+        self.assertEqual(coverage["linhas_por_tipo"]["deposito"], 0)
+        self.assertGreater(coverage["linhas_fatos_no_periodo"], 0)
+        self.assertIn('temLinha("deposito")?money(s.depositos_centavos):"—"', HTML)
+        self.assertIn("zero não confirma ausência de movimento", HTML)
+
+    def test_snapshot_sem_fatos_fica_separado_da_cobertura_de_fluxo(self):
+        self.con.execute("DELETE FROM fatos")
+        result = montar_dados_painel(self.con, leitura_centavos=True, demo=True)
+        self.assertEqual(result["cobertura_dados"]["estado"], "somente_snapshot")
+        self.assertTrue(result["cobertura_dados"]["snapshot_disponivel"])
+        self.assertEqual(result["cobertura_dados"]["linhas_fatos_no_periodo"], 0)
 
     def test_periodo_invertido_e_rejeitado(self):
         with self.assertRaisesRegex(ErroDashboard, "posterior"):
@@ -139,6 +168,11 @@ class TestPainelDemo(unittest.TestCase):
         self.assertIn('"sourceChip","periodLabel","depositosValue"', HTML)
         self.assertIn("Não foi possível validar os dados para o período selecionado.", HTML)
         self.assertIn('$("periodImportCoverage").textContent="—"', HTML)
+        self.assertIn('$("dataCoverageNotice").textContent=mensagem', HTML)
+        self.assertIn('id="dataCoverageNotice"', HTML)
+        self.assertIn('id="acordosMeta"', HTML)
+        self.assertIn('id="promessasMeta"', HTML)
+        self.assertIn('id="contatosMeta"', HTML)
 
 
 
@@ -156,6 +190,33 @@ class TestComparacaoPeriodos(unittest.TestCase):
             resposta["timestamp"] = dia + "T12:00:00"
             importar.gravar(con, dia, resposta, "arquivo")
         return con
+
+    def test_comparacao_e_suspensa_quando_um_tipo_de_fato_nao_tem_linha_no_periodo_atual(self):
+        con = self.criar_banco_com_importacoes("2026-10-12", "2026-10-13")
+        try:
+            con.execute("DELETE FROM fatos WHERE data = ? AND tipo = 'deposito'", ("2026-10-13",))
+            result = montar_dados_painel(
+                con, inicio="2026-10-13", fim="2026-10-13",
+                leitura_centavos=False, demo=False,
+            )
+            self.assertFalse(result["comparacao"]["disponivel"])
+            self.assertIn("faltam linhas de fatos para depósitos", result["comparacao"]["motivo"])
+            self.assertEqual(result["cobertura_dados"]["linhas_por_tipo"]["deposito"], 0)
+        finally:
+            con.close()
+
+    def test_comparacao_e_suspensa_quando_um_tipo_de_fato_nao_tem_linha_no_periodo_anterior(self):
+        con = self.criar_banco_com_importacoes("2026-10-12", "2026-10-13")
+        try:
+            con.execute("DELETE FROM fatos WHERE data = ? AND tipo = 'promessa'", ("2026-10-12",))
+            result = montar_dados_painel(
+                con, inicio="2026-10-13", fim="2026-10-13",
+                leitura_centavos=False, demo=False,
+            )
+            self.assertFalse(result["comparacao"]["disponivel"])
+            self.assertIn("faltam linhas de fatos para promessas", result["comparacao"]["motivo"])
+        finally:
+            con.close()
 
     def test_compara_fluxos_em_periodos_equivalentes_com_cobertura_alinhada(self):
         con = self.criar_banco_com_importacoes("2026-10-12", "2026-10-13")
