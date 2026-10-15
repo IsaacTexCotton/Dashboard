@@ -70,7 +70,7 @@ class WebDemoPeriodValidationTests(unittest.TestCase):
         self.assertIn('id="comparisonUnavailable"', self.html)
         self.assertIn('function renderComparison(start,end,currentDays)', self.html)
         self.assertIn('if(currentDays.length!==duration||previousDays.length!==duration)', self.html)
-        self.assertIn('const previousEnd=addDays(start,-1),previousStart=addDays(previousEnd,-duration+1)', self.html)
+        self.assertIn('previousEnd=addDays(start,-1),previousStart=addDays(previousEnd,-duration+1)', self.html)
         self.assertIn('Variação percentual indisponível: base anterior zero ou negativa.', self.html)
         self.assertIn("Comparação indisponível", self.html)
         self.assertIn('setText(m.details,"Atual "+money(now)+" · anterior "+money(before))', self.html)
