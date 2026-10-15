@@ -20,7 +20,7 @@ class DemoHistoricoMultidatasTestes(unittest.TestCase):
             re.DOTALL,
         )
         self.assertIsNotNone(match, "histórico sintético não encontrado no HTML")
-        self.history = json.loads(match.group(1))
+        self.history = importar.loads_json_estrito(match.group(1))
 
     def test_historico_tem_15_datas_consecutivas(self):
         self.assertEqual(len(self.history), 15)
@@ -39,10 +39,10 @@ class DemoHistoricoMultidatasTestes(unittest.TestCase):
         for day, payload in enumerate(self.history[:14], start=1):
             caminho = fixtures / f"2026-10-{day:02d}.json"
             with self.subTest(dia=day):
-                self.assertEqual(payload, json.loads(caminho.read_text(encoding="utf-8")))
+                self.assertEqual(payload, importar._carregar_arquivo(str(caminho)))
 
     def test_ultima_data_corresponde_a_amostra_ficticia_existente(self):
-        amostra = json.loads((ROOT / "amostra_resposta_ficticia.json").read_text(encoding="utf-8"))
+        amostra = importar._carregar_arquivo(str(ROOT / "amostra_resposta_ficticia.json"))
         self.assertEqual(self.history[-1], amostra)
 
     def test_todas_as_datas_passam_na_auditoria_e_normalizacao(self):
