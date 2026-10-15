@@ -109,6 +109,16 @@ def _tem_check_fase_linha(sql_tabela: str) -> bool:
 
 
 _COLUNAS_FASE_LINHA = ("fatos", "acordos_posicao")
+_CENTAVOS_POR_TABELA = {
+    "fatos": (
+        "deposito_valor_centavos", "acordo_valor_centavos", "acordo_pago_centavos",
+        "acordo_pendente_centavos", "promessa_prometido_centavos",
+        "promessa_cumprido_centavos", "promessa_em_aberto_centavos", "promessa_quebrado_centavos",
+    ),
+    "acordos_posicao": (
+        "recebido_periodo_centavos", "a_vencer_centavos", "vencido_centavos",
+    ),
+}
 _DDL_FASE_LINHA = (
     "monetario_fase TEXT NOT NULL DEFAULT 'legado' "
     "CHECK (monetario_fase IN ('legado','dual','conciliado'))"
@@ -192,6 +202,23 @@ def migrar_schema_monetario(con: sqlite3.Connection) -> dict[str, object]:
                     f"{tabela}.monetario_fase: tipo/CHECK ausente ou incompatível"
                 )
         else:
+            # Se já houver centavos escritos sem marcador por linha, não
+            # reclassificar esses registros automaticamente como legado.
+            colunas_centavos_existentes = [
+                nome for nome in _CENTAVOS_POR_TABELA[tabela] if nome in presentes
+            ]
+            if colunas_centavos_existentes:
+                condicao_preenchida = " OR ".join(
+                    f"{nome} IS NOT NULL" for nome in colunas_centavos_existentes
+                )
+                tem_centavos = con.execute(
+                    f"SELECT 1 FROM {tabela} WHERE {condicao_preenchida} LIMIT 1"
+                ).fetchone()
+                if tem_centavos:
+                    raise ErroMigracaoMonetaria(
+                        f"{tabela}.monetario_fase ausente enquanto já existem valores em centavos; "
+                        "classificação explícita necessária, sem inferência automática"
+                    )
             if fase_atual == "backfill_conciliado":
                 raise ErroMigracaoMonetaria(
                     f"{tabela}.monetario_fase: marcador por linha ausente após backfill conciliado; "
