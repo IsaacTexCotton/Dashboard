@@ -80,6 +80,17 @@ def _objeto(valor: Any, campo: str) -> dict:
     return valor
 
 
+def _para_real_legado(valor: Any, campo: str) -> float:
+    """Converte para REAL apenas no adaptador legado de compatibilidade."""
+    try:
+        numero = float(valor)
+    except (OverflowError, ValueError) as exc:
+        raise ErroValidacao(f"{campo}: número fora do intervalo suportado") from exc
+    if not math.isfinite(numero):
+        raise ErroValidacao(f"{campo}: número não finito")
+    return numero
+
+
 def _numero(
     valor: Any,
     campo: str,
@@ -108,12 +119,7 @@ def _numero(
         # O modo exato é usado por dupla escrita/auditoria: preserva Decimal/int
         # até a conversão explícita no adaptador REAL e na coluna de centavos.
         return valor
-    try:
-        numero = float(valor)
-    except (OverflowError, ValueError) as exc:
-        raise ErroValidacao(f"{campo}: número fora do intervalo suportado") from exc
-    if not math.isfinite(numero):
-        raise ErroValidacao(f"{campo}: número não finito")
+    numero = _para_real_legado(valor, campo)
     if numero < 0 and not negativos_permitidos:
         raise ErroValidacao(f"{campo}: valor monetário negativo não permitido")
     return numero
