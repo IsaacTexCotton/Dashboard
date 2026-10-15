@@ -73,12 +73,12 @@ Se qualquer critério não for atendido, não promova a rotina para produção.
 Estado de referência: Issues [#4](https://github.com/IsaacTexCotton/Dashboard/issues/4), [#5](https://github.com/IsaacTexCotton/Dashboard/issues/5) e [#17](https://github.com/IsaacTexCotton/Dashboard/issues/17). Este trecho documenta pré-requisitos técnicos e operacionais; não autoriza ativar flags, executar migração ou alterar dados.
 
 - [ ] Issue #5: nomes semânticos, sinais, `monetario_fase`, nulabilidade e regra de entrada decimal definidos e cobertos por verificação técnica.
-- [ ] Issue #4: contrato revisado tecnicamente; o diagnóstico de igualdade REAL→centavos e a configuração de leitura/dupla escrita passaram por revisão e testes.
+- [ ] Issue #4: contrato revisado tecnicamente; o diagnóstico de igualdade REAL→centavos e a configuração de leitura/dupla escrita passaram por revisão e testes. A comparação exata e a trava das flags já têm testes sintéticos; a leitura por centavos ainda não existe neste repositório.
 - [ ] Issue #17 concluída: consumidores externos registrados, donos avisados, runbook revisado com os operadores e exercício de restauração em homologação autorizado documentado.
 - [ ] Testes de reimportação dupla revisados/integrados; CI verde no HEAD exato da versão candidata.
 - [ ] Backup criado e verificado antes de qualquer ensaio mutável em homologação.
 
-**Atenção às chaves:** o código versionado atualmente reconhece `DASHBOARD_MONETARIO_DUAL_WRITE` (padrão de código `0`). O contrato revisado propõe as chaves independentes `DUPLA_ESCRITA` e `LEITURA_CENTAVOS`, mas a implementação dessas chaves e da trava de configuração ainda não foi concluída. Não tente contornar essa diferença definindo variáveis manualmente nem ligue qualquer chave em produção.
+**Atenção às chaves:** o código versionado reconhece `DUPLA_ESCRITA` como chave principal (padrão `0`) e `DASHBOARD_MONETARIO_DUAL_WRITE` como fallback temporário quando a chave principal não foi definida. `LEITURA_CENTAVOS` também tem padrão `0`; se definida como `1`, o importador recusa a execução enquanto o leitor de centavos não estiver integrado. O código não foi validado contra as variáveis reais do host. Não ative qualquer chave em produção.
 
 Quando a leitura por centavos for implementada e autorizada, o rollback primário definido é desligar `LEITURA_CENTAVOS`, retornando a leitura ao `REAL` preservado; restaurar o backup verificado é a alternativa secundária. A escrita `REAL` permanece durante a dupla escrita e por pelo menos 90 dias corridos após o corte de leitura. Se um consumidor desconhecido for descoberto, reinicie a contagem dos 90 dias. Nenhuma retirada de `REAL` é autorizada por este runbook enquanto os gates estiverem abertos.
 
