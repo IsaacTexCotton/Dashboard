@@ -106,6 +106,44 @@ class TestPainelDemo(unittest.TestCase):
         self.assertTrue(result["cobertura_dados"]["snapshot_disponivel"])
         self.assertEqual(result["cobertura_dados"]["linhas_fatos_no_periodo"], 0)
 
+    def test_sem_fatos_e_sem_metadados_de_importacao_mantem_cobertura_desconhecida(self):
+        self.con.execute("DELETE FROM fatos")
+        self.con.execute("DELETE FROM acordos_posicao")
+        self.con.execute("DROP TABLE importacoes")
+        result = montar_dados_painel(
+            self.con, inicio="2026-10-15", fim="2026-10-15",
+            leitura_centavos=False, demo=False,
+        )
+        coverage = result["cobertura_dados"]
+        self.assertEqual(coverage["estado"], "cobertura_desconhecida")
+        self.assertFalse(coverage["metadados_importacao_disponiveis"])
+        self.assertIn("falta de carga", coverage["mensagem"])
+        self.assertEqual(result["resumo"]["depositos_centavos"], 0)
+
+    def test_sem_fatos_com_importacao_registrada_nao_confirma_movimento_zero(self):
+        self.con.execute("DELETE FROM fatos")
+        self.con.execute("DELETE FROM acordos_posicao")
+        result = montar_dados_painel(
+            self.con, inicio="2026-10-15", fim="2026-10-15",
+            leitura_centavos=False, demo=False,
+        )
+        coverage = result["cobertura_dados"]
+        self.assertEqual(coverage["estado"], "sem_fatos_com_importacao_registrada")
+        self.assertEqual(coverage["dias_com_importacao_registrada"], 1)
+        self.assertIn("carga incompleta", coverage["mensagem"])
+
+    def test_sem_fatos_e_sem_data_importada_indica_falta_de_evidencia_de_carga(self):
+        self.con.execute("DELETE FROM fatos")
+        self.con.execute("DELETE FROM acordos_posicao")
+        result = montar_dados_painel(
+            self.con, inicio="2026-10-12", fim="2026-10-12",
+            leitura_centavos=False, demo=False,
+        )
+        coverage = result["cobertura_dados"]
+        self.assertEqual(coverage["estado"], "sem_importacao_registrada")
+        self.assertEqual(coverage["dias_com_importacao_registrada"], 0)
+        self.assertIn("confirme se a carga", coverage["mensagem"])
+
     def test_periodo_invertido_e_rejeitado(self):
         with self.assertRaisesRegex(ErroDashboard, "posterior"):
             montar_dados_painel(
