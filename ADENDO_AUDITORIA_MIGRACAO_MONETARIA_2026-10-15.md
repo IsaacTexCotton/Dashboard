@@ -63,7 +63,7 @@ O repositório acompanha a especificação técnica, os testes e as evidências 
 1. Reconciliar a diferença de contagem entre as evidências dos payloads, sem compartilhar ou versionar dados financeiros.
 2. Completar a matriz de leitores/escritores, incluindo consumidores fora do pacote/repositório.
 3. Confirmar configuração do processo operacional e caminho do banco com seu responsável; variáveis da sessão local não provam configuração em produção.
-4. Em ambiente autorizado com Python, executar dry-run oficial e validação integrada para a amostra sanitizada aprovada, mantendo o arquivo fora do Git.
+4. Em ambiente autorizado com Python, executar dry-run oficial e validação integrada para a amostra sanitizada autorizada para uso no ambiente de teste, mantendo o arquivo fora do Git.
 5. Antes de qualquer operação em banco real: concluir backup/restauração, inventário e conciliação, CI, plano de rollback e janela operacional; confirmar que a operação está dentro das permissões e procedimentos da organização.
 
 **Estado final desta revisão:** inventário estático parcialmente ampliado; nenhuma operação de produção realizada; DDL, backfill, escrita dupla, mudança de leitura e remoção de colunas `REAL` não foram executados.
