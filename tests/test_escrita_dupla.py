@@ -61,6 +61,8 @@ def criar_banco(isolation_level="", database=":memory:"):
           promessa_quebrado_centavos IS NULL OR
           (typeof(promessa_quebrado_centavos)='integer' AND promessa_quebrado_centavos >= 0 AND tipo='promessa')
         ),
+        monetario_fase TEXT NOT NULL DEFAULT 'legado'
+          CHECK (monetario_fase IN ('legado','dual','conciliado')),
         PRIMARY KEY(data, usuario, tipo)
     );
     CREATE TABLE acordos_posicao (
@@ -79,7 +81,9 @@ def criar_banco(isolation_level="", database=":memory:"):
         vencido_centavos INTEGER CHECK (
           vencido_centavos IS NULL OR
           (typeof(vencido_centavos)='integer' AND vencido_centavos >= 0)
-        )
+        ),
+        monetario_fase TEXT NOT NULL DEFAULT 'legado'
+          CHECK (monetario_fase IN ('legado','dual','conciliado'))
     );
     CREATE TABLE importacoes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -165,6 +169,14 @@ class TestEscritaDupla(unittest.TestCase):
             ).fetchone()
             self.assertEqual(pos, (20.0, 2000, 30.0, 3000, 40.0, 4000))
             self.assertEqual(con.execute("SELECT COUNT(*) FROM importacoes").fetchone()[0], 1)
+            self.assertEqual(
+                con.execute("SELECT DISTINCT monetario_fase FROM fatos").fetchall(),
+                [("dual",)],
+            )
+            self.assertEqual(
+                con.execute("SELECT monetario_fase FROM acordos_posicao").fetchone()[0],
+                "dual",
+            )
         finally:
             con.close()
 

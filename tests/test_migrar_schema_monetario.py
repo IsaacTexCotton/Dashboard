@@ -1,4 +1,5 @@
 """Testes isolados da migração aditiva monetária em SQLite descartável."""
+import hashlib
 import sqlite3
 import unittest
 
@@ -6,6 +7,7 @@ from migrar_schema_monetario import (
     ErroMigracaoMonetaria,
     FASES_VALIDAS,
     TABELA_ESTADO,
+    _COLUNAS,
     ativar_triggers_obrigatoriedade,
     definir_fase_migracao,
     migrar_schema_monetario,
@@ -50,12 +52,12 @@ def banco_legado():
 
 
 class TestMigracaoSchemaMonetario(unittest.TestCase):
-    def test_adiciona_11_colunas_sem_alterar_valores_legados(self):
+    def test_adiciona_13_colunas_sem_alterar_valores_legados(self):
         con = banco_legado()
         try:
             resultado = migrar_schema_monetario(con)
-            self.assertEqual(resultado["total_colunas"], 11)
-            self.assertEqual(len(resultado["colunas_criadas"]), 11)
+            self.assertEqual(resultado["total_colunas"], 13)
+            self.assertEqual(len(resultado["colunas_criadas"]), 13)
             self.assertEqual(resultado["fase"], "schema_adicionado")
             self.assertEqual(
                 con.execute(
@@ -69,6 +71,54 @@ class TestMigracaoSchemaMonetario(unittest.TestCase):
                     "SELECT deposito_valor_centavos FROM fatos"
                 ).fetchone()[0]
             )
+            self.assertEqual(
+                con.execute("SELECT monetario_fase FROM fatos").fetchone()[0],
+                "legado",
+            )
+            self.assertEqual(
+                con.execute("SELECT monetario_fase FROM acordos_posicao").fetchall(),
+                [],
+            )
+        finally:
+            con.close()
+
+    def test_checksum_preserva_todos_os_valores_real_legados(self):
+        con = banco_legado()
+        try:
+            con.execute(
+                "INSERT INTO acordos_posicao(capturado_em,data,recebido_periodo,a_vencer,vencido) "
+                "VALUES ('2026-10-14T12:00:00','2026-10-14',123.45,67.89,10.11)"
+            )
+            con.commit()
+
+            def checksum_reais():
+                fatos = con.execute(
+                    "SELECT data,usuario,tipo,valor,valor_pago,valor_aberto,valor_quebrado "
+                    "FROM fatos ORDER BY data,usuario,tipo"
+                ).fetchall()
+                posicoes = con.execute(
+                    "SELECT capturado_em,data,recebido_periodo,a_vencer,vencido "
+                    "FROM acordos_posicao ORDER BY capturado_em"
+                ).fetchall()
+                serializado = repr((fatos, posicoes)).encode("utf-8")
+                return hashlib.sha256(serializado).hexdigest()
+
+            antes = checksum_reais()
+            migrar_schema_monetario(con)
+            depois = checksum_reais()
+
+            self.assertEqual(antes, depois)
+            self.assertEqual(
+                con.execute("SELECT monetario_fase FROM fatos").fetchone()[0],
+                "legado",
+            )
+            self.assertEqual(
+                con.execute(
+                    "SELECT monetario_fase FROM acordos_posicao WHERE capturado_em=?",
+                    ("2026-10-14T12:00:00",),
+                ).fetchone()[0],
+                "legado",
+            )
         finally:
             con.close()
 
@@ -77,11 +127,11 @@ class TestMigracaoSchemaMonetario(unittest.TestCase):
         try:
             primeira = migrar_schema_monetario(con)
             segunda = migrar_schema_monetario(con)
-            self.assertEqual(len(primeira["colunas_criadas"]), 11)
+            self.assertEqual(len(primeira["colunas_criadas"]), 13)
             self.assertEqual(segunda["colunas_criadas"], [])
             self.assertEqual(
                 con.execute("SELECT COUNT(*) FROM pragma_table_info('fatos')").fetchone()[0],
-                18,
+                19,
             )
         finally:
             con.close()
@@ -148,6 +198,23 @@ class TestMigracaoSchemaMonetario(unittest.TestCase):
         finally:
             con.close()
 
+    def test_marcador_por_linha_aceita_somente_fases_validas(self):
+        con = banco_legado()
+        try:
+            migrar_schema_monetario(con)
+            con.execute("UPDATE fatos SET monetario_fase='dual' WHERE usuario='ana'")
+            con.commit()
+            self.assertEqual(
+                con.execute("SELECT monetario_fase FROM fatos WHERE usuario='ana'").fetchone()[0],
+                "dual",
+            )
+            with self.assertRaises(sqlite3.IntegrityError):
+                con.execute(
+                    "UPDATE fatos SET monetario_fase='fase_desconhecida' WHERE usuario='ana'"
+                )
+        finally:
+            con.close()
+
     def test_schema_incompativel_aborta_sem_alterar(self):
         con = banco_legado()
         try:
@@ -160,6 +227,37 @@ class TestMigracaoSchemaMonetario(unittest.TestCase):
             self.assertEqual(depois, antes)
             self.assertNotIn(TABELA_ESTADO, {
                 r[0] for r in con.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                )
+            })
+        finally:
+            con.close()
+
+    def test_nao_inferir_legado_se_ja_existirem_centavos_sem_marcador(self):
+        con = banco_legado()
+        try:
+            for coluna in _COLUNAS:
+                con.execute(
+                    f"ALTER TABLE {coluna.tabela} ADD COLUMN {coluna.nome} "
+                    f"INTEGER CHECK ({coluna.check})"
+                )
+            con.execute(
+                "UPDATE fatos SET deposito_valor_centavos=1234 WHERE tipo='deposito'"
+            )
+            con.commit()
+
+            with self.assertRaisesRegex(
+                ErroMigracaoMonetaria,
+                "já existem valores em centavos",
+            ):
+                migrar_schema_monetario(con)
+
+            self.assertNotIn(
+                "monetario_fase",
+                {row[1] for row in con.execute("PRAGMA table_info(fatos)")},
+            )
+            self.assertNotIn(TABELA_ESTADO, {
+                row[0] for row in con.execute(
                     "SELECT name FROM sqlite_master WHERE type='table'"
                 )
             })
@@ -237,14 +335,14 @@ class TestMigracaoSchemaMonetario(unittest.TestCase):
             with self.assertRaises(sqlite3.IntegrityError):
                 con.execute(
                     "INSERT INTO fatos(data,usuario,tipo,qtd,qtd_unicos,valor,valor_pago,"
-                    "valor_aberto,valor_quebrado,importado_em) "
-                    "VALUES ('2026-10-15','sem-centavos','deposito',1,0,1.0,0,0,0,'agora')"
+                    "valor_aberto,valor_quebrado,importado_em,monetario_fase) "
+                    "VALUES ('2026-10-15','sem-centavos','deposito',1,0,1.0,0,0,0,'agora','dual')"
                 )
             con.rollback()
             con.execute(
                 "INSERT INTO fatos(data,usuario,tipo,qtd,qtd_unicos,valor,valor_pago,"
-                "valor_aberto,valor_quebrado,importado_em,deposito_valor_centavos) "
-                "VALUES ('2026-10-15','com-centavos','deposito',1,0,1.0,0,0,0,'agora',100)"
+                "valor_aberto,valor_quebrado,importado_em,deposito_valor_centavos,monetario_fase) "
+                "VALUES ('2026-10-15','com-centavos','deposito',1,0,1.0,0,0,0,'agora',100,'dual')"
             )
             con.commit()
             with self.assertRaises(sqlite3.IntegrityError):
@@ -273,8 +371,8 @@ class TestMigracaoSchemaMonetario(unittest.TestCase):
             ativar_triggers_obrigatoriedade(con)
             with self.assertRaises(sqlite3.IntegrityError):
                 con.execute(
-                    "INSERT INTO acordos_posicao(capturado_em,data,recebido_periodo,a_vencer,vencido) "
-                    "VALUES ('ts2','2026-10-14',1,2,3)"
+                    "INSERT INTO acordos_posicao(capturado_em,data,recebido_periodo,a_vencer,vencido,monetario_fase) "
+                    "VALUES ('ts2','2026-10-14',1,2,3,'dual')"
                 )
         finally:
             con.close()

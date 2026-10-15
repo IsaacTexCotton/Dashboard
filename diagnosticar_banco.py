@@ -26,6 +26,30 @@ REQUIRED_COLUMNS = {
 FACT_TYPES = ("deposito", "acordo", "promessa", "contato")
 FACT_MONEY_COLUMNS = ("valor", "valor_pago", "valor_aberto", "valor_quebrado")
 SNAPSHOT_MONEY_COLUMNS = ("recebido_periodo", "a_vencer", "vencido")
+FATO_CENTAVOS_COLUNAS = (
+    "deposito_valor_centavos", "acordo_valor_centavos", "acordo_pago_centavos",
+    "acordo_pendente_centavos", "promessa_prometido_centavos",
+    "promessa_cumprido_centavos", "promessa_em_aberto_centavos", "promessa_quebrado_centavos",
+)
+POSICAO_CENTAVOS_COLUNAS = (
+    "recebido_periodo_centavos", "a_vencer_centavos", "vencido_centavos",
+)
+FASES_LINHA_MONETARIA = {"legado", "dual", "conciliado"}
+MAPA_FATO_CENTAVOS = {
+    "deposito": (("valor", "deposito_valor_centavos", True),),
+    "acordo": (
+        ("valor", "acordo_valor_centavos", False),
+        ("valor_pago", "acordo_pago_centavos", False),
+        ("valor_aberto", "acordo_pendente_centavos", True),
+    ),
+    "promessa": (
+        ("valor", "promessa_prometido_centavos", False),
+        ("valor_pago", "promessa_cumprido_centavos", False),
+        ("valor_aberto", "promessa_em_aberto_centavos", True),
+        ("valor_quebrado", "promessa_quebrado_centavos", False),
+    ),
+    "contato": (),
+}
 
 
 def _check(nome: str, status: str, detalhe: str) -> dict[str, str]:
@@ -45,6 +69,155 @@ def _read_only_connect(path: Path) -> sqlite3.Connection:
     con = sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True, timeout=10)
     con.row_factory = sqlite3.Row
     return con
+
+
+
+def _diagnostico_coerencia_fase_monetaria(
+    con: sqlite3.Connection,
+) -> tuple[dict[str, str] | None, dict[str, Any]]:
+    """Valida fases por linha e igualdade exata REAL -> centavos, sem escrever."""
+    tables = {
+        row[0] for row in con.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+        )
+    }
+    cols = {
+        table: {row[1]: str(row[2]).upper() for row in con.execute(f'PRAGMA table_info("{table}")')}
+        for table in ("fatos", "acordos_posicao")
+        if table in tables
+    }
+    has_phase = {table: "monetario_fase" in cols.get(table, {}) for table in ("fatos", "acordos_posicao")}
+    has_any_centavos = any(
+        col in cols.get(table, {})
+        for table, names in (
+            ("fatos", FATO_CENTAVOS_COLUNAS),
+            ("acordos_posicao", POSICAO_CENTAVOS_COLUNAS),
+        )
+        for col in names
+    )
+    if not any(has_phase.values()) and not has_any_centavos:
+        return None, {}
+    if not all(has_phase.values()):
+        return _check(
+            "coerencia_fase_monetaria", "FAIL",
+            "marcadores monetario_fase ausentes ou presentes em apenas parte do esquema",
+        ), {}
+    for table, names in (
+        ("fatos", FATO_CENTAVOS_COLUNAS),
+        ("acordos_posicao", POSICAO_CENTAVOS_COLUNAS),
+    ):
+        missing = [name for name in names if name not in cols.get(table, {})]
+        if missing:
+            return _check(
+                "coerencia_fase_monetaria", "FAIL",
+                f"{table}: colunas de centavos ausentes: {', '.join(missing)}",
+            ), {}
+        if cols[table].get("monetario_fase") != "TEXT":
+            return _check(
+                "coerencia_fase_monetaria", "FAIL",
+                f"{table}.monetario_fase precisa ser TEXT",
+            ), {}
+
+    from precisao_monetaria import ErroMonetario, real_legado_para_centavos
+
+    fases_contagem: dict[str, int] = {}
+    pendencias = 0
+    verificadas = 0
+    erros: list[str] = []
+
+    def verificar_par(*, fase: Any, legado: Any, centavos: Any, campo: str,
+                      negativos_permitidos: bool) -> None:
+        nonlocal pendencias, verificadas
+        if fase == "legado":
+            if legado is None or centavos is None:
+                pendencias += 1
+            return
+        if fase not in ("dual", "conciliado"):
+            erros.append(f"{campo}: monetario_fase inválido {fase!r}")
+            return
+        if legado is None or centavos is None:
+            erros.append(f"{campo}: REAL ou centavos ausente na fase {fase}")
+            return
+        if isinstance(centavos, bool) or not isinstance(centavos, int):
+            erros.append(f"{campo}: centavos não está armazenado como INTEGER")
+            return
+        try:
+            esperado = real_legado_para_centavos(
+                legado, campo=campo, negativos_permitidos=negativos_permitidos
+            )
+        except ErroMonetario as exc:
+            erros.append(f"{campo}: {exc}")
+            return
+        if esperado is None or centavos != esperado:
+            erros.append(f"{campo}: REAL convertido ({esperado}) diverge dos centavos ({centavos})")
+            return
+        verificadas += 1
+
+    fatos = con.execute(
+        "SELECT data,usuario,tipo,monetario_fase,valor,valor_pago,valor_aberto,valor_quebrado,"
+        + ",".join(FATO_CENTAVOS_COLUNAS)
+        + " FROM fatos ORDER BY data,usuario,tipo"
+    ).fetchall()
+    for row in fatos:
+        fase = row["monetario_fase"]
+        fases_contagem[f"fatos.{fase}"] = fases_contagem.get(f"fatos.{fase}", 0) + 1
+        if fase not in FASES_LINHA_MONETARIA:
+            erros.append(f"fatos[{row['data']},{row['usuario']}]: monetario_fase inválido {fase!r}")
+            continue
+        tipo = row["tipo"]
+        if tipo not in MAPA_FATO_CENTAVOS:
+            erros.append(f"fatos[{row['data']},{row['usuario']}]: tipo inválido {tipo!r}")
+            continue
+        aplicaveis = {destino for _origem, destino, _neg in MAPA_FATO_CENTAVOS[tipo]}
+        for coluna in FATO_CENTAVOS_COLUNAS:
+            if coluna not in aplicaveis and row[coluna] is not None:
+                erros.append(
+                    f"fatos[{row['data']},{row['usuario']},{tipo}]: "
+                    f"{coluna} preenchida em tipo não aplicável"
+                )
+        for origem, destino, negativos in MAPA_FATO_CENTAVOS[tipo]:
+            verificar_par(
+                fase=fase, legado=row[origem], centavos=row[destino],
+                campo=f"fatos[{row['data']},{row['usuario']},{tipo}].{destino}",
+                negativos_permitidos=negativos,
+            )
+
+    posicoes = con.execute(
+        "SELECT capturado_em,monetario_fase,recebido_periodo,a_vencer,vencido,"
+        + ",".join(POSICAO_CENTAVOS_COLUNAS)
+        + " FROM acordos_posicao ORDER BY capturado_em"
+    ).fetchall()
+    for row in posicoes:
+        fase = row["monetario_fase"]
+        fases_contagem[f"acordos_posicao.{fase}"] = fases_contagem.get(f"acordos_posicao.{fase}", 0) + 1
+        if fase not in FASES_LINHA_MONETARIA:
+            erros.append(f"acordos_posicao[{row['capturado_em']}]: monetario_fase inválido {fase!r}")
+            continue
+        for origem, destino, negativos in (
+            ("recebido_periodo", "recebido_periodo_centavos", True),
+            ("a_vencer", "a_vencer_centavos", False),
+            ("vencido", "vencido_centavos", False),
+        ):
+            verificar_par(
+                fase=fase, legado=row[origem], centavos=row[destino],
+                campo=f"acordos_posicao[{row['capturado_em']}].{destino}",
+                negativos_permitidos=negativos,
+            )
+
+    status = "FAIL" if erros else "WARN" if pendencias else "OK"
+    detalhe = (
+        f"{verificadas} pares REAL/centavos verificados; {pendencias} pendência(s) "
+        f"em linhas legado; {len(erros)} incoerência(s)"
+    )
+    if erros:
+        detalhe += "; exemplos: " + " | ".join(erros[:3])
+    metrics = {
+        "rows_by_phase": fases_contagem,
+        "verified_pairs": verificadas,
+        "legacy_pending_pairs": pendencias,
+        "incoherences": len(erros),
+    }
+    return _check("coerencia_fase_monetaria", status, detalhe), metrics
 
 
 def diagnosticar(caminho: str | Path) -> dict[str, Any]:
@@ -159,6 +332,10 @@ def diagnosticar(caminho: str | Path) -> dict[str, Any]:
         checks.append(_check("valores_snapshots", "OK" if bad_snapshots == 0 else "WARN",
                              "Valores dos snapshots presentes e finitos" if bad_snapshots == 0
                              else f"{bad_snapshots} snapshot(s) com valores inválidos"))
+        fase_check, fase_metrics = _diagnostico_coerencia_fase_monetaria(con)
+        if fase_check is not None:
+            checks.append(fase_check)
+            report["metrics"]["monetary_phase"] = fase_metrics
         foreign_key_rows = con.execute("PRAGMA foreign_key_check").fetchall()
         checks.append(_check("chaves_estrangeiras", "OK" if not foreign_key_rows else "WARN",
                              "Nenhuma violação de chave estrangeira declarada" if not foreign_key_rows

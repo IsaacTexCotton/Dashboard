@@ -377,7 +377,7 @@ def gravar_dia_duplo(
         valores_centavos = _validar_centavos_fato(tipo, centavos)
         _validar_pareamento_fato(tipo, legado, centavos)
         fatos_preparados.append(
-            tuple(legado[c] for c in COLUNAS_FATO_LEGADO) + valores_centavos
+            tuple(legado[c] for c in COLUNAS_FATO_LEGADO) + valores_centavos + ("dual",)
         )
 
     if not isinstance(posicao_legada, dict) or set(posicao_legada) != set(COLUNAS_POSICAO_LEGADO):
@@ -393,12 +393,12 @@ def gravar_dia_duplo(
     valores_posicao_centavos = _validar_centavos_posicao(posicao_centavos)
     _validar_pareamento_posicao(posicao_legada, posicao_centavos)
 
-    colunas_fato = COLUNAS_FATO_LEGADO + FATO_METRICAS_CENTAVOS
+    colunas_fato = COLUNAS_FATO_LEGADO + FATO_METRICAS_CENTAVOS + ("monetario_fase",)
     sql_fato = (
         f"INSERT INTO fatos ({','.join(colunas_fato)}) VALUES "
         f"({','.join('?' for _ in colunas_fato)})"
     )
-    colunas_posicao = COLUNAS_POSICAO_LEGADO + POSICAO_METRICAS_CENTAVOS
+    colunas_posicao = COLUNAS_POSICAO_LEGADO + POSICAO_METRICAS_CENTAVOS + ("monetario_fase",)
     sql_posicao = (
         f"INSERT OR REPLACE INTO acordos_posicao ({','.join(colunas_posicao)}) VALUES "
         f"({','.join('?' for _ in colunas_posicao)})"
@@ -416,7 +416,7 @@ def gravar_dia_duplo(
             )
         con.execute("DELETE FROM fatos WHERE data=?", (dia,))
         con.executemany(sql_fato, fatos_preparados)
-        con.execute(sql_posicao, valores_posicao_legada + valores_posicao_centavos)
+        con.execute(sql_posicao, valores_posicao_legada + valores_posicao_centavos + ("dual",))
         con.execute(
             "INSERT INTO importacoes(quando,origem,inicio,fim,linhas) VALUES (?,?,?,?,?)",
             (quando, origem, dia, dia, len(fatos_preparados)),

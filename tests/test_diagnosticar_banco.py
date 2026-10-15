@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 import diagnosticar_banco
 import importar
+from migrar_schema_monetario import migrar_schema_monetario
 
 with (ROOT / "amostra_resposta.json").open(encoding="utf-8") as arquivo:
     AMOSTRA = json.load(arquivo)
@@ -32,6 +33,52 @@ class DiagnosticoBancoTestes(unittest.TestCase):
         self.assertEqual(report["metrics"]["fact_days"], 1)
         self.assertEqual(report["metrics"]["facts_by_type"]["deposito"]["rows"], 2)
         self.assertEqual(report["mode"], "read-only")
+
+    def _criar_banco_fase_monetaria(self, path, *, fase, centavos):
+        con = sqlite3.connect(path)
+        con.executescript(importar.SCHEMA)
+        con.execute("INSERT INTO usuarios(usuario,nome) VALUES ('U','Usuário')")
+        con.execute(
+            "INSERT INTO fatos(data,usuario,tipo,qtd,qtd_unicos,valor,valor_pago,"
+            "valor_aberto,valor_quebrado,importado_em) "
+            "VALUES ('2026-10-13','U','deposito',1,0,12.34,0.0,0.0,0.0,'agora')"
+        )
+        con.commit()
+        migrar_schema_monetario(con)
+        con.execute(
+            "UPDATE fatos SET deposito_valor_centavos=?, monetario_fase=? "
+            "WHERE data='2026-10-13' AND usuario='U'",
+            (centavos, fase),
+        )
+        con.commit()
+        con.close()
+
+    def test_coerencia_fase_dual_compara_real_e_centavos_exatamente(self):
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "fase-dual.db"
+            self._criar_banco_fase_monetaria(path, fase="dual", centavos=1234)
+            report = diagnosticar_banco.diagnosticar(path)
+        check = next(c for c in report["checks"] if c["check"] == "coerencia_fase_monetaria")
+        self.assertEqual(check["status"], "OK", check["detail"])
+        self.assertEqual(report["metrics"]["monetary_phase"]["verified_pairs"], 1)
+
+    def test_coerencia_fase_dual_detecta_divergencia_real_centavos(self):
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "fase-divergente.db"
+            self._criar_banco_fase_monetaria(path, fase="dual", centavos=1235)
+            report = diagnosticar_banco.diagnosticar(path)
+        check = next(c for c in report["checks"] if c["check"] == "coerencia_fase_monetaria")
+        self.assertEqual(check["status"], "FAIL", check["detail"])
+        self.assertEqual(report["metrics"]["monetary_phase"]["incoherences"], 1)
+
+    def test_coerencia_fase_legado_com_centavos_ausentes_e_pendencia(self):
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "fase-legado.db"
+            self._criar_banco_fase_monetaria(path, fase="legado", centavos=None)
+            report = diagnosticar_banco.diagnosticar(path)
+        check = next(c for c in report["checks"] if c["check"] == "coerencia_fase_monetaria")
+        self.assertEqual(check["status"], "WARN", check["detail"])
+        self.assertEqual(report["metrics"]["monetary_phase"]["legacy_pending_pairs"], 1)
 
     def test_banco_inexistente_nao_e_criado(self):
         with tempfile.TemporaryDirectory() as td:
