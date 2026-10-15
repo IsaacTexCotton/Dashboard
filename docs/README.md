@@ -3,6 +3,7 @@
 ## Produto e experiência do analista
 
 - [Plano de implementação do dashboard orientado ao analista de cobrança](product/PLANO_IMPLEMENTACAO_DASHBOARD_ANALISTA_COBRANCA.md): incrementos do cockpit diário à central de ação, catálogo de métricas, critérios de aceite e gates de dados.
+- [Dicionário de indicadores de cobrança](product/DICIONARIO_INDICADORES_COBRANCA.md): fórmulas implementadas, mapeamento JSON/SQLite, granularidade, limites de interpretação e decisões de negócio pendentes.
 
 ## Arquitetura e contrato
 
