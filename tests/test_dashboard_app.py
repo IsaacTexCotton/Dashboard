@@ -223,7 +223,7 @@ class TestComparacaoPeriodos(unittest.TestCase):
             con.close()
 
     def test_demo_nao_inventa_historico_para_comparar(self):
-        con = criar_banco_com_importacoes("2026-10-13")
+        con = self.criar_banco_com_importacoes("2026-10-13")
         try:
             result = montar_dados_painel(
                 con, inicio="2026-10-13", fim="2026-10-13",
