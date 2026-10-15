@@ -131,6 +131,7 @@ tbody tr:last-child td{border-bottom:0}
   <div class="field"><label for="end">Data final</label><input type="date" id="end" value="2026-10-15" required></div>
   <button class="btn" type="submit">Aplicar período</button>
   <button class="btn secondary" type="button" id="reset">Restaurar exemplo</button>
+  <button class="btn" type="button" id="exportCsv" disabled>Exportar período para CSV</button>
   <div class="status" id="status" aria-live="polite">15 datas com dados fictícios</div>
 </form>
 
@@ -1951,15 +1952,70 @@ function renderTrend(days){
   return '<div class="daily-row"><div class="daily-date">'+datePt(day.date)+'</div><div class="daily-metrics">'+vals.map(v=>'<div class="daily-metric"><span class="daily-label">'+v[0]+'</span><div class="track"><div class="bar trend-bar '+v[2]+'" style="width:'+shareValue(v[1],max)+'%"></div></div><strong class="daily-amount">'+money(v[1])+'</strong></div>').join("")+'</div></div>';
  }).join("");
 }
+function csvCell(value){
+ if(value===null||value===undefined)return "";
+ const text=String(value);
+ return /[;"\r\n]/.test(text)?'"'+text.replace(/"/g,'""')+'"':text;
+}
+function csvMoney(value){
+ if(value===null||value===undefined||value==="")return "";
+ const number=Number(value);
+ if(!Number.isFinite(number))return "";
+ return number.toFixed(2).replace(".",",");
+}
+function csvInteger(value){
+ if(value===null||value===undefined||value==="")return "";
+ const number=Number(value);
+ return Number.isFinite(number)?String(number):"";
+}
+const csvColumns=[
+ ["Data de referência",d=>d.date],
+ ["Quantidade de depósitos",d=>csvInteger(d.depositos.qtd)],
+ ["Valor dos depósitos (R$)",d=>csvMoney(d.depositos.valor)],
+ ["Quantidade de acordos",d=>csvInteger(d.acordos.qtd)],
+ ["Valor acordado (R$)",d=>csvMoney(d.acordos.valor)],
+ ["Valor pago dos acordos (R$)",d=>csvMoney(d.acordos.pagos)],
+ ["Valor pendente dos acordos (R$)",d=>csvMoney(d.acordos.pendente)],
+ ["Quantidade de promessas",d=>csvInteger(d.promessas.qtd)],
+ ["Valor prometido (R$)",d=>csvMoney(d.promessas.valor)],
+ ["Valor cumprido das promessas (R$)",d=>csvMoney(d.promessas.cumprido)],
+ ["Valor em aberto das promessas (R$)",d=>csvMoney(d.promessas.aberto)],
+ ["Valor quebrado das promessas (R$)",d=>csvMoney(d.promessas.quebrado)],
+ ["Registros de contato",d=>csvInteger(d.contatos.registros)],
+ ["Contatos únicos por usuário (detalhe; não somar)",d=>d.contatos.unicos.length?JSON.stringify(d.contatos.unicos.map(row=>({usuario:row.usuario,nome:row.nome,quantidade:row.quantidade}))):""],
+ ["Captura da carteira — valor recebido na referência (R$)",d=>csvMoney(d.posicao.recebido)],
+ ["Captura da carteira — saldo a vencer na referência (R$)",d=>csvMoney(d.posicao.aVencer)],
+ ["Captura da carteira — saldo vencido na referência (R$)",d=>csvMoney(d.posicao.vencido)]
+];
+function buildCsv(days){
+ if(!Array.isArray(days)||days.length===0)return null;
+ const lines=[csvColumns.map(([label])=>csvCell(label)).join(";")];
+ days.forEach(day=>lines.push(csvColumns.map(([,get])=>csvCell(get(day))).join(";")));
+ return "\uFEFF"+lines.join("\r\n")+"\r\n";
+}
+function downloadCsv(){
+ const start=$("start").value,end=$("end").value;
+ if(!start||!end||!/^\d{4}-\d{2}-\d{2}$/.test(start)||!/^\d{4}-\d{2}-\d{2}$/.test(end)||start>end){
+  setText("status","Período inválido. Corrija as datas antes de exportar.");$("status").classList.add("error");$("exportCsv").disabled=true;return;
+ }
+ const days=selectDays(start,end),csv=buildCsv(days);
+ if(!csv){
+  setText("status","Não há datas com dados fictícios nesse período; exportação cancelada.");$("status").classList.add("error");$("exportCsv").disabled=true;return;
+ }
+ const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});
+ const url=URL.createObjectURL(blob),link=document.createElement("a");
+ link.href=url;link.download="caixa_futuro_"+start+"_a_"+end+".csv";
+ document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(url);
+}
 function apply(event){
  if(event)event.preventDefault();
  const start=$("start").value,end=$("end").value,status=$("status");
  const invalid=!start||!end||start>end;
  $("start").setAttribute("aria-invalid",String(!start||start>end));$("end").setAttribute("aria-invalid",String(!end||start>end));status.classList.toggle("error",invalid);
  const sections=document.querySelectorAll("[data-filter-section]"),dashboard=document.querySelector(".kpi-grid");
- if(invalid){setText("status","Período inválido. Informe uma data inicial igual ou anterior à data final.");dashboard.hidden=true;sections.forEach(s=>s.hidden=true);return}
+ if(invalid){setText("status","Período inválido. Informe uma data inicial igual ou anterior à data final.");$("exportCsv").disabled=true;dashboard.hidden=true;sections.forEach(s=>s.hidden=true);return}
  dashboard.hidden=false;sections.forEach(s=>s.hidden=false);
- const days=selectDays(start,end),has=days.length>0,totals=periodTotals(days),last=has?days[days.length-1]:null;
+ const days=selectDays(start,end),has=days.length>0,totals=periodTotals(days),last=has?days[days.length-1]:null;$("exportCsv").disabled=!has;
  setText("periodLabel",datePt(start)+" a "+datePt(end));setText("sampleDateChip",days.length?"Histórico fictício: "+datePt(days[0].date)+" a "+datePt(days[days.length-1].date):"Histórico fictício: sem dados no período");
  setText("status",days.length+" de "+daysBetween(start,end)+" datas com dados fictícios"+(days.length===daysBetween(start,end)?"":"; totais incluem somente as datas disponíveis"));
  setText("depValue",has?money(totals.depValor):"—");setText("depCount",has?integer(totals.depQtd)+" depósitos no período":"Sem dados no período");
@@ -1978,7 +2034,7 @@ function apply(event){
  }
  renderTrend(days);renderComparison(start,end,days);
 }
-$("filters").addEventListener("submit",apply);$("reset").addEventListener("click",()=>{$("start").value=defaultStart;$("end").value=defaultEnd;apply()});apply();
+$("filters").addEventListener("submit",apply);$("reset").addEventListener("click",()=>{$("start").value=defaultStart;$("end").value=defaultEnd;apply()});$("exportCsv").addEventListener("click",downloadCsv);apply();
 </script>
 </body>
 </html>
