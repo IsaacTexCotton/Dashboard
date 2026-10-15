@@ -14,6 +14,7 @@ import sqlite3
 import sys
 from contextlib import contextmanager
 from datetime import date, timedelta
+from decimal import Decimal, ROUND_HALF_UP
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from typing import Any, Iterator
@@ -351,6 +352,7 @@ def _atualizacao_importacoes(
         "importacoes_no_periodo": None,
         "dias_com_importacao_registrada": None,
         "dias_calendario_periodo": dias_periodo,
+        "intervalos_importados_offsets": None,
     }
     if demo:
         indisponivel["motivo"] = "Amostra sintética em memória; sem recência operacional."
@@ -427,8 +429,127 @@ def _atualizacao_importacoes(
         "importacoes_no_periodo": len(no_periodo),
         "dias_com_importacao_registrada": dias_com_importacao,
         "dias_calendario_periodo": dias_periodo,
+        "intervalos_importados_offsets": [
+            {"inicio_offset": (a - inicio_periodo).days, "fim_offset": (b - inicio_periodo).days}
+            for a, b in unidos
+        ],
         "nota": "Contagem de registros existentes; não prova a cadência de carga esperada.",
     }
+
+
+def _percentual_variacao(delta: int, anterior: int) -> str | None:
+    """Percentual com uma casa decimal; não define percentual para base <= 0."""
+    if anterior <= 0:
+        return None
+    percentual = (
+        Decimal(delta) * Decimal(100) / Decimal(anterior)
+    ).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
+    return format(percentual, "f")
+
+
+def _comparar_periodos(
+    con: sqlite3.Connection,
+    *,
+    inicio: str,
+    fim: str,
+    resumo_atual: dict[str, Any],
+    atualizacao_atual: dict[str, Any],
+    leitura_centavos: bool,
+    demo: bool,
+) -> dict[str, Any]:
+    """Compara fluxos somente se os registros de importação forem comparáveis."""
+    tamanho = (date.fromisoformat(fim) - date.fromisoformat(inicio)).days + 1
+    fim_anterior = date.fromisoformat(inicio) - timedelta(days=1)
+    inicio_anterior = fim_anterior - timedelta(days=tamanho - 1)
+    periodo_anterior = {
+        "inicio": inicio_anterior.isoformat(),
+        "fim": fim_anterior.isoformat(),
+    }
+
+    def indisponivel(motivo: str) -> dict[str, Any]:
+        return {
+            "disponivel": False,
+            "motivo": motivo,
+            "periodo_atual": {"inicio": inicio, "fim": fim},
+            "periodo_anterior": periodo_anterior,
+            "metricas": {},
+        }
+
+    if demo:
+        return indisponivel(
+            "Comparação histórica indisponível na demonstração: ela contém somente dados sintéticos de uma data."
+        )
+
+    if not atualizacao_atual.get("disponivel"):
+        return indisponivel(
+            "Comparação indisponível: não há metadados de importação suficientes para validar a cobertura do período atual."
+        )
+
+    intervalos_atuais = atualizacao_atual.get("intervalos_importados_offsets")
+    dias_atuais = atualizacao_atual.get("dias_com_importacao_registrada") or 0
+    if not intervalos_atuais or dias_atuais <= 0:
+        return indisponivel(
+            "Comparação indisponível: não há datas com importação registrada no período atual."
+        )
+
+    anterior = montar_dados_painel(
+        con,
+        inicio=periodo_anterior["inicio"],
+        fim=periodo_anterior["fim"],
+        leitura_centavos=leitura_centavos,
+        demo=False,
+        _incluir_comparacao=False,
+    )
+    atualizacao_anterior = anterior["atualizacao"]
+    if not atualizacao_anterior.get("disponivel"):
+        return indisponivel(
+            "Comparação indisponível: não há metadados de importação suficientes no período anterior."
+        )
+
+    intervalos_anteriores = atualizacao_anterior.get("intervalos_importados_offsets")
+    dias_anteriores = atualizacao_anterior.get("dias_com_importacao_registrada") or 0
+    if not intervalos_anteriores or dias_anteriores <= 0:
+        return indisponivel(
+            "Comparação indisponível: não há datas com importação registrada no período anterior."
+        )
+    if intervalos_atuais != intervalos_anteriores:
+        return indisponivel(
+            "Comparação indisponível: as datas importadas não correspondem às mesmas posições relativas nos dois períodos."
+        )
+
+    resumo_anterior = anterior["resumo"]
+    definicoes = {
+        "depositos": "depositos_centavos",
+        "acordos": "acordos_centavos",
+        "promessas": "promessas_centavos",
+    }
+    metricas: dict[str, Any] = {}
+    for nome, chave in definicoes.items():
+        atual = int(resumo_atual[chave])
+        base = int(resumo_anterior[chave])
+        delta = atual - base
+        metricas[nome] = {
+            "atual_centavos": atual,
+            "anterior_centavos": base,
+            "delta_centavos": delta,
+            "variacao_percentual": _percentual_variacao(delta, base),
+        }
+
+    return {
+        "disponivel": True,
+        "motivo": "",
+        "periodo_atual": {"inicio": inicio, "fim": fim},
+        "periodo_anterior": periodo_anterior,
+        "dias_com_importacao_registrada": dias_atuais,
+        "nota": (
+            "Compara movimentações nos períodos de mesma duração, usando apenas quando "
+            "os registros de importação têm o mesmo padrão relativo de datas. Isso não "
+            "comprova a cadência operacional esperada. A posição da carteira não entra "
+            "nesta comparação."
+        ),
+        "metricas": metricas,
+    }
+
 
 def montar_dados_painel(
     con: sqlite3.Connection,
@@ -437,6 +558,7 @@ def montar_dados_painel(
     fim: str | None = None,
     leitura_centavos: bool = False,
     demo: bool = False,
+    _incluir_comparacao: bool = True,
 ) -> dict[str, Any]:
     validar_schema_base(con)
     if leitura_centavos:
@@ -544,13 +666,14 @@ def montar_dados_painel(
             "vencido_centavos": _amount(snapshot_row, "vencido", "vencido_centavos", field=f"acordos_posicao[{snapshot_row['capturado_em']}].vencido", negatives_allowed=False, read_cents=leitura_centavos, nullable=True),
         }
 
-    return {
+    atualizacao = _atualizacao_importacoes(con, inicio, fim, demo=demo)
+    resultado = {
         "demo": demo,
         "leitura_centavos": leitura_centavos,
         "modo": "INTEGER · centavos conciliados" if leitura_centavos else "REAL legado · leitura",
         "periodo": {"inicio": inicio, "fim": fim},
         "limites": {"inicio": data_min, "fim": data_max},
-        "atualizacao": _atualizacao_importacoes(con, inicio, fim, demo=demo),
+        "atualizacao": atualizacao,
         "resumo": resumo,
         "snapshot": snapshot,
         "diario": [by_day[d] for d in sorted(by_day)],
@@ -563,6 +686,17 @@ def montar_dados_painel(
             reverse=True,
         )[:100],
     }
+    if _incluir_comparacao:
+        resultado["comparacao"] = _comparar_periodos(
+            con,
+            inicio=inicio,
+            fim=fim,
+            resumo_atual=resumo,
+            atualizacao_atual=atualizacao,
+            leitura_centavos=leitura_centavos,
+            demo=demo,
+        )
+    return resultado
 
 
 def _wire(value: Any) -> Any:
