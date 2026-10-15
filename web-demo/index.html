@@ -271,13 +271,13 @@ function apply(event){
  }
  dashboard.hidden=false;
  sections.forEach(section=>section.hidden=false);
- const has=start<=sampleDate&&end>=sampleDate,z=has?1:0,d=data.depositos,a=data.acordos,p=data.promessas,c=data.contatos;
+ const has=start<=sampleDate&&end>=sampleDate,d=data.depositos,a=data.acordos,p=data.promessas,c=data.contatos;
  setText("periodLabel",start===end?datePt(start):datePt(start)+" a "+datePt(end));
  setText("sampleDateChip","Base disponível: 13 out 2026");
- setText("depValue",money(d.valor*z));setText("depCount",integer(d.qtd*z)+" depósitos na amostra");
- setText("agrValue",money(a.valor*z));setText("agrCount",integer(a.qtd*z)+" acordos na amostra");setText("agrPaid",money(a.pagos*z));setText("agrOpen",money(a.pendente*z));
- setText("promValue",money(p.valor*z));setText("promCount",integer(p.qtd*z)+" promessas na amostra");setText("promPaid",money(p.cumprido*z));setText("promOpen",money(p.aberto*z));
- setText("contactRecords",integer(c.registros*z));setText("contacts",integer(c.unicos*z));setText("broken",money(p.quebrado*z));
+ setText("depValue",has?money(d.valor):"—");setText("depCount",has?integer(d.qtd)+" depósitos na amostra":"Sem dados no período");
+ setText("agrValue",has?money(a.valor):"—");setText("agrCount",has?integer(a.qtd)+" acordos na amostra":"Sem dados no período");setText("agrPaid",has?money(a.pagos):"—");setText("agrOpen",has?money(a.pendente):"—");
+ setText("promValue",has?money(p.valor):"—");setText("promCount",has?integer(p.qtd)+" promessas na amostra":"Sem dados no período");setText("promPaid",has?money(p.cumprido):"—");setText("promOpen",has?money(p.aberto):"—");
+ setText("contactRecords",has?integer(c.registros):"—");setText("contacts",has?integer(c.unicos):"—");setText("broken",has?money(p.quebrado):"—");
  setText("received",has?money(data.posicao.recebido):"—");setText("due",has?money(data.posicao.aVencer):"—");setText("overdue",has?money(data.posicao.vencido):"—");
  setText("focusOverdue",has?money(data.posicao.vencido):"—");setText("focusPromise",has?money(p.aberto):"—");setText("focusAgreement",has?money(a.pendente):"—");
  setText("focusFoot",has?"Valores fictícios. As métricas têm naturezas distintas e não devem ser somadas. A tela não identifica os títulos que compõem cada total.":"Não há dados de exemplo no intervalo selecionado; os valores não estão disponíveis.");
