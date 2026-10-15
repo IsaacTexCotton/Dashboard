@@ -489,3 +489,36 @@ class PrecisaoEntradaMonetariaTestes(unittest.TestCase):
     def test_notacao_cientifica_e_rejeitada_pelo_parser_de_origem(self):
         with self.assertRaises(importar.ErroMonetario):
             importar.loads_json_estrito('{"valor": 1e2}')
+
+
+class PrecisaoEntradaAtomicidadeTestes(unittest.TestCase):
+    def test_payload_com_fracao_subcentavo_nao_altera_fatos_existentes(self):
+        from decimal import Decimal
+        con = sqlite3.connect(":memory:")
+        try:
+            con.executescript(importar.SCHEMA)
+            con.execute(
+                "INSERT INTO fatos VALUES (?,?,?,?,?,?,?,?,?,?)",
+                ("2026-10-13", "SINTETICO", "contato", 1, 1, 0, 0, 0, 0, "antes"),
+            )
+            con.commit()
+            payload = importar.loads_json_estrito(json.dumps(AMOSTRA))
+            payload["data"]["depositos"]["porUsuario"][0]["valor"] = Decimal("1.231")
+            with self.assertRaises(importar.ErroValidacao):
+                importar.gravar(con, "2026-10-13", payload, "teste")
+            self.assertEqual(
+                con.execute("SELECT usuario, tipo FROM fatos").fetchall(),
+                [("SINTETICO", "contato")],
+            )
+            self.assertEqual(con.execute("SELECT COUNT(*) FROM importacoes").fetchone()[0], 0)
+        finally:
+            con.close()
+
+    def test_totais_de_posicao_rejeitam_precisao_excedente(self):
+        from decimal import Decimal
+        for campo in ("valorRecebidoPeriodo", "valorAVencer", "valorVencido"):
+            with self.subTest(campo=campo):
+                payload = importar.loads_json_estrito(json.dumps(AMOSTRA))
+                payload["data"]["valoresAcordo"][campo] = Decimal("1.231")
+                with self.assertRaises(importar.ErroValidacao):
+                    importar.normalizar(payload, "2026-10-13")
