@@ -320,32 +320,41 @@ def migrar_schema_monetario(con: sqlite3.Connection) -> dict[str, object]:
 
 
 def definir_fase_migracao(con: sqlite3.Connection, fase: str) -> None:
-    """Atualiza só o marcador; não preenche dados nem habilita triggers."""
+    """Muda a fase sob bloqueio de escrita; conciliação e transição são atômicas."""
     if fase not in FASES_VALIDAS:
         raise ErroMigracaoMonetaria(f"fase inválida: {fase!r}")
+    if not isinstance(con, sqlite3.Connection):
+        raise ErroMigracaoMonetaria("conexão SQLite inválida")
     if con.in_transaction:
         raise ErroMigracaoMonetaria("alteração de fase exige conexão fora de transação")
-    tabelas = _tabelas(con)
-    if TABELA_ESTADO not in tabelas:
-        raise ErroMigracaoMonetaria("schema monetário ainda não foi preparado")
-    estado = _validar_estado(con, tabelas)
-    if estado is None:
-        raise ErroMigracaoMonetaria("marcador de fase ausente")
-    ordem = {nome: i for i, nome in enumerate(FASES_VALIDAS)}
-    if ordem[fase] < ordem[estado]:
-        raise ErroMigracaoMonetaria("não é permitido retroceder a fase sem procedimento de reparo")
-    if ordem[fase] > ordem[estado] + 1:
-        raise ErroMigracaoMonetaria("não é permitido pular fases da migração")
-    if fase == "backfill_conciliado":
-        validar_schema_monetario(con)
-        verificar_conciliacao_monetaria(con)
+
     try:
+        # Obter o bloqueio antes de ler o estado e verificar os valores evita
+        # que outro escritor altere o banco entre a conciliação e o cutover.
         con.execute("BEGIN IMMEDIATE")
+        tabelas = _tabelas(con)
+        if TABELA_ESTADO not in tabelas:
+            raise ErroMigracaoMonetaria("schema monetário ainda não foi preparado")
+        estado = _validar_estado(con, tabelas)
+        if estado is None:
+            raise ErroMigracaoMonetaria("marcador de fase ausente")
+
+        ordem = {nome: i for i, nome in enumerate(FASES_VALIDAS)}
+        if ordem[fase] < ordem[estado]:
+            raise ErroMigracaoMonetaria(
+                "não é permitido retroceder a fase sem procedimento de reparo"
+            )
+        if ordem[fase] > ordem[estado] + 1:
+            raise ErroMigracaoMonetaria("não é permitido pular fases da migração")
+
         if fase == "backfill_conciliado":
-            # Só marcar linhas como conciliadas depois da verificação exata
-            # de todas as representações legadas e centavos ter passado.
+            validar_schema_monetario(con)
+            # A verificação lê as linhas enquanto BEGIN IMMEDIATE impede
+            # escritores concorrentes; erro faz rollback da transição inteira.
+            verificar_conciliacao_monetaria(con)
             for tabela in _COLUNAS_FASE_LINHA:
                 con.execute(f"UPDATE {tabela} SET monetario_fase='conciliado'")
+
         con.execute(
             f"UPDATE {TABELA_ESTADO} SET fase=?, atualizado_em=CURRENT_TIMESTAMP WHERE id=1",
             (fase,),
