@@ -1,6 +1,10 @@
 """Testes isolados do backfill histórico idempotente em SQLite em memória."""
 import sqlite3
+import tempfile
 import unittest
+from unittest.mock import patch
+
+import backfill_monetario as backfill_module
 
 from backfill_monetario import ErroBackfillMonetario, backfill_monetario
 from migrar_schema_monetario import (
@@ -164,6 +168,54 @@ class TestBackfillMonetario(unittest.TestCase):
             self.assertEqual(segunda["campos_pendentes_origem_null"], 0)
         finally:
             con.close()
+
+    def test_aplicar_mantem_lock_durante_planejamento_e_escrita(self):
+        with tempfile.TemporaryDirectory() as td:
+            caminho = f"{td}/backfill.db"
+            origem = banco_com_dados()
+            con = sqlite3.connect(caminho, timeout=0.1)
+            concorrente = None
+            try:
+                origem.backup(con)
+                origem.close()
+                concorrente = sqlite3.connect(caminho, timeout=0.01)
+
+                planejar_original = backfill_module._planejar_fato
+                lock_verificado = []
+
+                def planejar_com_writer(linha):
+                    if not lock_verificado:
+                        self.assertTrue(con.in_transaction)
+                        with self.assertRaisesRegex(sqlite3.OperationalError, "locked"):
+                            concorrente.execute(
+                                "UPDATE fatos SET valor=valor+0.01 WHERE usuario='ana'"
+                            )
+                        lock_verificado.append(True)
+                    return planejar_original(linha)
+
+                with patch.object(
+                    backfill_module,
+                    "_planejar_fato",
+                    side_effect=planejar_com_writer,
+                ):
+                    resultado = backfill_monetario(con, aplicar=True)
+
+                self.assertEqual(lock_verificado, [True])
+                self.assertEqual(resultado["modo"], "aplicado")
+                self.assertEqual(
+                    con.execute("SELECT valor FROM fatos WHERE usuario='ana'").fetchone()[0],
+                    12.345,
+                )
+                self.assertEqual(
+                    con.execute(
+                        "SELECT deposito_valor_centavos FROM fatos WHERE usuario='ana'"
+                    ).fetchone()[0],
+                    1235,
+                )
+            finally:
+                if concorrente is not None:
+                    concorrente.close()
+                con.close()
 
     def test_conflito_de_destino_aborta_sem_sobrescrever_ou_gravar_parcial(self):
         con = banco_com_dados()

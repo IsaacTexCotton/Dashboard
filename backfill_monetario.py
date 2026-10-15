@@ -229,13 +229,14 @@ def backfill_monetario(
         raise ErroBackfillMonetario("backfill exige conexão fora de transação")
     if not isinstance(aplicar, bool):
         raise ErroBackfillMonetario("aplicar precisa ser booleano")
-    _verificar_schema(con)
-
     abriu_transacao = False
     try:
         if aplicar:
+            # Trava os escritores antes de validar o schema, ler o REAL e
+            # preparar o plano: valores não podem mudar entre leitura e UPDATE.
             con.execute("BEGIN IMMEDIATE")
             abriu_transacao = True
+        _verificar_schema(con)
         fase = _fase(con)
         # Uma única consulta por tabela com projeção fixa facilita auditar
         # exatamente quais colunas participam da conversão histórica.
