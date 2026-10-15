@@ -235,6 +235,36 @@ class TestBackfillMonetario(unittest.TestCase):
         finally:
             con.close()
 
+    def test_fases_por_linha_somente_conciliam_apos_verificacao_exata(self):
+        con = banco_com_dados()
+        try:
+            backfill_monetario(con, aplicar=True)
+            self.assertEqual(
+                {row[0] for row in con.execute("SELECT DISTINCT monetario_fase FROM fatos")},
+                {"legado"},
+            )
+            self.assertEqual(
+                {row[0] for row in con.execute("SELECT DISTINCT monetario_fase FROM acordos_posicao")},
+                {"legado"},
+            )
+
+            definir_fase_migracao(con, "backfill_conciliado")
+
+            self.assertEqual(
+                con.execute(f"SELECT fase FROM {TABELA_ESTADO}").fetchone()[0],
+                "backfill_conciliado",
+            )
+            self.assertEqual(
+                {row[0] for row in con.execute("SELECT DISTINCT monetario_fase FROM fatos")},
+                {"conciliado"},
+            )
+            self.assertEqual(
+                {row[0] for row in con.execute("SELECT DISTINCT monetario_fase FROM acordos_posicao")},
+                {"conciliado"},
+            )
+        finally:
+            con.close()
+
     def test_backfill_nao_pode_ser_reexecutado_apos_conciliacao(self):
         con = banco_com_dados()
         try:
