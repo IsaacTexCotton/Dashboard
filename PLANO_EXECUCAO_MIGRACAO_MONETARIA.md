@@ -209,21 +209,30 @@ As decisões de desenho técnico registradas neste plano são: nomes semânticos
 
 Os três itens precisam ter definição técnica versionada, testes reproduzíveis e critérios de aceite documentados antes da PR funcional de migração.
 
-## 9. Inventário de testes/CI confirmado
+## 9. Inventário de testes/CI confirmado (15/10/2026)
 
-A árvore de `main` inspecionada em 14/10/2026 lista seis módulos de teste e 65 métodos `test_*`:
+A árvore de `main` contém 15 módulos de teste Python e 189 métodos `test_*`. O workflow `.github/workflows/testes.yml` executa `unittest discover -s tests` em Python 3.11 e as validações locais da amostra fictícia sem CRM.
 
-| Arquivo | Número de testes | Implicação para o plano |
+A execução [#38754594110](https://github.com/IsaacTexCotton/Dashboard/actions/runs/38754594110) passou com 189 testes no HEAD da PR #32 (`9d4ad634d987ba6ac96bc31a2217c77fb47c4560`, antes de a alteração ser integrada à `main`. Esse HEAD continha a mesma árvore de código/testes que foi integrada pelo commit `ecb3c2f7381a000ef157669a66a51fe74e217677`; a execução é evidência do candidato testado, não um check separado emitido sobre o SHA de merge.
+
+| Arquivo | Testes | Cobertura principal |
 |---|---:|---|
-| `tests/test_importar.py` | 28 | Aproveitar as regressões existentes de timestamp, transação, reimportação/idempotência, dry-run e validação; rever expectativas de sinal |
-| `tests/test_auditar_resposta.py` | 12 | Atualizar `test_respeita_tolerancia_de_centavo`: tolerância de R$ 0,01 não está conforme a política de igualdade exata para os novos centavos |
-| `tests/test_validar_integracao_local.py` | 3 | Preservar o fluxo local com amostra sem CRM, adicionando fixtures para as semânticas definidas no contrato |
-| `tests/test_backup_recuperacao.py` | 2 | Cobertura automatizada em DB temporário; não substitui restauração operacional em homologação |
-| `tests/test_backup_sqlite.py` | 12 | Reutilizar testes de manifesto, hash, corrupção e preservação de registros |
-| `tests/test_diagnosticar_banco.py` | 8 | Preservar garantias de diagnóstico read-only/não destrutivo |
+| `tests/test_auditar_resposta.py` | 17 | Conciliação de totais em centavos inteiros, divergência de 1 centavo, precisão excedente e rejeição de `float` |
+| `tests/test_backfill_monetario.py` | 8 | Simulação, idempotência, rollback por conflito e transição de fase |
+| `tests/test_backup_recuperacao.py` | 2 | Recuperação em SQLite descartável; não substitui ensaio operacional |
+| `tests/test_backup_sqlite.py` | 12 | Manifesto, hash, verificação, corrupção e preservação de registros |
+| `tests/test_diagnosticar_banco.py` | 12 | Diagnóstico somente-leitura, coerência REAL/centavos e fase |
+| `tests/test_escrita_dupla.py` | 13 | Escrita atômica REAL/INTEGER, falhas, interrupção em arquivo e leitor concorrente |
+| `tests/test_flags_monetarias.py` | 9 | Defaults, precedência/compatibilidade, validação das flags e leitura ainda não implementada |
+| `tests/test_importar.py` | 41 | Parser estrito, normalização, transação, timestamp, reimportação e validação |
+| `tests/test_issue4_reimportacao_escrita_dupla.py` | 1 | Reimportação substitui fatos nas duas representações e mantém snapshots por timestamp |
+| `tests/test_migrar_schema_monetario.py` | 17 | DDL aditivo/idempotente, checksum de REAL, fases, guardas e rollback |
+| `tests/test_modelo_monetario.py` | 12 | Mapeamento semântico, aplicabilidade, sinais e NULL versus zero |
+| `tests/test_precisao_monetaria.py` | 32 | Decimal exato, token JSON, centavos, sinais, escala e limites |
+| `tests/test_preparacao_migracao_monetaria.py` | 3 | Fixtures sintéticas, backfill simulado e backup/restauração em banco descartável |
+| `tests/test_prototipo_issue5_schema_monetario.py` | 7 | CHECKs, afinidade SQLite, aplicabilidade e protótipo de esquema |
+| `tests/test_validar_integracao_local.py` | 3 | Fluxo de integração local com amostra fictícia, sem CRM |
 
-Workflow `.github/workflows/testes.yml`: Python 3.11, `unittest discover`, dry-run de importação da amostra, auditoria da amostra e validação de integração local. A última execução confirmada antes desta edição é [#42](https://github.com/IsaacTexCotton/Dashboard/actions/runs/38581680436), `success`, no head documental `82c5e3284a3e1db61c55ed77123e245639b93b27`; uma nova execução precisa confirmar o head desta atualização.
+**Interpretação do resultado:** CI verde confirma somente os cenários cobertos pelas fixtures/testes. Não comprova semântica final dos sinais da origem, inventário completo de consumidores externos, restauração operacional em homologação, migração/backfill em banco real nem cutover de leitura.
 
-**Atenção:** os testes atuais de auditoria/importação codificam regras antigas (tolerância de R$ 0,01 em contexto de auditoria e rejeição de todo negativo). Devem ser revisados de acordo com as regras documentadas por campo. Os testes de centavos, backfill, dupla escrita, constraints de schema e rollback de leitura precisam existir e passar antes do corte. A amostra é fictícia e testes em banco temporário não comprovam segurança operacional em banco real.
-
-A árvore também contém `caixa-futuro-fase1.zip`, cujo conteúdo foi listado em 15/10/2026 (README, importador, teste e amostra). A listagem não mostrou UI/relatórios nesse pacote; consumidores externos e outros repositórios continuam fora do escopo verificado.
+A árvore também contém `caixa-futuro-fase1.zip`, mas a listagem do pacote feita em 15/10/2026 não mostrou UI/relatórios de leitura por centavos. Não conectar a flag de leitura a um consumidor hipotético: o leitor de centavos do dashboard ainda precisa ser identificado/integrado; por isso `LEITURA_CENTAVOS=1` continua sendo recusada.
