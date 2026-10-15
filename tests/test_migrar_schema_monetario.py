@@ -405,6 +405,34 @@ class TestMigracaoSchemaMonetario(unittest.TestCase):
         finally:
             con.close()
 
+    def test_conciliacao_divergente_nao_altera_nenhuma_fase(self):
+        con = banco_legado()
+        try:
+            migrar_schema_monetario(con)
+            definir_fase_migracao(con, "backfill_em_andamento")
+            con.execute(
+                "UPDATE fatos SET deposito_valor_centavos=1234 WHERE tipo='deposito'"
+            )
+            con.commit()
+
+            with self.assertRaisesRegex(
+                ErroMigracaoMonetaria,
+                "conciliação incompleta ou divergente",
+            ):
+                definir_fase_migracao(con, "backfill_conciliado")
+
+            self.assertFalse(con.in_transaction)
+            self.assertEqual(
+                con.execute(f"SELECT fase FROM {TABELA_ESTADO} WHERE id=1").fetchone()[0],
+                "backfill_em_andamento",
+            )
+            self.assertEqual(
+                con.execute("SELECT monetario_fase FROM fatos WHERE usuario='ana'").fetchone()[0],
+                "legado",
+            )
+        finally:
+            con.close()
+
     def test_fase_nao_pode_pular_backfill(self):
         con = sqlite3.connect(":memory:")
         try:
