@@ -1,8 +1,8 @@
 """Migração aditiva isolada para as colunas monetárias semânticas.
 
 Este módulo não é chamado pela aplicação. Os testes usam SQLite descartável.
-Não execute contra dados reais sem assinatura formal da Política v1.1/contrato,
-backup/restauração verificados, revisão e aprovação dos gates de migração.
+Não execute contra dados reais antes de validar o contrato versionado, o inventário
+de consumidores, backup/restauração, conciliação e rollback em ambiente isolado.
 """
 from __future__ import annotations
 
@@ -460,7 +460,7 @@ def verificar_conciliacao_monetaria(con: sqlite3.Connection) -> dict[str, int]:
                 verificadas += 1
     if pendencias or divergencias:
         raise ErroMigracaoMonetaria(
-            f"conciliação não aprovada: {pendencias} pendência(s), "
+            f"conciliação incompleta ou divergente: {pendencias} pendência(s), "
             f"{divergencias} divergência(s); não marque backfill_conciliado"
         )
     return {"campos_verificados": verificadas, "pendencias": pendencias, "divergencias": divergencias}

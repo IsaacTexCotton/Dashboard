@@ -1,18 +1,18 @@
 # Política de Precisão Monetária — Dashboard de Cobrança (Contas a Pagar / Financeiro)
 
-**Status:** v1.1 ratificada pelo solicitante em 14/10/2026; registro de aprovação formal documentado abaixo.
+**Status:** especificação técnica v1.1 consolidada em 14/10/2026; os critérios de execução são verificáveis por testes e evidências operacionais.
 **Versão proposta:** 1.1 — 14/10/2026
-**Aprovação registrada:** o solicitante declarou formalmente assinar a Política v1.1 e as aprovações da Controladoria em 14/10/2026.
+**Versão:** v1.1 consolida as regras técnicas de precisão monetária descritas neste projeto em 14/10/2026.
 **Escopo:** Todo valor monetário calculado, armazenado, importado, exibido ou exportado pelo aplicativo de dashboard do **setor de Cobrança**, dentro da área de Contas a Pagar e Financeiro (títulos vencidos, juros, multa, descontos, boletos, pagamentos, negativação e cartório).
 **Moeda base:** BRL (Real). Moedas estrangeiras seguem a seção 8.
 
 ---
 
-## Registro de aprovação formal — 14/10/2026
+## Histórico de versão e decisões técnicas — 14/10/2026
 
-O solicitante declarou explicitamente nesta conversa: “Eu assino formalmente a Política v1.1 e as aprovações da Controladoria, após isso integre”. Esta declaração é registrada como ratificação da versão 1.1 e aprovação para prosseguir com a integração técnica. O registro de GitHub desta alteração mantém trilha de auditoria. Se a governança corporativa exigir instrumento de assinatura externo, ele deve ser anexado ao processo interno; esta anotação não inventa certificado nem documento externo.
+A versão 1.1 consolida regras de escala, arredondamento, representação monetária e compatibilidade com o legado. Este arquivo é uma especificação técnica versionada; não é registro administrativo de execução.
 
-A ratificação não dispensa gates de execução: validação das regras com origem autorizada, backup/restauração verificados, conciliação, dez dias úteis de estabilidade e liberação formal do corte.
+A execução depende de critérios técnicos verificáveis: validação da origem, backup e restauração testados, conciliação, dez dias úteis de estabilidade documentada, CI verde e rollback ensaiado.
 
 ## 1. Princípios
 
@@ -24,7 +24,7 @@ A ratificação não dispensa gates de execução: validação das regras com or
 
 ---
 
-## 2. Representação de armazenamento aprovada
+## 2. Representação de armazenamento
 
 **Valores monetários: `INTEGER` em centavos (menor unidade da moeda).**
 
@@ -57,7 +57,7 @@ O sufixo `_eN` indica a escala (N casas decimais). O valor final em centavos só
 
 ## 3. Regra de arredondamento
 
-**Método aprovado: arredondamento comercial (*half-up*, meio para longe do zero), para 2 casas decimais (centavo).**
+**Método definido: arredondamento comercial (*half-up*, meio para longe do zero), para 2 casas decimais (centavo).**
 
 - Fração **≥ 0,5 centavo** → sobe um centavo (em módulo).
 - Fração **< 0,5 centavo** → mantém.
@@ -81,7 +81,7 @@ O sufixo `_eN` indica a escala (N casas decimais). O valor final em centavos só
 
 Os parâmetros (taxas, base de dias, carência) **não são definidos por esta política**: vêm do contrato/condição comercial e do ERP (Systêxtil). Esta política define apenas **como calcular e arredondar**.
 
-| Cálculo | Método aprovado |
+| Cálculo | Método de cálculo |
 |---|---|
 | Multa por atraso | Percentual (`_e4`) × valor original do título, aplicada **uma única vez**; arredondar o encargo para centavos |
 | Juros de mora | Juros **simples**, proporcional por dia (*pro rata die*): `valor × taxa_mensal_e4 × dias_de_atraso / base_de_dias`; arredondar **uma vez** no total dos juros |
@@ -103,10 +103,10 @@ Os parâmetros (taxas, base de dias, carência) **não são definidos por esta p
 
 1. **A classificação é campo a campo no contrato de dados.** Para um campo classificado como **valor monetário final**, a entrada deve ser decimal exata, sem passar por `float`. É permitida precisão textual superior a duas casas **somente quando todos os dígitos depois da segunda casa forem zero**: por exemplo, `1.230` equivale exatamente a `123` centavos e é aceito; `1.231` contém fração subcentavo e bloqueia o registro. A validação não arredonda nem corrige silenciosamente a entrada.
 2. Para um **valor monetário final**, qualquer dígito não zero a partir da terceira casa decimal rejeita o registro/payload do dia com erro controlado, antes de abrir a transação de gravação. Não pode haver gravação parcial do dia.
-3. Para uma **grandeza de cálculo** (por exemplo, preço unitário, taxa ou quantidade fracionária), o contrato declara a escala permitida (`_e4`, `_e6` ou outra escala expressamente aprovada). A entrada é preservada com aritmética decimal/exata; *half-up* aplica-se somente ao resultado monetário final do cálculo, nunca para mascarar entrada inválida.
+3. Para uma **grandeza de cálculo** (por exemplo, preço unitário, taxa ou quantidade fracionária), o contrato declara a escala permitida (`_e4`, `_e6` ou outra escala definida no contrato). A entrada é preservada com aritmética decimal/exata; *half-up* aplica-se somente ao resultado monetário final do cálculo, nunca para mascarar entrada inválida.
 4. **Validação lexical do token:** números JSON são validados a partir do token original, antes de construir `Decimal`. O formato permitido é `^-?\d+(\.\d+)?$`, sem expoente `e/E`; `NaN`, `Infinity`, `-Infinity`, booleanos e valores não finitos são rejeitados. Strings decimais só podem ser aceitas se o contrato do campo declarar explicitamente esse tipo, e devem passar pela mesma validação lexical. Campo ausente, `null` e zero mantêm semânticas distintas conforme o contrato.
 5. **Sem passagem intermediária por ponto flutuante.** Em Python, `parse_int`/`parse_float` (ou parser equivalente) devem validar o token bruto; `parse_constant` deve rejeitar constantes não finitas; a normalização deve rejeitar booleanos explicitamente, pois `bool` é subtipo de `int` em Python.
-6. Se a origem enviar legitimamente dígitos não zero além da segunda casa para um campo final, a implementação dessa regra deve parar e voltar à Diretoria Financeira com payload sanitizado e autorizado e evidência do contrato da origem. Não se deve arredondar o valor de origem para fazê-lo caber no contrato.
+6. Se a origem enviar dígitos não zero além da segunda casa para um campo final, interromper a validação desse campo, registrar um caso reproduzível e revisar o contrato com evidência sanitizada da origem. Não arredondar o valor de origem para fazê-lo caber no contrato.
 7. **No cálculo:** produtos intermediários mantêm a escala exata e só passam pelo arredondamento *half-up* no resultado final.
 8. **Na saída:** valores monetários finais são exibidos e exportados com duas casas; preços unitários/taxas e outras grandezas escaladas seguem a escala do contrato.
 9. **Proibido:** truncar casas, arredondar parcialmente, arredondar silenciosamente uma entrada final inválida ou comparar valores monetários novos com tolerância (`abs(a-b) < 0.01`). Valores novos em centavos são comparados por igualdade exata de inteiros.
@@ -132,18 +132,18 @@ Os parâmetros (taxas, base de dias, carência) **não são definidos por esta p
 
 ## 7. Colunas `REAL` existentes: congelamento e migração
 
-**Proposta v1.1 — “REAL congelado” não significa somente leitura literal durante toda a transição.** O esquema e a semântica das colunas existentes ficam congelados: nenhuma coluna `REAL` é renomeada, convertida, recalculada ou removida antes de análise de compatibilidade, migração aprovada e etapa formal de descomissionamento. A escrita legada existente permanece ativa, inalterada quanto à semântica, apenas para manter a compatibilidade com os consumidores e permitir rollback.
+**Regra de compatibilidade v1.1 — “REAL congelado” significa preservar o schema e a semântica legados: nenhuma coluna `REAL` é renomeada, convertida, recalculada ou removida antes da análise de compatibilidade, migração testada e release separada de descomissionamento. A escrita legada permanece ativa, sem mudança semântica, para manter compatibilidade e permitir rollback.
 
 Durante a transição:
 
 1. **Colunas legadas preservadas.** Não renomear, alterar, recalcular ou remover as colunas `REAL` existentes. O fluxo monetário novo não usa `REAL` para cálculos, agregações, filtros ou comparações de negócio.
 2. **Escrita de compatibilidade mantida.** O caminho legado de escrita em `REAL` permanece ativo sem mudança de semântica e isolado como adaptador de compatibilidade. A gravação das novas colunas `INTEGER` em centavos ocorre na **mesma transação SQLite**. Se qualquer lado falhar, ambas as escritas são revertidas.
-3. **Duração explícita.** A escrita legada em `REAL` permanece ativa durante a dupla escrita, durante o corte e por **pelo menos 90 dias corridos depois do corte**. Ela só termina no descomissionamento formal, em etapa separada e mediante aprovação própria da Controladoria. Se o prazo de 90 dias for concluído sem a aprovação, a escrita legada continua.
+3. **Duração explícita.** A escrita legada em `REAL` permanece ativa durante a dupla escrita, durante o corte e por pelo menos 90 dias corridos depois do corte. Só termina em release separada, após os critérios verificáveis de descomissionamento: ausência de incidentes no período, inventário atualizado e confirmação de que os consumidores deixaram de depender de `REAL`. Se algum critério não for atendido, a escrita legada continua.
 4. **Novas colunas.** Acrescentar colunas monetárias `INTEGER` com sufixo `_centavos` e nomes semânticos por métrica, conforme o contrato versionado. Métricas não aplicáveis a um tipo de fato ficam `NULL`; zero é armazenado como `0`.
 5. **Leitura de histórico.** Valores históricos existentes em `REAL` são convertidos apenas por uma única função (`real_para_centavos`) que aplica *half-up* sobre `Decimal(repr(valor))`. A conversão é uma interpretação técnica do valor armazenado, não uma reconstrução garantida do token JSON original. Suspeitas e diferenças ficam registradas em relatório, nunca corrigidas silenciosamente.
-6. **Conciliação e corte.** A leitura passa para centavos somente após backup verificado, backfill idempotente, dez dias úteis consecutivos de conciliação válida, 100% das divergências classificadas, zero divergência inexplicada, testes automatizados verdes e aprovação da Controladoria com assinatura final da Diretoria Financeira.
+6. **Conciliação e corte.** A leitura passa para centavos somente após backup verificado, restauração testada, backfill idempotente, dez dias úteis consecutivos de conciliação válida, 100% das divergências classificadas, zero divergência inexplicada, CI verde, rollback ensaiado e janela de mudança registrada.
 7. **Rollback após o corte.** Como a escrita em `REAL` continua ativa no período pós-corte, reverter a chave de leitura para as colunas legadas preserva também os registros recebidos após o corte. O rollback primário é a reversão da leitura; a restauração de backup é secundária e deve estar ensaiada em homologação.
-8. **Descomissionamento separado.** A desativação da escrita em `REAL` e eventual remoção das colunas são mudanças separadas, aprovadas pela Controladoria após pelo menos 90 dias corridos sem incidentes e após confirmar que todos os consumidores deixaram de depender de `REAL`. O prazo de 90 dias, por si só, não autoriza a remoção.
+8. **Descomissionamento separado.** A desativação da escrita em `REAL` e eventual remoção das colunas são mudanças separadas, somente após pelo menos 90 dias corridos sem incidentes e confirmação documentada de que todos os consumidores deixaram de depender de `REAL`. O prazo, por si só, não autoriza remoção automática.
 
 ### 7.1 Conteúdo mínimo da análise de compatibilidade (pré-requisito para migrar)
 
@@ -159,9 +159,9 @@ Durante a transição:
 2. Criação de colunas `INTEGER` específicas por métrica em paralelo; preenchimento por script idempotente usando `real_para_centavos`.
 3. Escrita legada preservada e escrita de centavos adicionada dentro da mesma transação SQLite, com testes de falha nos dois sentidos.
 4. Período de dez dias úteis consecutivos de conciliação válida; divergências integralmente classificadas e sem diferença inexplicada.
-5. Corte de leitura aprovado pela Controladoria e assinado pela Diretoria; rollback para REAL comprovado com dados pós-corte.
-6. Escrita legada mantida por pelo menos 90 dias corridos após o corte e até aprovação formal do descomissionamento.
-7. Descomissionamento de REAL em release posterior e separada, com aprovação própria.
+5. Corte de leitura executado somente após os critérios técnicos de conciliação, backup/restauração e rollback serem demonstrados com dados pós-corte.
+6. Escrita legada mantida por pelo menos 90 dias corridos após o corte e até que os critérios documentados de descomissionamento sejam satisfeitos.
+7. Descomissionamento de REAL em release posterior e separada, depois de verificados os critérios de estabilidade e o inventário de consumidores.
 
 ---
 
@@ -192,13 +192,13 @@ Toda alteração que toque valores monetários deve passar por testes automatiza
 
 ## 10. Governança
 
-- Esta política só pode ser alterada pela Diretoria Financeira, com registro de versão e data.
-- Exceções exigem justificativa por escrito e validação da Controladoria.
+- Alterações nesta especificação devem registrar versão, data, justificativa técnica, impacto e resultados dos testes.
+- Exceções devem registrar justificativa, campos afetados, evidência de origem, avaliação de impacto e testes correspondentes.
 - Revisão periódica: semestral, ou a cada mudança relevante de ERP, banco de dados ou integração.
 
 ---
 
-## Resumo executivo — Política v1.1 ratificada em 14/10/2026
+## Resumo executivo — Política v1.1
 
 | Pergunta | Regra proposta |
 |---|---|
@@ -206,4 +206,4 @@ Toda alteração que toque valores monetários deve passar por testes automatiza
 | Valores finais com mais de 2 casas | Zeros finais são aceitos se o valor permanecer exato em centavos (`1.230`); dígito não zero após a segunda casa rejeita a entrada sem arredondamento. Grandezas de cálculo seguem escala contratada e só arredondam no resultado final |
 | Armazenamento | `INTEGER` em centavos (`_centavos`); preços/quantidades/taxas em inteiro escalado (`_e4`, `_e6`) |
 | Cálculos de cobrança | Multa e juros pro rata die calculados com precisão total e arredondados uma vez; valor de boleto/cartório é dado de origem e não é recalculado |
-| Colunas `REAL` existentes | Sem mudança semântica; escrita legada preservada durante dupla escrita e por pelo menos 90 dias após o corte, até descomissionamento formal aprovado |
+| Colunas `REAL` existentes | Sem mudança semântica; escrita legada preservada durante dupla escrita e por pelo menos 90 dias após o corte, até que os critérios documentados de descomissionamento sejam satisfeitos |

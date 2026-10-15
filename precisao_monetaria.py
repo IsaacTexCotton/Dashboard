@@ -1,8 +1,8 @@
 """Primitivas monetárias exatas para revisão isolada.
 
 Este módulo é um protótipo deliberadamente NÃO conectado ao importador,
-auditor ou schema de produção. Não o ative sem ratificação formal da Política
-v1.1/contrato e revisão de integração.
+auditor ou schema de produção. A integração depende de testes de contrato,
+revisão técnica, compatibilidade e validação em ambiente isolado.
 """
 from __future__ import annotations
 

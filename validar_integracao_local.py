@@ -92,7 +92,7 @@ def main(argv: list[str] | None = None) -> int:
             "codigo_saida": auditoria["codigo_saida"], "saida": auditoria["stdout"], "erro": auditoria["stderr"]})
         if auditoria["codigo_saida"] != 0:
             report["etapas"].append({"etapa": "importacao", "status": "SKIPPED",
-                                     "detalhe": "Bloqueada porque a auditoria não foi aprovada"})
+                                     "detalhe": "Bloqueada porque a auditoria encontrou divergência ou pendência"})
             report["status"] = "BLOCKED"
             return finalizar(report, args.relatorio, 1)
 

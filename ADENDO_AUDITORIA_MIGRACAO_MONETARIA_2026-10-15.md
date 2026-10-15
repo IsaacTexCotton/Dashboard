@@ -54,16 +54,16 @@ O relatório local mais recente informado lista 5 registros em depósitos, 5 em 
 | `caixa-futuro-fase1.zip` | Pacote legado listado com README, importador, teste e amostra | Nenhuma UI/relatório foi identificada no conteúdo listado |
 | Consumidores fora do repositório | BI, relatórios, consultas salvas, exportações, jobs ou integrações externas | **Não verificados; inventário continua não exaustivo** |
 
-## 5. Governança — interpretação conservadora dos documentos
+## 5. Critérios de acompanhamento do projeto
 
-Os documentos do repositório não expressam o status de aprovação em termos inteiramente uniformes: alguns registram ratificação da política v1.1 pelo solicitante, enquanto outros ainda indicam assinatura formal da Diretoria Financeira/Controladoria como pendente ou bloqueadora. A menos que exista evidência formal assinada e versionada, o status operacional deve permanecer **aprovação formal pendente**. Uma confirmação na conversa ou uma suíte CI verde não substitui aprovação financeira formal.
+O repositório acompanha a especificação técnica, os testes e as evidências de execução. O estado de cada fase deve ser descrito por critérios objetivos observados, sem inferir execução a partir de texto documental ou de CI verde.
 
 ## 6. Próximos gates — ainda obrigatórios
 
 1. Reconciliar a diferença de contagem entre as evidências dos payloads, sem compartilhar ou versionar dados financeiros.
 2. Completar a matriz de leitores/escritores, incluindo consumidores fora do pacote/repositório.
 3. Confirmar configuração do processo operacional e caminho do banco com seu responsável; variáveis da sessão local não provam configuração em produção.
-4. Em ambiente autorizado com Python, executar dry-run oficial e validação integrada para a amostra sanitizada aprovada, mantendo o arquivo fora do Git.
-5. Antes de qualquer banco real: assinatura/aprovação da política e contrato, backup verificado, restauração demonstrada em homologação, reconciliação histórica, gates de CI, plano de rollback e aprovações de TI/Controladoria/Financeiro.
+4. Em ambiente autorizado com Python, executar dry-run oficial e validação integrada para a amostra sanitizada autorizada para uso no ambiente de teste, mantendo o arquivo fora do Git.
+5. Antes de qualquer operação em banco real: concluir backup/restauração, inventário e conciliação, CI, plano de rollback e janela operacional; confirmar que a operação está dentro das permissões e procedimentos da organização.
 
-**Estado final desta revisão:** inventário estático parcialmente ampliado; nenhuma operação de produção realizada; nenhuma autorização concedida para DDL, backfill, ativação de escrita dupla, mudança de leitura ou remoção de colunas `REAL`.
+**Estado final desta revisão:** inventário estático parcialmente ampliado; nenhuma operação de produção realizada; DDL, backfill, escrita dupla, mudança de leitura e remoção de colunas `REAL` não foram executados.

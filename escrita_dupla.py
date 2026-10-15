@@ -1,8 +1,9 @@
 """Escrita dupla transacional em protótipo, sem conexão com o importador.
 
 O módulo exige schema preexistente contendo colunas legadas e _centavos; não
-cria tabelas/colunas e não executa backfill. Seu uso real permanece bloqueado
-até ratificação formal, migração aprovada, revisão e backup/restauração testados.
+cria tabelas/colunas e não executa backfill. O uso em produção permanece fora
+do escopo até que migração, compatibilidade, backup/restauração, testes e rollback
+sejam demonstrados em ambiente isolado e os procedimentos operacionais sejam cumpridos.
 """
 from __future__ import annotations
 

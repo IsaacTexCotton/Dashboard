@@ -159,7 +159,7 @@ PY
 
 A verificação do manifesto é feita sobre o backup original antes da restauração. Para validar a cópia restaurada, use `PRAGMA integrity_check`, contagens por tabela e comparação de conteúdo com a origem/backup. Não interprete hash do arquivo restaurado como igual ao hash do backup em todo cenário de cópia lógica. O teste automatizado compara as linhas restauradas com as linhas da origem e verifica a integridade.
 
-Para operação futura em ambiente real, gerar backup novo com acesso restrito, guardar arquivo e manifesto juntos, conferir o resultado `OK`, testar a restauração em arquivo separado e registrar o hash e as contagens antes de iniciar qualquer etapa mutável. Backup validado não é autorização para migrar.
+Para uma operação futura, gerar backup novo com acesso restrito, guardar arquivo e manifesto juntos, conferir o resultado `OK`, testar restauração em arquivo separado e registrar hash e contagens antes de qualquer etapa mutável. O backup é um critério técnico, não executa a migração.
 
 ## 8. Backfill em modo simulação
 
@@ -241,6 +241,6 @@ A consulta efetuada para o status do commit exato da `main` não retornou checks
 - [ ] Validar ao menos 30 registros ERP/Systêxtil reais, autorizados e sanitizados. Fixtures sintéticas não eliminam essa pendência.
 - [ ] Executar e guardar o resultado do backfill em simulação sobre uma cópia sintética completa representativa, com contagens e divergências reproduzíveis.
 - [ ] Preservar evidência do teste isolado de backup/restauração e do CI desta branch.
-- [ ] Elaborar uma janela de execução futura e uma comparação de reconciliação com a origem antes de qualquer ação de escrita; isso não é autorização automática.
+- [ ] Elaborar janela operacional e comparação de reconciliação com a origem antes de qualquer ação de escrita; documentar responsável, evidências, resultado do ensaio e gatilhos de interrupção.
 
 **Decisão desta preparação:** **pronto com ressalvas para revisão técnica/operacional documental**: a execução final #38606898808 desta PR passou com 145 testes e as validações locais retornaram `PASSED`. Não está pronto para backfill aplicado, migração real, ativação da dupla escrita ou cutover. A limitação do CI exato da `main`, a busca completa de consumidores e a ausência de amostra real permanecem explícitas; nenhuma dessas lacunas foi convertida em resultado presumido.

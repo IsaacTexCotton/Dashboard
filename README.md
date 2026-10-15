@@ -45,7 +45,7 @@ Para importação via API, configure `CRM_URL` e pelo menos uma credencial (`CRM
 
 ## Limites antes de produção
 
-- `amostra_resposta.json` contém dados fictícios; aprovação local não comprova compatibilidade com todos os dados reais do CRM.
+- `amostra_resposta.json` contém dados fictícios; teste local não comprova compatibilidade com todos os dados reais do CRM.
 - Valores financeiros seguem SQLite `REAL`; validar precisão contábil antes de qualquer migração.
 - A semântica histórica dos snapshots de acordo depende de decisão de negócio.
-- Homologação com payload real sanitizado/autorizado, aprovação financeira, backup verificado e plano de rollback são pré-requisitos para produção.
+- Homologação com payload real obtido por canal autorizado, validação das regras financeiras, backup/restauração verificados e plano de rollback ensaiado são critérios técnicos antes de produção.
