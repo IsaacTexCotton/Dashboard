@@ -606,6 +606,25 @@ def validar_schema_monetario(con: sqlite3.Connection) -> str:
     fase = _validar_estado(con, tabelas)
     if fase is None:
         raise ErroMigracaoMonetaria("marcador de fase monetária ausente")
+    triggers_existentes = {
+        str(row[0]): str(row[1] or "")
+        for row in con.execute(
+            "SELECT name, sql FROM sqlite_master WHERE type='trigger'"
+        ).fetchall()
+    }
+    for nome, sql_esperado in _triggers_fase_global().items():
+        sql_existente = triggers_existentes.get(nome)
+        if sql_existente is None:
+            raise ErroMigracaoMonetaria(
+                f"guarda de fase global ausente: {nome}; reexecute a migração aditiva"
+            )
+        if (
+            _normalizar_sql(sql_existente).replace("ifnotexists", "")
+            != _normalizar_sql(sql_esperado).replace("ifnotexists", "")
+        ):
+            raise ErroMigracaoMonetaria(
+                f"guarda de fase global incompatível: {nome}"
+            )
     return fase
 
 
