@@ -1,0 +1,89 @@
+{
+  "success": true,
+  "data": {
+    "inicio": "2026-10-04",
+    "fim": "2026-10-04",
+    "usuarioFiltro": null,
+    "depositos": {
+      "quantidadeTotal": 5,
+      "valorTotal": 430,
+      "porUsuario": [
+        {
+          "usuario": "NEGOCIADOR.A",
+          "nome": "Negociador A",
+          "quantidade": 5,
+          "valor": 430
+        }
+      ]
+    },
+    "acordos": {
+      "quantidadeTotal": 3,
+      "valorTotal": 3739.25,
+      "pagosTotal": 934.81,
+      "pendenteTotal": 2804.44,
+      "porUsuario": [
+        {
+          "usuario": "NEGOCIADOR.A",
+          "nome": "Negociador A",
+          "quantidade": 1,
+          "valor": 1782,
+          "pagos": 445.5,
+          "pendente": 1336.5
+        },
+        {
+          "usuario": "NEGOCIADOR.B",
+          "nome": "Negociador B",
+          "quantidade": 2,
+          "valor": 1957.25,
+          "pagos": 489.31,
+          "pendente": 1467.94
+        }
+      ]
+    },
+    "promessas": {
+      "quantidadeTotal": 6,
+      "prometidoTotal": 6711.5,
+      "cumpridoTotal": 1006.73,
+      "emAbertoTotal": 5704.77,
+      "quebradoTotal": 335.58,
+      "porUsuario": [
+        {
+          "usuario": "NEGOCIADOR.A",
+          "nome": "Negociador A",
+          "quantidade": 5,
+          "prometido": 3243,
+          "cumprido": 486.45,
+          "emAberto": 2756.55,
+          "quebrado": 162.15
+        },
+        {
+          "usuario": "NEGOCIADOR.B",
+          "nome": "Negociador B",
+          "quantidade": 1,
+          "prometido": 3468.5,
+          "cumprido": 520.28,
+          "emAberto": 2948.22,
+          "quebrado": 173.43
+        }
+      ]
+    },
+    "contatos": {
+      "contatosUnicosTotal": 14,
+      "registrosTotaisTotal": 21,
+      "porUsuario": [
+        {
+          "usuario": "NEGOCIADOR.A",
+          "nome": "Negociador A",
+          "contatosUnicos": 14,
+          "registrosTotais": 21
+        }
+      ]
+    },
+    "valoresAcordo": {
+      "valorRecebidoPeriodo": 934.81,
+      "valorAVencer": 95003,
+      "valorVencido": 6002
+    }
+  },
+  "timestamp": "2026-10-04T12:00:00.0000000"
+}
