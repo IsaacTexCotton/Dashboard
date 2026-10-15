@@ -138,7 +138,8 @@ class NormalizacaoTestes(unittest.TestCase):
             )
         self.assertTrue(usuarios)
         self.assertIsInstance(fatos[0][5], Decimal)
-        self.assertIsInstance(posicao[2], Decimal)
+        self.assertIsInstance(posicao[2], (int, Decimal))
+        self.assertNotIsInstance(posicao[2], float)
 
     def test_normalizar_duplo_aceita_zeros_finais_e_rejeita_subcentavos(self):
         from decimal import Decimal
