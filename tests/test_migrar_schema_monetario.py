@@ -294,6 +294,11 @@ class TestMigracaoSchemaMonetario(unittest.TestCase):
             con.execute(
                 "UPDATE fatos SET deposito_valor_centavos=1234 WHERE tipo='deposito'"
             )
+            con.execute(
+                "INSERT INTO acordos_posicao(capturado_em,data,recebido_periodo,a_vencer,vencido,"
+                "recebido_periodo_centavos,a_vencer_centavos,vencido_centavos) "
+                "VALUES ('ts_existente','2026-10-14',1.0,2.0,3.0,100,200,300)"
+            )
             con.commit()
             definir_fase_migracao(con, "backfill_conciliado")
             self.assertEqual(
@@ -309,6 +314,18 @@ class TestMigracaoSchemaMonetario(unittest.TestCase):
             con.rollback()
             with self.assertRaises(sqlite3.IntegrityError):
                 con.execute("UPDATE fatos SET monetario_fase='legado' WHERE usuario='ana'")
+            con.rollback()
+            with self.assertRaises(sqlite3.IntegrityError):
+                con.execute(
+                    "INSERT INTO acordos_posicao(capturado_em,data,recebido_periodo,a_vencer,vencido) "
+                    "VALUES ('ts_novo','2026-10-14',1.0,2.0,3.0)"
+                )
+            con.rollback()
+            with self.assertRaises(sqlite3.IntegrityError):
+                con.execute(
+                    "UPDATE acordos_posicao SET monetario_fase='legado' "
+                    "WHERE capturado_em='ts_existente'"
+                )
             con.rollback()
             with self.assertRaises(ErroMigracaoMonetaria):
                 definir_fase_migracao(con, "backfill_em_andamento")
