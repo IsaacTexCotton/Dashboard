@@ -66,7 +66,7 @@ A execução deve ocorrer em branch de implementação própria e PRs revisávei
 - Para valores monetários finais, aceitar casas além de duas apenas quando os dígitos excedentes são zeros (`1.230` → 123 centavos); rejeitar (`1.231`) sem arredondamento. Em grandezas de cálculo com escala contratada, preservar decimal exato e aplicar *half-up* apenas no resultado final. Validar o payload inteiro antes da transação diária.
 - Converter `Decimal` para centavos com aritmética decimal exata, limites de inteiro de 64 bits e política explícita para nulo versus zero.
 - Centralizar a matriz de sinal por campo e tipo; emitir alerta visível de crédito/estorno para negativos permitidos.
-- Implementar `real_para_centavos` apenas para histórico, via `Decimal(repr(valor))` e *half-up*, com relatório de suspeitas cujo algoritmo/limite já esteja formalizado. Não tratar o texto original como recuperável.
+- Implementar `real_para_centavos` apenas para histórico, via `Decimal(repr(valor))` e *half-up*, com relatório de suspeitas cujo algoritmo/limite esteja documentado. Não tratar o texto original como recuperável.
 
 **Saída:** testes unitários verdes; importação e banco permanecem sem alteração.
 
@@ -112,7 +112,7 @@ A execução deve ocorrer em branch de implementação própria e PRs revisávei
 - Ativar primeiro o modo de alerta; não bloquear por identidades contábeis até completar dez dias úteis consecutivos com carga válida e análise diária.
 - Definir operacionalmente o calendário de dia útil, falha de carga, dia sem payload e reinício/pausa da contagem antes de ativar a janela.
 - Verificar todos os casos de exceção da decisão de negócio. Falhas e dias sem evidência não devem ser contados automaticamente como observação válida.
-- Arquivar relatório diário e classificação assinada de cada divergência.
+- Arquivar relatório diário e classificação registrada de cada divergência.
 
 **Saída:** 10 dias úteis válidos, resultados documentados e 100% das divergências classificadas/corrigidas antes de habilitar bloqueio.
 
@@ -133,7 +133,7 @@ A execução deve ocorrer em branch de implementação própria e PRs revisávei
 - **Manter a escrita legada REAL ativa** durante e depois do corte; a chave de leitura não altera nem interrompe a gravação de compatibilidade.
 - Monitorar alertas e comparativos após o corte; registrar responsável e procedimento de acionamento.
 - Testar o rollback com dados criados/importados **depois do corte**: confirmar que as novas linhas foram escritas em REAL e INTEGER na mesma transação e que a reversão da leitura para REAL exibe esses mesmos dados.
-- Em divergência inexplicada, falha de integridade ou decisão da Controladoria, reverter leitura às colunas legadas imediatamente; restaurar backup somente se necessário e conforme plano ensaiado.
+- Em divergência inexplicada ou falha de integridade, reverter leitura às colunas legadas imediatamente; restaurar backup somente se necessário e conforme plano ensaiado.
 
 **Saída:** corte registrado, escrita legada ainda ativa, métricas de saúde acompanhadas e rollback demonstrado com dados pós-corte.
 
@@ -148,7 +148,7 @@ A escrita legada em REAL permanece ativa durante os 90 dias corridos posteriores
 | Parsing | JSON number/integer, string somente se contratada, nulo, ausente, booleano, texto inválido, vírgula decimal, `NaN`, infinito, token com `e/E` | Formatos previstos aceitos; formatos não contratuais rejeitados com erro controlado antes da transação |
 | Escala de entrada | Valores finais `1.23`, `1.230`, `1.231` e entradas com 3/4/6 casas | `1.23` e `1.230` aceitos; qualquer dígito não zero além da 2ª casa (ex.: `1.231`) rejeita sem arredondamento; classes de cálculo seguem escala `_eN` contratada |
 | Arredondamento interno | `0.005`, `0.004`, `-0.005`, `1.005`, `2.675`, `0.1 + 0.2`, `0.29`, `1e-7` | *Half-up* correto somente nos caminhos de cálculo/conversão onde ele é permitido; notação científica de entrada tratada conforme contrato |
-| Sinal por campo | Negativo, positivo e zero para cada campo aprovado; negativo para todos os campos proibidos; contagens negativas | Regras aplicadas campo+tipo, alertas emitidos e entradas indevidas rejeitadas |
+| Sinal por campo | Negativo, positivo e zero para cada campo definido; negativo para todos os campos proibidos; contagens negativas | Regras aplicadas campo+tipo, alertas emitidos e entradas indevidas rejeitadas |
 | Aritmética | Soma longa sem deriva; igualdade exata com diferença de 1 centavo; rateio de 10.000 centavos em 3.333 + 3.333 + 3.334 | Soma exata; divergência de 1 centavo identificada; rateio preserva total |
 | Identidade contábil | Acordo pago total/parcial, pendente, crédito; promessa cumprida/em aberto/quebrada; cancelamento, desconto, renegociação e baixa pendente | Igualdades corretas ou exceção classificada; não contar pago antes de baixa |
 | Histórico REAL | `1.005`, `2.675`, `0.1 + 0.2`, nulo, valor negativo autorizado, valor com representação longa | Conversão determinística *half-up* e suspeitas listadas sem reescrita silenciosa do histórico |
@@ -169,7 +169,7 @@ A escrita legada em REAL permanece ativa durante os 90 dias corridos posteriores
 
 ## 6. Rollback
 
-1. Acionar rollback diante de divergência inexplicada, falha de integridade ou decisão da Controladoria.
+1. Acionar rollback diante de divergência inexplicada ou falha de integridade.
 2. Reverter imediatamente a chave de leitura para as colunas legadas; confirmar smoke tests e registrar horário, responsável, motivo e alcance.
 3. Se o banco estiver comprometido, restaurar backup verificado conforme exercício ensaiado; validar integridade, contagens, `user_version` e funcionamento.
 4. Não apagar colunas novas nem remodelar schema durante resposta emergencial; preservar logs, relatórios e evidências para análise.
