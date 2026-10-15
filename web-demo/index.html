@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Demonstração estática do painel CAIXA FUTURO com dados sintéticos.">
+<title>CAIXA FUTURO — Demonstração</title>
+<style>
+:root{color-scheme:light;--ink:#142d3c;--muted:#607582;--line:#dce6e9;--paper:#f3f7f8;--white:#fff;--teal:#0b808a;--navy:#163c56;--mint:#e7f5f4;--amber:#9c651a;--amberbg:#fff6e8}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}main{max-width:1260px;margin:auto;padding:30px 24px 48px}.top{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:20px}.eyebrow{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--teal);font-weight:800}h1{font-size:clamp(29px,4vw,40px);letter-spacing:-.045em;line-height:1.1;margin:7px 0}.subtitle{color:var(--muted);margin:0}.pill{display:inline-flex;gap:8px;align-items:center;border:1px solid #c9d9dc;border-radius:999px;background:#fff;padding:8px 12px;font-size:12px;font-weight:750;white-space:nowrap}.dot{width:7px;height:7px;border-radius:50%;background:#d49a36}.notice{padding:13px 16px;border:1px solid #e6d5af;background:var(--amberbg);border-radius:12px;color:#664b1e;font-size:13px;margin:19px 0 22px}.filters{display:flex;align-items:end;gap:12px;flex-wrap:wrap;padding:16px;background:white;border:1px solid var(--line);border-radius:14px;margin-bottom:20px}.field{display:flex;flex-direction:column;gap:5px}.field label{font-size:12px;font-weight:750;color:var(--muted)}input{font:inherit;padding:9px 10px;border:1px solid #cbd9dd;border-radius:8px;color:var(--ink);background:white}.btn{border:0;background:var(--navy);color:white;padding:10px 15px;border-radius:8px;font:inherit;font-weight:700;cursor:pointer}.btn.alt{background:white;color:var(--navy);border:1px solid #cbd9dd}.status{font-size:12px;color:var(--muted);margin-left:auto}.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.card{background:white;border:1px solid var(--line);border-radius:14px;padding:18px;min-width:0;box-shadow:0 2px 4px #15384a08}.card h2{font-size:13px;color:var(--muted);font-weight:700;margin:0 0 10px}.value{font-size:clamp(22px,2.3vw,30px);font-weight:800;letter-spacing:-.04em;overflow-wrap:anywhere}.muted{color:var(--muted);font-size:12px;margin-top:6px}.split{display:flex;justify-content:space-between;gap:10px;border-top:1px solid #edf1f3;padding-top:10px;margin-top:12px;font-size:12px}.split strong{display:block;font-size:14px;margin-top:2px}.section{margin-top:23px}.section h2{margin:0;font-size:18px;letter-spacing:-.02em}.section-head{display:flex;justify-content:space-between;align-items:baseline;gap:14px;margin-bottom:10px}.section-head p{font-size:12px;color:var(--muted);margin:0}.lower{display:grid;grid-template-columns:1fr 1.15fr;gap:14px}.panel{min-width:0;background:white;border:1px solid var(--line);border-radius:14px;padding:18px}.bar-row{display:grid;grid-template-columns:110px minmax(40px,1fr) auto;align-items:center;gap:10px;margin:18px 0;font-size:12px}.bar-label{font-weight:700}.track{height:10px;border-radius:99px;background:#edf2f4;overflow:hidden}.bar{height:100%;border-radius:99px;background:var(--teal)}.barvalue{font-variant-numeric:tabular-nums;text-align:right}.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap}th,td{padding:11px 9px;border-bottom:1px solid #edf1f3;text-align:right}th{font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}th:first-child,td:first-child{text-align:left}tbody tr:last-child td{border-bottom:0}.snapshot{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.snapshot div{background:#f6f9fa;padding:13px;border-radius:10px}.snapshot span{font-size:12px;color:var(--muted);display:block}.snapshot strong{font-size:18px;display:block;margin-top:5px;overflow-wrap:anywhere}.empty{display:none;padding:20px;color:var(--muted);font-size:13px}.foot{display:flex;justify-content:space-between;gap:12px;border-top:1px solid var(--line);margin-top:26px;padding-top:15px;color:var(--muted);font-size:11px}
+@media(max-width:920px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.lower{grid-template-columns:1fr}.status{width:100%;margin-left:0}}
+@media(max-width:540px){main{padding:20px 13px 32px}.top{display:block}.pill{margin-top:12px}.grid{grid-template-columns:1fr}.snapshot{grid-template-columns:1fr}.bar-row{grid-template-columns:84px minmax(35px,1fr);gap:8px}.barvalue{grid-column:2;text-align:left}.filters .field{flex:1;min-width:130px}input{width:100%}.foot{display:block}.foot span{display:block;margin-top:4px}}
+</style>
+</head>
+<body>
+<main>
+<header class="top">
+ <div><div class="eyebrow">Painel de cobrança</div><h1>CAIXA FUTURO</h1><p class="subtitle">Consolidado financeiro · visão por período</p></div>
+ <div class="pill"><span class="dot"></span>Demonstração com dados fictícios</div>
+</header>
+<div class="notice"><strong>Ambiente de demonstração.</strong> Todos os valores e nomes abaixo são sintéticos. Esta página funciona apenas no navegador: não acessa CRM, não conecta a banco de dados e não envia informações.</div>
+<form class="filters" id="filters">
+ <div class="field"><label for="start">Data inicial</label><input type="date" id="start" value="2026-10-13" required></div>
+ <div class="field"><label for="end">Data final</label><input type="date" id="end" value="2026-10-13" required></div>
+ <button class="btn" type="submit">Aplicar período</button><button class="btn alt" type="button" id="reset">Restaurar exemplo</button><div class="status" id="status" aria-live="polite">1 dia com dados no exemplo</div>
+</form>
+<section class="grid" aria-label="Indicadores financeiros">
+ <article class="card"><h2>Depósitos</h2><div class="value" id="depValue">R$ 25.000,00</div><div class="muted" id="depCount">15 depósitos registrados</div></article>
+ <article class="card"><h2>Acordos</h2><div class="value" id="agrValue">R$ 20.000,00</div><div class="muted" id="agrCount">3 acordos registrados</div><div class="split"><div>Pago<strong id="agrPaid">R$ 0,00</strong></div><div>Em aberto<strong id="agrOpen">R$ 20.000,00</strong></div></div></article>
+ <article class="card"><h2>Promessas</h2><div class="value" id="promValue">R$ 40.000,00</div><div class="muted" id="promCount">30 promessas registradas</div><div class="split"><div>Cumprido<strong id="promPaid">R$ 0,00</strong></div><div>Em aberto<strong id="promOpen">R$ 40.000,00</strong></div></div></article>
+ <article class="card"><h2>Contatos únicos</h2><div class="value" id="contacts">100</div><div class="muted" id="contactRecords">130 registros no exemplo</div><div class="split"><div>Promessas quebradas<strong id="broken">R$ 0,00</strong></div></div></article>
+</section>
+<section class="section">
+ <div class="section-head"><h2>Posição de acordos</h2><p>Posição de referência · não somar como fluxo diário</p></div>
+ <div class="panel"><div class="snapshot"><div><span>Recebido no período</span><strong id="received">R$ 0,00</strong></div><div><span>A vencer</span><strong id="due">R$ 1.000.000,00</strong></div><div><span>Vencido</span><strong id="overdue">R$ 200.000,00</strong></div></div><p class="muted">Os valores da posição são ilustrativos e estão separados dos totais de movimentação para evitar misturar estoque com fluxo.</p></div>
+</section>
+<section class="section">
+ <div class="section-head"><h2>Movimento e resumo por usuário</h2><p>Valores de uma única data fictícia</p></div>
+ <div class="lower">
+  <div class="panel"><h2>Depósitos por negociador</h2><div id="bars"><div class="bar-row"><span class="bar-label">Negociador A</span><div class="track"><div class="bar" style="width:100%"></div></div><span class="barvalue">R$ 18.000,00</span></div><div class="bar-row"><span class="bar-label">Negociador B</span><div class="track"><div class="bar" style="width:39%"></div></div><span class="barvalue">R$ 7.000,00</span></div></div></div>
+  <div class="panel"><div class="table-wrap"><table><thead><tr><th>Usuário</th><th>Depósitos</th><th>Valor depositado</th><th>Acordos</th><th>Valor acordado</th><th>Promessas</th><th>Valor prometido</th><th>Contatos únicos</th><th>Registros</th></tr></thead><tbody id="users"><tr><td>Negociador A</td><td>10</td><td>R$ 18.000,00</td><td>0</td><td>R$ 0,00</td><td>30</td><td>R$ 40.000,00</td><td>100</td><td>130</td></tr><tr><td>Negociador B</td><td>5</td><td>R$ 7.000,00</td><td>3</td><td>R$ 20.000,00</td><td>0</td><td>R$ 0,00</td><td>0</td><td>0</td></tr></tbody></table></div><div class="empty" id="empty">Nenhuma movimentação de exemplo dentro do período selecionado.</div></div>
+ </div>
+</section>
+<footer class="foot"><span>CAIXA FUTURO · Prévia visual estática</span><span>Sem conexão com CRM · Sem acesso a banco real · Sem gravação de dados</span></footer>
+</main>
+<script>
+"use strict";
+const sampleDate="2026-10-13";
+const data={
+ depositos:{qtd:15,valor:25000,users:[{name:"Negociador A",qtd:10,valor:18000},{name:"Negociador B",qtd:5,valor:7000}]},
+ acordos:{qtd:3,valor:20000,pagos:0,pendente:20000,users:[{name:"Negociador A",qtd:0,valor:0},{name:"Negociador B",qtd:3,valor:20000}]},
+ promessas:{qtd:30,valor:40000,cumprido:0,aberto:40000,quebrado:0,users:[{name:"Negociador A",qtd:30,valor:40000},{name:"Negociador B",qtd:0,valor:0}]},
+ contatos:{unicos:100,registros:130,users:[{name:"Negociador A",unicos:100,registros:130},{name:"Negociador B",unicos:0,registros:0}]},
+ posicao:{recebido:0,aVencer:1000000,vencido:200000}
+};
+const money=n=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(n);
+const integer=n=>new Intl.NumberFormat("pt-BR").format(n);
+function setText(id,value){document.getElementById(id).textContent=value}
+function apply(event){
+ if(event)event.preventDefault();
+ const start=document.getElementById("start").value,end=document.getElementById("end").value;
+ if(!start||!end||start>end){setText("status","Confira as datas: início deve ser anterior ao fim.");return}
+ const has=start<=sampleDate&&end>=sampleDate,z=has?1:0,d=data.depositos,a=data.acordos,p=data.promessas,c=data.contatos;
+ setText("depValue",money(d.valor*z));setText("depCount",integer(d.qtd*z)+" depósitos registrados");
+ setText("agrValue",money(a.valor*z));setText("agrCount",integer(a.qtd*z)+" acordos registrados");setText("agrPaid",money(a.pagos*z));setText("agrOpen",money(a.pendente*z));
+ setText("promValue",money(p.valor*z));setText("promCount",integer(p.qtd*z)+" promessas registradas");setText("promPaid",money(p.cumprido*z));setText("promOpen",money(p.aberto*z));
+ setText("contacts",integer(c.unicos*z));setText("contactRecords",integer(c.registros*z)+" registros no exemplo");setText("broken",money(p.quebrado*z));
+ setText("received",money(data.posicao.recebido*z));setText("due",money(data.posicao.aVencer*z));setText("overdue",money(data.posicao.vencido*z));
+ setText("status",has?"1 dia com dados no exemplo":"0 dias com dados no exemplo");
+ document.getElementById("empty").style.display=has?"none":"block";document.querySelector("table").style.display=has?"table":"none";
+ setText("users","");
+ if(has){
+  document.getElementById("users").innerHTML=d.users.map(u=>{
+   const auser=a.users.find(x=>x.name===u.name),puser=p.users.find(x=>x.name===u.name),cu=c.users.find(x=>x.name===u.name);
+   return "<tr><td>"+u.name+"</td><td>"+integer(u.qtd)+"</td><td>"+money(u.valor)+"</td><td>"+integer(auser.qtd)+"</td><td>"+money(auser.valor)+"</td><td>"+integer(puser.qtd)+"</td><td>"+money(puser.valor)+"</td><td>"+integer(cu.unicos)+"</td><td>"+integer(cu.registros)+"</td></tr>";
+  }).join("");
+  const max=Math.max(...d.users.map(x=>x.valor),1);
+  document.getElementById("bars").innerHTML=d.users.map(u=>"<div class='bar-row'><span class='bar-label'>"+u.name+"</span><div class='track'><div class='bar' style='width:"+(u.valor/max*100)+"%'></div></div><span class='barvalue'>"+money(u.valor*z)+"</span></div>").join("");
+ }else{
+  document.getElementById("bars").innerHTML="<div class='empty' style='display:block'>Sem movimento neste período.</div>";
+ }
+}
+document.getElementById("filters").addEventListener("submit",apply);
+document.getElementById("reset").addEventListener("click",()=>{document.getElementById("start").value=sampleDate;document.getElementById("end").value=sampleDate;apply()});
+apply();
+</script>
+</body>
+</html>

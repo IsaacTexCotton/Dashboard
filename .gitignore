@@ -1,5 +1,16 @@
 __pycache__/
 *.py[cod]
+.venv/
+venv/
+env/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+build/
+dist/
+
 *.db
 *.sqlite
 *.sqlite3
@@ -7,26 +18,30 @@ __pycache__/
 *.db.manifest.json
 backups/
 relatorios/
+
+# Segredos e payloads reais
 .env
 .env.*
-
-# Dados reais de homologação e relatórios locais nunca devem ser versionados.
+!.env.example
 resposta*.json
 *_sanitizada.json
 *_sanitizado.json
 relatorio_homologacao*.json
 *.manifest.json
-
-# Capturas de interface/exportações locais; não versionar dumps de dashboard.
-captura-dashboard-*.zip
-captura-dashboard-*/
-
-# Arquivos auxiliares gerados pelo SQLite (WAL e memória compartilhada).
-*-wal
-*-shm
-
-# Arquivos locais de segredo; nunca armazene credenciais no repositório.
 *credentials*.json
 *secrets*.json
 *.pem
 *.key
+
+# Saídas e capturas locais
+captura-dashboard-*.zip
+captura-dashboard-*/
+
+# Arquivos auxiliares SQLite
+*-wal
+*-shm
+
+# Arquivos do sistema
+.DS_Store
+Thumbs.db
+desktop.ini
