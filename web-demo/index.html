@@ -117,73 +117,73 @@ tbody tr:last-child td{border-bottom:0}
   </div>
   <div class="header-meta">
     <div class="chip"><span class="dot"></span>Demonstração com dados fictícios</div>
-    <div class="chip" id="sampleDateChip">Cenário sintético: 08–15 out 2026</div>
+    <div class="chip" id="sampleDateChip">JSON fictício: 15 out 2026</div>
   </div>
 </header>
 
 <div class="demo-note" role="note">
   <span class="note-icon" aria-hidden="true">i</span>
-  <div><strong>Ambiente demonstrativo.</strong> Este cenário tem oito datas e valores integralmente sintéticos, criados apenas para demonstrar filtros, tendência e comparação. <strong>Sem conexão com CRM</strong>, banco operacional ou envio de informações; nenhum número abaixo representa resultado real da empresa.</div>
+  <div><strong>Ambiente demonstrativo.</strong> Este painel usa um payload sintético com a mesma estrutura de <code>amostra_resposta.json</code>. Só os valores foram substituídos; não foram adicionados campos, usuários ou datas históricas. <strong>Sem conexão com CRM</strong>, banco operacional ou envio de informações; nenhum número abaixo representa resultado real da empresa.</div>
 </div>
 
 <form class="toolbar" id="filters">
-  <div class="field"><label for="start">Data inicial</label><input type="date" id="start" value="2026-10-12" required></div>
+  <div class="field"><label for="start">Data inicial</label><input type="date" id="start" value="2026-10-15" required></div>
   <div class="field"><label for="end">Data final</label><input type="date" id="end" value="2026-10-15" required></div>
   <button class="btn" type="submit">Aplicar período</button>
   <button class="btn secondary" type="button" id="reset">Restaurar exemplo</button>
-  <div class="status" id="status" aria-live="polite">4 datas com dados fictícios</div>
+  <div class="status" id="status" aria-live="polite">1 data com dados fictícios</div>
 </form>
 
 <section class="section" data-filter-section>
   <div class="section-head">
     <div><h2 class="section-title">Resumo do período</h2><p class="section-sub">Movimentações registradas na amostra selecionada</p></div>
-    <div class="right-note" id="periodLabel">13 out 2026</div>
+    <div class="right-note" id="periodLabel">15 out 2026</div>
   </div>
   <div class="kpi-grid grid" aria-label="Indicadores de cobrança">
     <article class="kpi teal">
       <div class="kpi-label"><span class="kpi-icon" aria-hidden="true">D</span>Depósitos registrados</div>
-      <div class="kpi-value" id="depValue">R$ 95.000,00</div>
-      <div class="kpi-detail" id="depCount">66 depósitos no período</div>
+      <div class="kpi-value" id="depValue">R$ 27.800,00</div>
+      <div class="kpi-detail" id="depCount">18 depósitos na amostra</div>
     </article>
     <article class="kpi navy">
       <div class="kpi-label"><span class="kpi-icon" aria-hidden="true">A</span>Acordos · valor de face</div>
-      <div class="kpi-value" id="agrValue">R$ 80.900,00</div>
-      <div class="kpi-detail" id="agrCount">44 acordos no período</div>
-      <div class="kpi-split"><div><span>Pago</span><strong id="agrPaid">R$ 53.300,00</strong></div><div><span>Pendente</span><strong id="agrOpen">R$ 27.600,00</strong></div></div>
+      <div class="kpi-value" id="agrValue">R$ 26.300,00</div>
+      <div class="kpi-detail" id="agrCount">4 acordos na amostra</div>
+      <div class="kpi-split"><div><span>Pago</span><strong id="agrPaid">R$ 6.500,00</strong></div><div><span>Pendente</span><strong id="agrOpen">R$ 19.800,00</strong></div></div>
     </article>
     <article class="kpi amber">
       <div class="kpi-label"><span class="kpi-icon" aria-hidden="true">P</span>Promessas · valor prometido</div>
-      <div class="kpi-value" id="promValue">R$ 128.100,00</div>
-      <div class="kpi-detail" id="promCount">100 promessas no período</div>
-      <div class="kpi-split"><div><span>Cumprido</span><strong id="promPaid">R$ 94.700,00</strong></div><div><span>Em aberto</span><strong id="promOpen">R$ 33.400,00</strong></div></div>
+      <div class="kpi-value" id="promValue">R$ 46.700,00</div>
+      <div class="kpi-detail" id="promCount">34 promessas na amostra</div>
+      <div class="kpi-split"><div><span>Cumprido</span><strong id="promPaid">R$ 9.100,00</strong></div><div><span>Em aberto</span><strong id="promOpen">R$ 37.600,00</strong></div></div>
     </article>
     <article class="kpi blue">
       <div class="kpi-label"><span class="kpi-icon" aria-hidden="true">C</span>Atividade de contato</div>
-      <div class="kpi-value" id="contactRecords">593</div>
+      <div class="kpi-value" id="contactRecords">148</div>
       <div class="kpi-detail">Registros de contato</div>
-      <div class="kpi-split"><div><span>Únicos por usuário · última data</span><strong id="contacts">A: 75 · B: 60</strong></div><div><span>Promessas quebradas</span><strong id="broken">R$ 10.500,00</strong></div></div>
+      <div class="kpi-split"><div><span>Únicos por usuário · última data</span><strong id="contacts">Negociador A: 108</strong></div><div><span>Promessas quebradas</span><strong id="broken">R$ 3.200,00</strong></div></div>
     </article>
   </div>
 </section>
 
 <section class="section" data-filter-section aria-label="Comparação com período anterior">
   <div class="section-head">
-    <div><h2 class="section-title">Comparação com período anterior</h2><p class="section-sub">Intervalo de mesma duração, quando todos os dias estão disponíveis na simulação.</p></div>
-    <div class="right-note" id="comparisonPeriod">12 out 2026 a 15 out 2026 vs 08 out 2026 a 11 out 2026</div>
+    <div><h2 class="section-title">Comparação com período anterior</h2><p class="section-sub">Só compara quando o payload informa os dois períodos completos. Este JSON contém uma única data.</p></div>
+    <div class="right-note" id="comparisonPeriod">Período anterior não informado</div>
   </div>
   <div class="panel">
-    <div class="empty" id="comparisonUnavailable" style="display:block">Aguardando dados para comparação.</div>
+    <div class="empty" id="comparisonUnavailable" style="display:block">Comparação indisponível: o JSON fornece apenas 15 out 2026, sem uma data anterior.</div>
     <div class="comparison-grid" id="comparisonGrid" hidden>
-      <article class="comparison-card"><h3>Depósitos registrados</h3><div class="comparison-value" id="cmpDepDelta">+ R$ 11.700,00</div><div class="comparison-caption" id="cmpDepDetail">Atual R$ 95.000,00 · anterior R$ 83.300,00</div><div class="comparison-caption" id="cmpDepPct">Variação: +14,0%</div></article>
-      <article class="comparison-card"><h3>Acordos · valor de face</h3><div class="comparison-value" id="cmpAgrDelta">+ R$ 15.900,00</div><div class="comparison-caption" id="cmpAgrDetail">Atual R$ 80.900,00 · anterior R$ 65.000,00</div><div class="comparison-caption" id="cmpAgrPct">Variação: +24,5%</div></article>
-      <article class="comparison-card"><h3>Promessas · valor prometido</h3><div class="comparison-value" id="cmpPromDelta">+ R$ 30.100,00</div><div class="comparison-caption" id="cmpPromDetail">Atual R$ 128.100,00 · anterior R$ 98.000,00</div><div class="comparison-caption" id="cmpPromPct">Variação: +30,7%</div></article>
+      <article class="comparison-card"><h3>Depósitos registrados</h3><div class="comparison-value" id="cmpDepDelta">—</div><div class="comparison-caption" id="cmpDepDetail">Sem período anterior informado</div><div class="comparison-caption" id="cmpDepPct">Variação indisponível</div></article>
+      <article class="comparison-card"><h3>Acordos · valor de face</h3><div class="comparison-value" id="cmpAgrDelta">—</div><div class="comparison-caption" id="cmpAgrDetail">Sem período anterior informado</div><div class="comparison-caption" id="cmpAgrPct">Variação indisponível</div></article>
+      <article class="comparison-card"><h3>Promessas · valor prometido</h3><div class="comparison-value" id="cmpPromDelta">—</div><div class="comparison-caption" id="cmpPromDetail">Sem período anterior informado</div><div class="comparison-caption" id="cmpPromPct">Variação indisponível</div></article>
     </div>
-    <p class="comparison-foot" id="comparisonNote">Variações calculadas sobre valores inteiramente fictícios; não são resultados reais.</p>
+    <p class="comparison-foot" id="comparisonNote">O payload contém apenas uma data. Nenhum histórico artificial é criado para calcular variações.</p>
   </div>
 </section>
 
 <section class="section" data-filter-section>
-  <div class="section-head"><div><h2 class="section-title">Evolução diária dos movimentos</h2><p class="section-sub">Três métricas de movimento para ajudar a ler o período selecionado.</p></div></div>
+  <div class="section-head"><div><h2 class="section-title">Movimentos da data informada</h2><p class="section-sub">Valores derivados dos totais presentes no JSON; não há série histórica nesta amostra.</p></div></div>
   <div class="panel">
     <div class="daily-trend" id="dailyTrend"></div>
     <div class="empty" id="trendEmpty" style="display:block">Sem dados de simulação no período.</div>
@@ -201,9 +201,9 @@ tbody tr:last-child td{border-bottom:0}
       <h3 class="panel-title">Valores em aberto ou classificados na amostra</h3>
       <p class="panel-caption">Leitura descritiva; não representa priorização automática.</p>
       <div class="attention-list">
-        <div class="attention-item"><div class="attention-mark" aria-hidden="true">!</div><div><div class="attention-label">Posição vencida</div><div class="attention-desc">Saldo na captura de referência</div></div><div class="attention-value" id="focusOverdue">R$ 268.000,00</div></div>
-        <div class="attention-item"><div class="attention-mark" aria-hidden="true">P</div><div><div class="attention-label">Promessas em aberto</div><div class="attention-desc">Valor prometido ainda classificado em aberto</div></div><div class="attention-value" id="focusPromise">R$ 33.400,00</div></div>
-        <div class="attention-item"><div class="attention-mark" aria-hidden="true">A</div><div><div class="attention-label">Acordos pendentes</div><div class="attention-desc">Valor pendente dos acordos do período</div></div><div class="attention-value" id="focusAgreement">R$ 27.600,00</div></div>
+        <div class="attention-item"><div class="attention-mark" aria-hidden="true">!</div><div><div class="attention-label">Posição vencida</div><div class="attention-desc">Saldo na captura de referência</div></div><div class="attention-value" id="focusOverdue">R$ 175.000,00</div></div>
+        <div class="attention-item"><div class="attention-mark" aria-hidden="true">P</div><div><div class="attention-label">Promessas em aberto</div><div class="attention-desc">Valor prometido ainda classificado em aberto</div></div><div class="attention-value" id="focusPromise">R$ 37.600,00</div></div>
+        <div class="attention-item"><div class="attention-mark" aria-hidden="true">A</div><div><div class="attention-label">Acordos pendentes</div><div class="attention-desc">Valor pendente dos acordos do período</div></div><div class="attention-value" id="focusAgreement">R$ 19.800,00</div></div>
       </div>
       <div class="attention-foot" id="focusFoot">A posição vencida é da última captura selecionada; os valores de promessas e acordos correspondem ao período. Não somar entre si. Nenhum título individual é identificado.</div>
     </div>
@@ -211,9 +211,9 @@ tbody tr:last-child td{border-bottom:0}
       <h3 class="panel-title">Posição da carteira</h3>
       <p class="panel-caption">Captura mais recente disponível dentro do período — posição não é fluxo acumulado.</p>
       <div class="snapshot-grid">
-        <div class="snapshot-metric"><span>Recebido no período</span><strong id="received">R$ 22.000,00</strong></div>
-        <div class="snapshot-metric"><span>A vencer</span><strong id="due">R$ 950.000,00</strong></div>
-        <div class="snapshot-metric"><span>Vencido</span><strong id="overdue">R$ 268.000,00</strong></div>
+        <div class="snapshot-metric"><span>Recebido no período</span><strong id="received">R$ 6.500,00</strong></div>
+        <div class="snapshot-metric"><span>A vencer</span><strong id="due">R$ 880.000,00</strong></div>
+        <div class="snapshot-metric"><span>Vencido</span><strong id="overdue">R$ 175.000,00</strong></div>
       </div>
       <div class="snapshot-stamp"><span id="snapshotDate">Data da captura: 15 out 2026</span><span>Horário: não simulado</span></div>
     </div>
@@ -229,8 +229,8 @@ tbody tr:last-child td{border-bottom:0}
       <h3 class="panel-title">Depósitos por negociador</h3>
       <p class="panel-caption">Valores acumulados no período fictício selecionado; não são, isoladamente, uma avaliação de produtividade.</p>
       <div id="bars" class="bar-list">
-        <div class="bar-row"><span class="bar-name">Negociador A</span><div class="track"><div class="bar" style="width:100%"></div></div><span class="bar-value">R$ 58.900,00</span></div>
-        <div class="bar-row"><span class="bar-name">Negociador B</span><div class="track"><div class="bar" style="width:61.29%"></div></div><span class="bar-value">R$ 36.100,00</span></div>
+        <div class="bar-row"><span class="bar-name">Negociador A</span><div class="track"><div class="bar" style="width:100%"></div></div><span class="bar-value">R$ 19.500,00</span></div>
+        <div class="bar-row"><span class="bar-name">Negociador B</span><div class="track"><div class="bar" style="width:42.56%"></div></div><span class="bar-value">R$ 8.300,00</span></div>
       </div>
       <div class="empty" id="barsEmpty">Sem movimento de depósitos na amostra para o período.</div>
       <div class="chart-legend"><span><i class="legend-dot"></i>Valor depositado</span></div>
@@ -240,7 +240,7 @@ tbody tr:last-child td{border-bottom:0}
       <div class="table-wrap">
         <table id="usersTable">
           <thead><tr><th>Usuário</th><th>Depósitos</th><th>Valor depositado</th><th>Acordos</th><th>Valor acordado</th><th>Promessas</th><th>Valor prometido</th><th>Contatos únicos* (última data)</th></tr></thead>
-          <tbody id="users"><tr><td class="user-name">Negociador A</td><td>41</td><td>R$ 58.900,00</td><td>27</td><td>R$ 50.158,00</td><td>63</td><td>R$ 79.422,00</td><td>75</td></tr><tr><td class="user-name">Negociador B</td><td>25</td><td>R$ 36.100,00</td><td>17</td><td>R$ 30.742,00</td><td>37</td><td>R$ 48.678,00</td><td>60</td></tr></tbody>
+          <tbody id="users"><tr><td class="user-name">Negociador A</td><td>11</td><td>R$ 19.500,00</td><td>—</td><td>—</td><td>34</td><td>R$ 46.700,00</td><td>108</td></tr><tr><td class="user-name">Negociador B</td><td>7</td><td>R$ 8.300,00</td><td>4</td><td>R$ 26.300,00</td><td>—</td><td>—</td><td>—</td></tr></tbody>
         </table>
       </div>
       <div class="empty" id="tableEmpty">Nenhum registro na amostra dentro do período.</div>
@@ -258,28 +258,110 @@ tbody tr:last-child td{border-bottom:0}
   </div>
   <div class="limitation" style="margin-top:10px">
     <div class="limitation-symbol" aria-hidden="true">↔</div>
-    <div><strong>A comparação usa um cenário de simulação.</strong><p>A série de oito dias foi criada artificialmente para demonstrar variações. Ela não valida tendência histórica real, atingimento de meta, previsão, aging por título ou desempenho real da carteira.</p></div>
+    <div><strong>Não há série histórica para comparação.</strong><p>O JSON de referência contém uma única data. A demonstração não cria datas anteriores, metas, clientes, títulos ou indicadores que não estejam representados no payload.</p></div>
   </div>
 </section>
 
-<footer class="foot"><span>CAIXA FUTURO · Cockpit demonstrativo</span><span>Cenário fictício de 8 dias · Sem CRM · Sem banco real · Sem gravação</span></footer>
+<footer class="foot"><span>CAIXA FUTURO · Cockpit demonstrativo</span><span>Payload fictício de 1 data · Sem CRM · Sem banco real · Sem gravação</span></footer>
 </main>
 
+<script id="demo-payload" type="application/json">
+{
+  "success": true,
+  "data": {
+    "inicio": "2026-10-15",
+    "fim": "2026-10-15",
+    "usuarioFiltro": null,
+    "depositos": {
+      "quantidadeTotal": 18,
+      "valorTotal": 27800,
+      "porUsuario": [
+        {
+          "usuario": "NEGOCIADOR.A",
+          "nome": "Negociador A",
+          "quantidade": 11,
+          "valor": 19500
+        },
+        {
+          "usuario": "NEGOCIADOR.B",
+          "nome": "Negociador B",
+          "quantidade": 7,
+          "valor": 8300
+        }
+      ]
+    },
+    "acordos": {
+      "quantidadeTotal": 4,
+      "valorTotal": 26300,
+      "pagosTotal": 6500,
+      "pendenteTotal": 19800,
+      "porUsuario": [
+        {
+          "usuario": "NEGOCIADOR.B",
+          "nome": "Negociador B",
+          "quantidade": 4,
+          "valor": 26300,
+          "pagos": 6500,
+          "pendente": 19800
+        }
+      ]
+    },
+    "promessas": {
+      "quantidadeTotal": 34,
+      "prometidoTotal": 46700,
+      "cumpridoTotal": 9100,
+      "emAbertoTotal": 37600,
+      "quebradoTotal": 3200,
+      "porUsuario": [
+        {
+          "usuario": "NEGOCIADOR.A",
+          "nome": "Negociador A",
+          "quantidade": 34,
+          "prometido": 46700,
+          "cumprido": 9100,
+          "emAberto": 37600,
+          "quebrado": 3200
+        }
+      ]
+    },
+    "contatos": {
+      "contatosUnicosTotal": 108,
+      "registrosTotaisTotal": 148,
+      "porUsuario": [
+        {
+          "usuario": "NEGOCIADOR.A",
+          "nome": "Negociador A",
+          "contatosUnicos": 108,
+          "registrosTotais": 148
+        }
+      ]
+    },
+    "valoresAcordo": {
+      "valorRecebidoPeriodo": 6500,
+      "valorAVencer": 880000,
+      "valorVencido": 175000
+    }
+  },
+  "timestamp": "2026-10-15T10:15:00.0000000"
+}
+</script>
 <script>
 "use strict";
-const defaultStart="2026-10-12",defaultEnd="2026-10-15";
-const dailyData=[
- {date:"2026-10-08",depositos:{qtd:12,valor:18000},acordos:{qtd:8,valor:14500,pagos:8000,pendente:6500},promessas:{qtd:18,valor:22000,cumprido:16000,aberto:6000,quebrado:1500},contatos:{registros:105,unicos:[62,47]},posicao:{recebido:12000,aVencer:1080000,vencido:340000}},
- {date:"2026-10-09",depositos:{qtd:14,valor:20500},acordos:{qtd:9,valor:16300,pagos:9500,pendente:6800},promessas:{qtd:20,valor:24000,cumprido:18000,aberto:6000,quebrado:1200},contatos:{registros:115,unicos:[65,50]},posicao:{recebido:14800,aVencer:1060000,vencido:330000}},
- {date:"2026-10-10",depositos:{qtd:15,valor:22400},acordos:{qtd:10,valor:17100,pagos:10000,pendente:7100},promessas:{qtd:22,valor:26000,cumprido:19000,aberto:7000,quebrado:2000},contatos:{registros:122,unicos:[67,52]},posicao:{recebido:16000,aVencer:1040000,vencido:318000}},
- {date:"2026-10-11",depositos:{qtd:15,valor:22400},acordos:{qtd:10,valor:17100,pagos:10800,pendente:6300},promessas:{qtd:22,valor:26000,cumprido:19000,aberto:7000,quebrado:1800},contatos:{registros:122,unicos:[68,54]},posicao:{recebido:18500,aVencer:1025000,vencido:312000}},
- {date:"2026-10-12",depositos:{qtd:18,valor:24700},acordos:{qtd:11,valor:19800,pagos:12600,pendente:7200},promessas:{qtd:24,valor:31400,cumprido:22100,aberto:9300,quebrado:3100},contatos:{registros:146,unicos:[77,61]},posicao:{recebido:20900,aVencer:1000000,vencido:302000}},
- {date:"2026-10-13",depositos:{qtd:15,valor:25000},acordos:{qtd:11,valor:20800,pagos:13000,pendente:7800},promessas:{qtd:24,valor:32000,cumprido:22800,aberto:9200,quebrado:2400},contatos:{registros:150,unicos:[78,63]},posicao:{recebido:21100,aVencer:980000,vencido:290000}},
- {date:"2026-10-14",depositos:{qtd:17,valor:23800},acordos:{qtd:12,valor:21400,pagos:14500,pendente:6900},promessas:{qtd:27,valor:34100,cumprido:25300,aberto:8800,quebrado:2300},contatos:{registros:154,unicos:[80,64]},posicao:{recebido:23100,aVencer:965000,vencido:280000}},
- {date:"2026-10-15",depositos:{qtd:16,valor:21500},acordos:{qtd:10,valor:18900,pagos:13200,pendente:5700},promessas:{qtd:25,valor:30600,cumprido:24500,aberto:6100,quebrado:2700},contatos:{registros:143,unicos:[75,60]},posicao:{recebido:22000,aVencer:950000,vencido:268000}}
-];
+const sampleResponse=JSON.parse(document.getElementById("demo-payload").textContent);
+const sourceData=sampleResponse.data;
+const defaultStart=sourceData.inicio,defaultEnd=sourceData.fim;
+const dailyData=[{
+ date:sourceData.inicio,
+ depositos:{qtd:sourceData.depositos.quantidadeTotal,valor:sourceData.depositos.valorTotal},
+ acordos:{qtd:sourceData.acordos.quantidadeTotal,valor:sourceData.acordos.valorTotal,pagos:sourceData.acordos.pagosTotal,pendente:sourceData.acordos.pendenteTotal},
+ promessas:{qtd:sourceData.promessas.quantidadeTotal,valor:sourceData.promessas.prometidoTotal,cumprido:sourceData.promessas.cumpridoTotal,aberto:sourceData.promessas.emAbertoTotal,quebrado:sourceData.promessas.quebradoTotal},
+ contatos:{registros:sourceData.contatos.registrosTotaisTotal,unicos:sourceData.contatos.porUsuario.map(row=>({usuario:row.usuario,nome:row.nome,quantidade:row.contatosUnicos}))},
+ posicao:{recebido:sourceData.valoresAcordo.valorRecebidoPeriodo,aVencer:sourceData.valoresAcordo.valorAVencer,vencido:sourceData.valoresAcordo.valorVencido}
+}];
 const money=n=>new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(n);
 const integer=n=>new Intl.NumberFormat("pt-BR").format(n);
+const optionalMoney=n=>n===null||n===undefined?"—":money(n);
+const optionalInteger=n=>n===null||n===undefined?"—":integer(n);
 const $=id=>document.getElementById(id);
 const datePt=iso=>{if(!iso)return "—";const [y,m,d]=iso.split("-");const months=["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];return d+" "+months[Number(m)-1]+" "+y};
 function setText(id,value){$(id).textContent=value}
@@ -288,29 +370,26 @@ function addDays(iso,number){const d=parseDay(iso);d.setUTCDate(d.getUTCDate()+n
 function daysBetween(start,end){return Math.floor((parseDay(end)-parseDay(start))/86400000)+1}
 function selectDays(start,end){return dailyData.filter(row=>row.date>=start&&row.date<=end)}
 function sum(days,selector){return days.reduce((total,row)=>total+selector(row),0)}
-function split(total,ratio=.62){const first=Math.round(total*ratio);return [first,total-first]}
 function shareValue(value,max){return max<=0?0:Math.max(0,Math.min(100,value/max*100))}
 function signedMoney(delta){return (delta>0?"+ ":delta<0?"− ":"")+money(Math.abs(delta))}
 function percentChange(current,previous){return previous<=0?null:Math.round((current-previous)/previous*1000)/10}
 function percentLabel(value){if(value===null)return "Variação percentual indisponível: base anterior zero ou negativa.";return "Variação: "+(value>0?"+":value<0?"−":"")+Math.abs(value).toFixed(1).replace(".",",")+"%"}
 function summarizeUsers(days){
- const users=[
-  {name:"Negociador A",depQtd:0,depValor:0,agrQtd:0,agrValor:0,promQtd:0,promValor:0,unicos:0},
-  {name:"Negociador B",depQtd:0,depValor:0,agrQtd:0,agrValor:0,promQtd:0,promValor:0,unicos:0}
- ];
- days.forEach(day=>{
-  const dQ=split(day.depositos.qtd),dV=split(day.depositos.valor);
-  const aQ=split(day.acordos.qtd),aV=split(day.acordos.valor);
-  const pQ=split(day.promessas.qtd),pV=split(day.promessas.valor);
-  for(let i=0;i<2;i++){
-   users[i].depQtd+=dQ[i];users[i].depValor+=dV[i];
-   users[i].agrQtd+=aQ[i];users[i].agrValor+=aV[i];
-   users[i].promQtd+=pQ[i];users[i].promValor+=pV[i];
-  }
- });
- const last=days[days.length-1];
- if(last)users.forEach((u,i)=>u.unicos=last.contatos.unicos[i]);
- return users;
+ if(!days.length)return [];
+ const users=new Map();
+ const get=row=>{
+  if(!users.has(row.usuario))users.set(row.usuario,{
+   usuario:row.usuario,name:row.nome||row.usuario,
+   depQtd:null,depValor:null,agrQtd:null,agrValor:null,
+   promQtd:null,promValor:null,unicos:null
+  });
+  return users.get(row.usuario);
+ };
+ sourceData.depositos.porUsuario.forEach(row=>{const u=get(row);u.depQtd=row.quantidade;u.depValor=row.valor;});
+ sourceData.acordos.porUsuario.forEach(row=>{const u=get(row);u.agrQtd=row.quantidade;u.agrValor=row.valor;});
+ sourceData.promessas.porUsuario.forEach(row=>{const u=get(row);u.promQtd=row.quantidade;u.promValor=row.prometido;});
+ sourceData.contatos.porUsuario.forEach(row=>{const u=get(row);u.unicos=row.contatosUnicos;});
+ return Array.from(users.values());
 }
 function periodTotals(days){
  return {
@@ -328,8 +407,8 @@ function renderComparison(start,end,currentDays){
  $("comparisonPeriod").textContent=datePt(start)+" a "+datePt(end)+" vs "+datePt(previousStart)+" a "+datePt(previousEnd);
  if(currentDays.length!==duration||previousDays.length!==duration){
   $("comparisonGrid").hidden=true;$("comparisonUnavailable").style.display="block";
-  $("comparisonUnavailable").textContent="Comparação indisponível: o cenário sintético não contém todas as datas dos dois períodos.";
-  $("comparisonNote").textContent="Não exibir variações quando falta um ou mais dias no período atual ou no anterior.";return;
+  $("comparisonUnavailable").textContent="Comparação indisponível: o JSON de referência contém uma única data, sem período anterior para comparar.";
+  $("comparisonNote").textContent="O payload não inclui série histórica; nenhuma data anterior foi gerada artificialmente.";return;
  }
  const current=periodTotals(currentDays),previous=periodTotals(previousDays);
  const metrics=[
@@ -363,12 +442,12 @@ function apply(event){
  if(invalid){setText("status","Período inválido. Informe uma data inicial igual ou anterior à data final.");dashboard.hidden=true;sections.forEach(s=>s.hidden=true);return}
  dashboard.hidden=false;sections.forEach(s=>s.hidden=false);
  const days=selectDays(start,end),has=days.length>0,totals=periodTotals(days),last=has?days[days.length-1]:null;
- setText("periodLabel",datePt(start)+" a "+datePt(end));setText("sampleDateChip","Cenário sintético: 08–15 out 2026");
+ setText("periodLabel",datePt(start)+" a "+datePt(end));setText("sampleDateChip","JSON fictício: "+datePt(sourceData.inicio));
  setText("status",days.length+" de "+daysBetween(start,end)+" datas com dados fictícios"+(days.length===daysBetween(start,end)?"":"; totais incluem somente as datas disponíveis"));
  setText("depValue",has?money(totals.depValor):"—");setText("depCount",has?integer(totals.depQtd)+" depósitos no período":"Sem dados no período");
  setText("agrValue",has?money(totals.agrValor):"—");setText("agrCount",has?integer(totals.agrQtd)+" acordos no período":"Sem dados no período");setText("agrPaid",has?money(totals.agrPago):"—");setText("agrOpen",has?money(totals.agrPendente):"—");
  setText("promValue",has?money(totals.promValor):"—");setText("promCount",has?integer(totals.promQtd)+" promessas no período":"Sem dados no período");setText("promPaid",has?money(totals.promCumprido):"—");setText("promOpen",has?money(totals.promAberto):"—");
- setText("contactRecords",has?integer(totals.contactos):"—");setText("contacts",last?"A: "+integer(last.contatos.unicos[0])+" · B: "+integer(last.contatos.unicos[1]):"—");setText("broken",has?money(totals.promQuebrado):"—");
+ setText("contactRecords",has?integer(totals.contactos):"—");setText("contacts",last?last.contatos.unicos.map(row=>row.nome+": "+integer(row.quantidade)).join(" · "):"—");setText("broken",has?money(totals.promQuebrado):"—");
  setText("focusOverdue",last?money(last.posicao.vencido):"—");setText("focusPromise",has?money(totals.promAberto):"—");setText("focusAgreement",has?money(totals.agrPendente):"—");
  setText("focusFoot",has?"A posição vencida é da última captura selecionada; os valores de promessas e acordos correspondem ao período. Não somar entre si. Nenhum título individual é identificado.":"Sem dados sintéticos nesse intervalo. Indicadores não são tratados como zero.");
  setText("received",last?money(last.posicao.recebido):"—");setText("due",last?money(last.posicao.aVencer):"—");setText("overdue",last?money(last.posicao.vencido):"—");setText("snapshotDate",last?"Data da captura: "+datePt(last.date):"Nenhuma captura no período");
@@ -376,8 +455,8 @@ function apply(event){
  $("users").innerHTML="";
  if(has){
   const users=summarizeUsers(days);
-  $("users").innerHTML=users.map(u=>"<tr><td class='user-name'>"+u.name+"</td><td>"+integer(u.depQtd)+"</td><td>"+money(u.depValor)+"</td><td>"+integer(u.agrQtd)+"</td><td>"+money(u.agrValor)+"</td><td>"+integer(u.promQtd)+"</td><td>"+money(u.promValor)+"</td><td>"+integer(u.unicos)+"</td></tr>").join("");
-  const depMax=Math.max(1,...users.map(u=>u.depValor));$("bars").innerHTML=users.map(u=>"<div class='bar-row'><span class='bar-name'>"+u.name+"</span><div class='track'><div class='bar' style='width:"+shareValue(u.depValor,depMax)+"%'></div></div><span class='bar-value'>"+money(u.depValor)+"</span></div>").join("");
+  $("users").innerHTML=users.map(u=>"<tr><td class='user-name'>"+u.name+"</td><td>"+optionalInteger(u.depQtd)+"</td><td>"+optionalMoney(u.depValor)+"</td><td>"+optionalInteger(u.agrQtd)+"</td><td>"+optionalMoney(u.agrValor)+"</td><td>"+optionalInteger(u.promQtd)+"</td><td>"+optionalMoney(u.promValor)+"</td><td>"+optionalInteger(u.unicos)+"</td></tr>").join("");
+  const depositUsers=users.filter(u=>u.depValor!==null);const depMax=Math.max(1,...depositUsers.map(u=>u.depValor));$("bars").innerHTML=depositUsers.map(u=>"<div class='bar-row'><span class='bar-name'>"+u.name+"</span><div class='track'><div class='bar' style='width:"+shareValue(u.depValor,depMax)+"%'></div></div><span class='bar-value'>"+money(u.depValor)+"</span></div>").join("");
  }
  renderTrend(days);renderComparison(start,end,days);
 }

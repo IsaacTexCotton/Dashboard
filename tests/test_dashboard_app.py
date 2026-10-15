@@ -46,15 +46,15 @@ class TestPainelDemo(unittest.TestCase):
         validar_leitura_centavos(self.con)
         result = montar_dados_painel(self.con, leitura_centavos=True, demo=True)
         self.assertTrue(result["demo"])
-        self.assertEqual(result["resumo"]["depositos_centavos"], 2_500_000)
-        self.assertEqual(result["resumo"]["acordos_centavos"], 2_000_000)
-        self.assertEqual(result["resumo"]["acordos_pagos_centavos"], 0)
-        self.assertEqual(result["resumo"]["acordos_pendentes_centavos"], 2_000_000)
-        self.assertEqual(result["resumo"]["promessas_centavos"], 4_000_000)
-        self.assertEqual(result["resumo"]["contatos_registros"], 130)
-        self.assertEqual(result["resumo"]["contatos_unicos_por_usuario"], 100)
-        self.assertEqual(result["snapshot"]["a_vencer_centavos"], 100_000_000)
-        self.assertEqual(result["snapshot"]["vencido_centavos"], 20_000_000)
+        self.assertEqual(result["resumo"]["depositos_centavos"], 2_780_000)
+        self.assertEqual(result["resumo"]["acordos_centavos"], 2_630_000)
+        self.assertEqual(result["resumo"]["acordos_pagos_centavos"], 650_000)
+        self.assertEqual(result["resumo"]["acordos_pendentes_centavos"], 1_980_000)
+        self.assertEqual(result["resumo"]["promessas_centavos"], 4_670_000)
+        self.assertEqual(result["resumo"]["contatos_registros"], 148)
+        self.assertEqual(result["resumo"]["contatos_unicos_por_usuario"], 108)
+        self.assertEqual(result["snapshot"]["a_vencer_centavos"], 88_000_000)
+        self.assertEqual(result["snapshot"]["vencido_centavos"], 17_500_000)
 
     def test_leitura_centavos_e_real_produzem_mesmos_valores_na_demo(self):
         legado = montar_dados_painel(self.con, leitura_centavos=False, demo=True)
@@ -105,7 +105,7 @@ class TestPainelDemo(unittest.TestCase):
 
     def test_metadata_de_importacao_e_intervalo_nao_inferem_cadencia(self):
         result = montar_dados_painel(
-            self.con, inicio="2026-10-12", fim="2026-10-14",
+            self.con, inicio="2026-10-15", fim="2026-10-17",
             leitura_centavos=True, demo=False,
         )
         meta = result["atualizacao"]
@@ -129,7 +129,7 @@ class TestPainelDemo(unittest.TestCase):
     def test_metadados_ausentes_nao_bloqueiam_leitura_dos_indicadores(self):
         self.con.execute("DROP TABLE importacoes")
         result = montar_dados_painel(self.con, leitura_centavos=True, demo=False)
-        self.assertEqual(result["resumo"]["depositos_centavos"], 2_500_000)
+        self.assertEqual(result["resumo"]["depositos_centavos"], 2_780_000)
         self.assertFalse(result["atualizacao"]["disponivel"])
         self.assertIsNone(result["atualizacao"]["ultima_importacao"])
 
