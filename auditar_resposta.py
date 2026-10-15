@@ -87,7 +87,7 @@ def auditar(resp: Any, tolerancia: Decimal | None = None) -> list[Check]:
     if not isinstance(resp, dict) or not isinstance(resp.get("data"), dict):
         raise importar.ErroValidacao("resposta: estrutura data ausente ou inválida")
     dia = resp["data"].get("inicio")
-    importar.normalizar(resp, dia)
+    importar.normalizar(resp, dia, converter_monetarios_float=False)
     data = resp["data"]
     checks: list[Check] = []
 

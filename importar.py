@@ -80,14 +80,31 @@ def _objeto(valor: Any, campo: str) -> dict:
     return valor
 
 
+def _para_real_legado(valor: Any, campo: str) -> float:
+    """Converte para REAL apenas no adaptador legado de compatibilidade."""
+    try:
+        numero = float(valor)
+    except (OverflowError, ValueError) as exc:
+        raise ErroValidacao(f"{campo}: número fora do intervalo suportado") from exc
+    if not math.isfinite(numero):
+        raise ErroValidacao(f"{campo}: número não finito")
+    return numero
+
+
 def _numero(
     valor: Any,
     campo: str,
     *,
     negativos_permitidos: bool = False,
-) -> float:
+    converter_para_float: bool = True,
+) -> float | Decimal | int:
     if isinstance(valor, bool) or not isinstance(valor, (int, float, Decimal)):
         raise ErroValidacao(f"{campo}: esperado número JSON finito")
+    if not converter_para_float and isinstance(valor, float):
+        raise ErroValidacao(
+            f"{campo}: float intermediário proibido; token Decimal/int obrigatório "
+            "no caminho monetário exato"
+        )
     # O caminho operacional carrega JSON com loads_json_estrito, preservando
     # Decimal/int. Validar escala antes de qualquer conversão para float/REAL:
     # zeros excedentes são exatos; frações subcentavo são rejeitadas sem round.
@@ -98,12 +115,11 @@ def _numero(
             )
         except ErroMonetario as exc:
             raise ErroValidacao(str(exc).replace("valor negativo não permitido", "valor monetário negativo não permitido")) from exc
-    try:
-        numero = float(valor)
-    except (OverflowError, ValueError) as exc:
-        raise ErroValidacao(f"{campo}: número fora do intervalo suportado") from exc
-    if not math.isfinite(numero):
-        raise ErroValidacao(f"{campo}: número não finito")
+    if not converter_para_float:
+        # O modo exato é usado por dupla escrita/auditoria: preserva Decimal/int
+        # até a conversão explícita no adaptador REAL e na coluna de centavos.
+        return valor
+    numero = _para_real_legado(valor, campo)
     if numero < 0 and not negativos_permitidos:
         raise ErroValidacao(f"{campo}: valor monetário negativo não permitido")
     return numero
@@ -123,13 +139,15 @@ def _campo_numero(
     contexto: str,
     *,
     negativos_permitidos: bool = False,
-) -> float:
+    converter_para_float: bool = True,
+) -> float | Decimal | int:
     if campo not in item:
         raise ErroValidacao(f"{contexto}: campo obrigatório ausente: {campo}")
     return _numero(
         item[campo],
         f"{contexto}.{campo}",
         negativos_permitidos=negativos_permitidos,
+        converter_para_float=converter_para_float,
     )
 
 
@@ -139,8 +157,13 @@ def _campo_inteiro(item: dict, campo: str, contexto: str) -> int:
     return _inteiro(item[campo], f"{contexto}.{campo}")
 
 
-def normalizar(resp: Any, dia: str):
-    """Valida e normaliza a resposta antes de qualquer escrita no SQLite."""
+def normalizar(
+    resp: Any,
+    dia: str,
+    *,
+    converter_monetarios_float: bool = True,
+):
+    """Valida a resposta; o modo exato preserva Decimal/int para o novo caminho."""
     dia = _dia_iso(dia, "dia de importação")
     resp = _objeto(resp, "resposta")
     if resp.get("success") is not True:
@@ -150,6 +173,21 @@ def normalizar(resp: Any, dia: str):
     fim = _dia_iso(d.get("fim"), "data.fim")
     if inicio != dia or fim != dia:
         raise ErroValidacao(f"período divergente: esperado {dia}–{dia}, recebido {inicio}–{fim}")
+
+    def campo_numero(
+        item: dict,
+        campo: str,
+        contexto: str,
+        *,
+        negativos_permitidos: bool = False,
+    ) -> float | Decimal | int:
+        return _campo_numero(
+            item,
+            campo,
+            contexto,
+            negativos_permitidos=negativos_permitidos,
+            converter_para_float=converter_monetarios_float,
+        )
 
     usuarios: dict[str, str | None] = {}
     fatos: list[tuple] = []
@@ -187,24 +225,24 @@ def normalizar(resp: Any, dia: str):
 
     for ctx, usuario, x in percorrer("depositos"):
         fatos.append((dia, usuario, "deposito", _campo_inteiro(x, "quantidade", ctx), 0,
-                      _campo_numero(x, "valor", ctx, negativos_permitidos=True), 0, 0, 0))
+                      campo_numero(x, "valor", ctx, negativos_permitidos=True), 0, 0, 0))
     for ctx, usuario, x in percorrer("acordos"):
         fatos.append((dia, usuario, "acordo", _campo_inteiro(x, "quantidade", ctx), 0,
-                      _campo_numero(x, "valor", ctx), _campo_numero(x, "pagos", ctx),
-                      _campo_numero(x, "pendente", ctx, negativos_permitidos=True), 0))
+                      campo_numero(x, "valor", ctx), campo_numero(x, "pagos", ctx),
+                      campo_numero(x, "pendente", ctx, negativos_permitidos=True), 0))
     for ctx, usuario, x in percorrer("promessas"):
         fatos.append((dia, usuario, "promessa", _campo_inteiro(x, "quantidade", ctx), 0,
-                      _campo_numero(x, "prometido", ctx), _campo_numero(x, "cumprido", ctx),
-                      _campo_numero(x, "emAberto", ctx, negativos_permitidos=True), _campo_numero(x, "quebrado", ctx)))
+                      campo_numero(x, "prometido", ctx), campo_numero(x, "cumprido", ctx),
+                      campo_numero(x, "emAberto", ctx, negativos_permitidos=True), campo_numero(x, "quebrado", ctx)))
     for ctx, usuario, x in percorrer("contatos"):
         fatos.append((dia, usuario, "contato", _campo_inteiro(x, "registrosTotais", ctx),
                       _campo_inteiro(x, "contatosUnicos", ctx), 0, 0, 0, 0))
 
     valores = _objeto(d.get("valoresAcordo"), "data.valoresAcordo")
     totais = (
-        _campo_numero(valores, "valorRecebidoPeriodo", "data.valoresAcordo", negativos_permitidos=True),
-        _campo_numero(valores, "valorAVencer", "data.valoresAcordo"),
-        _campo_numero(valores, "valorVencido", "data.valoresAcordo"),
+        campo_numero(valores, "valorRecebidoPeriodo", "data.valoresAcordo", negativos_permitidos=True),
+        campo_numero(valores, "valorAVencer", "data.valoresAcordo"),
+        campo_numero(valores, "valorVencido", "data.valoresAcordo"),
     )
     timestamp = resp.get("timestamp")
     if not isinstance(timestamp, str) or not timestamp.strip():
@@ -267,7 +305,9 @@ def normalizar_duplo(resp: Any, dia: str, importado_em: str):
     Esta função valida a estrutura geral antes de criar os pares e exige todas
     as métricas aplicáveis para os tipos de fato.
     """
-    usuarios, _fatos_legados, _posicao_legada_tuple = normalizar(resp, dia)
+    usuarios, _fatos_legados, _posicao_legada_tuple = normalizar(
+        resp, dia, converter_monetarios_float=False
+    )
     d = resp["data"]
     fatos_duplos: list[dict[str, Any]] = []
 
