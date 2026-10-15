@@ -55,12 +55,12 @@ HTML = r"""<!doctype html>
 <title>CAIXA FUTURO — Prévia local</title>
 <style>
 :root{color-scheme:light;--ink:#152c3b;--muted:#667987;--line:#dce5e9;--paper:#f4f7f8;--card:#fff;--teal:#087e8b;--navy:#173b55;--soft:#e5f3f4}
-*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
 main{max-width:1240px;margin:auto;padding:28px 22px 52px}.top{display:flex;gap:20px;align-items:flex-start;justify-content:space-between;margin-bottom:24px}.eyebrow{font-size:12px;letter-spacing:.13em;text-transform:uppercase;font-weight:750;color:var(--teal)}h1{font-size:clamp(28px,4vw,38px);line-height:1.15;letter-spacing:-.03em;margin:5px 0 7px}.sub{color:var(--muted);margin:0}.source{padding:8px 12px;border:1px solid var(--line);border-radius:999px;background:#fff;font-size:12px;font-weight:700;white-space:nowrap}
 .notice{border:1px solid #b9dfe1;background:#eef9f9;border-radius:12px;padding:12px 15px;margin:18px 0 22px;font-size:13px;color:#204c55}
 .controls{display:flex;align-items:end;gap:12px;flex-wrap:wrap;background:var(--card);padding:16px;border:1px solid var(--line);border-radius:14px;margin-bottom:22px}.field{display:flex;flex-direction:column;gap:5px}.field label{font-size:12px;color:var(--muted);font-weight:700}.field input{font:inherit;color:var(--ink);border:1px solid #cbd8dd;border-radius:8px;padding:9px 10px;background:white}.btn{border:0;background:var(--navy);color:white;font-weight:700;font:inherit;border-radius:8px;padding:10px 16px;cursor:pointer}.btn:disabled{opacity:.5;cursor:wait}
-.data-status-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0 0 18px}.status-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:13px 15px;min-width:0}.status-card span{display:block;font-size:11px;color:var(--muted);font-weight:700}.status-card strong{display:block;font-size:14px;color:var(--ink);margin-top:4px;overflow-wrap:anywhere}.status-card small{display:block;color:var(--muted);font-size:10px;line-height:1.45;margin-top:5px}.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:14px}.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;min-width:0;box-shadow:0 1px 2px #163d4d08}.card h2{font-size:13px;color:var(--muted);font-weight:700;margin:0 0 10px}.big{font-weight:780;font-size:clamp(20px,2vw,27px);letter-spacing:-.035em;overflow-wrap:anywhere}.meta{font-size:12px;color:var(--muted);margin-top:6px}.split{display:flex;justify-content:space-between;gap:14px;margin-top:12px;padding-top:10px;border-top:1px solid #edf1f3;font-size:13px}.split strong{display:block;color:var(--ink);font-size:14px}.section{margin-top:22px}.section-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin:0 0 10px}.section h2{font-size:18px;letter-spacing:-.02em;margin:0}.section-head p{color:var(--muted);font-size:12px;margin:0}.lower{display:grid;grid-template-columns:1.15fr 1fr;gap:14px}.panel{background:white;border:1px solid var(--line);border-radius:14px;padding:18px;min-width:0}.bar-row{display:grid;grid-template-columns:100px 1fr minmax(100px,auto);align-items:center;gap:10px;margin:14px 0;font-size:12px}.bar-label{font-weight:650}.bar-track{height:10px;background:#edf2f4;border-radius:100px;overflow:hidden}.bar{height:100%;background:var(--teal);border-radius:100px;min-width:0}.bar-value{text-align:right;font-variant-numeric:tabular-nums}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;white-space:nowrap;font-size:13px}th,td{text-align:right;padding:10px 9px;border-bottom:1px solid #edf1f3}th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.03em}th:first-child,td:first-child{text-align:left}tbody tr:last-child td{border-bottom:0}.snapshot-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.snapshot-metric{padding:12px;border-radius:10px;background:#f6f9fa}.snapshot-metric span{font-size:12px;color:var(--muted);display:block}.snapshot-metric strong{font-size:18px;display:block;overflow-wrap:anywhere;margin-top:4px}.small-note{font-size:12px;color:var(--muted);margin-top:12px}.status{min-height:22px;margin:8px 0;color:var(--muted);font-size:13px}.error{color:#a12d2d}.empty{color:var(--muted);padding:18px 0;font-size:13px}
-@media(max-width:900px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.data-status-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.lower{grid-template-columns:1fr}}
+.data-status-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0 0 18px}.status-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:13px 15px;min-width:0}.status-card span{display:block;font-size:11px;color:var(--muted);font-weight:700}.status-card strong{display:block;font-size:14px;color:var(--ink);margin-top:4px;overflow-wrap:anywhere}.status-card small{display:block;color:var(--muted);font-size:10px;line-height:1.45;margin-top:5px}.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:14px}.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;min-width:0;box-shadow:0 1px 2px #163d4d08}.card h2{font-size:13px;color:var(--muted);font-weight:700;margin:0 0 10px}.big{font-weight:780;font-size:clamp(20px,2vw,27px);letter-spacing:-.035em;overflow-wrap:anywhere}.meta{font-size:12px;color:var(--muted);margin-top:6px}.split{display:flex;justify-content:space-between;gap:14px;margin-top:12px;padding-top:10px;border-top:1px solid #edf1f3;font-size:13px}.split strong{display:block;color:var(--ink);font-size:14px}.section{margin-top:22px}.section-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin:0 0 10px}.section h2{font-size:18px;letter-spacing:-.02em;margin:0}.section-head p{color:var(--muted);font-size:12px;margin:0}.lower{display:grid;grid-template-columns:1.15fr 1fr;gap:14px}.panel{background:white;border:1px solid var(--line);border-radius:14px;padding:18px;min-width:0}.bar-row{display:grid;grid-template-columns:100px 1fr minmax(100px,auto);align-items:center;gap:10px;margin:14px 0;font-size:12px}.bar-label{font-weight:650}.bar-track{height:10px;background:#edf2f4;border-radius:100px;overflow:hidden}.bar{height:100%;background:var(--teal);border-radius:100px;min-width:0}.bar-value{text-align:right;font-variant-numeric:tabular-nums}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;white-space:nowrap;font-size:13px}th,td{text-align:right;padding:10px 9px;border-bottom:1px solid #edf1f3}th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.03em}th:first-child,td:first-child{text-align:left}tbody tr:last-child td{border-bottom:0}.snapshot-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.snapshot-metric{padding:12px;border-radius:10px;background:#f6f9fa}.snapshot-metric span{font-size:12px;color:var(--muted);display:block}.snapshot-metric strong{font-size:18px;display:block;overflow-wrap:anywhere;margin-top:4px}.small-note{font-size:12px;color:var(--muted);margin-top:12px}.comparison-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px}.comparison-card{border:1px solid var(--line);border-radius:11px;background:#fbfdfe;padding:14px;min-width:0}.comparison-card h3{margin:0 0 8px;font-size:12px;color:var(--muted);font-weight:750}.comparison-delta{font-size:clamp(18px,1.8vw,23px);line-height:1.2;font-weight:850;letter-spacing:-.035em;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.comparison-detail,.comparison-percent{margin-top:7px;font-size:11px;color:var(--muted);line-height:1.45}.comparison-note{margin-top:11px;font-size:11px;color:var(--muted);line-height:1.5}.status{min-height:22px;margin:8px 0;color:var(--muted);font-size:13px}.error{color:#a12d2d}.empty{color:var(--muted);padding:18px 0;font-size:13px}
+@media(max-width:900px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.data-status-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.comparison-grid{grid-template-columns:1fr}.lower{grid-template-columns:1fr}}
 @media(max-width:520px){main{padding:20px 13px 36px}.top{display:block}.source{display:inline-block;margin-top:12px}.data-status-grid{grid-template-columns:1fr}.grid{grid-template-columns:1fr}.snapshot-grid{grid-template-columns:1fr}.bar-row{grid-template-columns:78px 1fr;gap:8px}.bar-value{grid-column:2;text-align:left}.controls{align-items:stretch}.field{flex:1;min-width:130px}.field input{width:100%}}
 </style>
 </head>
@@ -80,6 +80,18 @@ main{max-width:1240px;margin:auto;padding:28px 22px 52px}.top{display:flex;gap:2
 <article class="card"><h2>Acordos — valor de face</h2><div class="big" id="acordosValue">—</div><div class="split"><div>Pago<strong id="acordosPago">—</strong></div><div>Pendente<strong id="acordosPendente">—</strong></div></div></article>
 <article class="card"><h2>Promessas — prometido</h2><div class="big" id="promessasValue">—</div><div class="split"><div>Cumprido<strong id="promessasCumpridas">—</strong></div><div>Em aberto<strong id="promessasAberto">—</strong></div></div><div class="meta" id="promessasQuebradas">Quebrado: —</div></article>
 <article class="card"><h2>Contatos</h2><div class="big" id="contatosValue">—</div><div class="meta">Registros no período</div><div class="split"><div>Únicos por usuário<strong id="contatosUnicos">—</strong></div></div></article>
+</section>
+<section class="section" aria-label="Comparação temporal">
+  <div class="section-head"><div><h2>Comparação com período anterior</h2><p>Movimentações em períodos equivalentes; a posição da carteira fica separada.</p></div><p id="comparisonPeriod">—</p></div>
+  <div class="panel">
+    <div class="empty" id="comparisonUnavailable" style="display:block">Aguardando dados suficientes para comparar períodos.</div>
+    <div class="comparison-grid" id="comparisonGrid" hidden>
+      <article class="comparison-card"><h3>Depósitos</h3><div class="comparison-delta" id="compareDepositosDelta">—</div><div class="comparison-detail" id="compareDepositosDetail">—</div><div class="comparison-percent" id="compareDepositosPercent">—</div></article>
+      <article class="comparison-card"><h3>Acordos · valor de face</h3><div class="comparison-delta" id="compareAcordosDelta">—</div><div class="comparison-detail" id="compareAcordosDetail">—</div><div class="comparison-percent" id="compareAcordosPercent">—</div></article>
+      <article class="comparison-card"><h3>Promessas · valor prometido</h3><div class="comparison-delta" id="comparePromessasDelta">—</div><div class="comparison-detail" id="comparePromessasDetail">—</div><div class="comparison-percent" id="comparePromessasPercent">—</div></article>
+    </div>
+    <p class="comparison-note" id="comparisonNote">A comparação não aparece quando a cobertura registrada dos períodos não é comparável.</p>
+  </div>
 </section>
 <section class="section"><div class="section-head"><h2>Posição mais recente no período</h2><p id="snapshotStamp">—</p></div><div class="panel"><div class="snapshot-grid"><div class="snapshot-metric"><span>Recebido no período</span><strong id="snapRecebido">—</strong></div><div class="snapshot-metric"><span>A vencer</span><strong id="snapVencer">—</strong></div><div class="snapshot-metric"><span>Vencido</span><strong id="snapVencido">—</strong></div></div><p class="small-note">A posição representa uma captura, não uma soma de snapshots históricos.</p></div></section>
 <section class="section"><div class="section-head"><h2>Movimento diário</h2><p>Valores agregados pelas métricas semânticas</p></div><div class="panel" id="dailyChart"><div class="empty">Sem dados no período.</div></div></section>
@@ -114,13 +126,51 @@ function limparPainel(mensagem) {
    "promessasCumpridas","promessasAberto","promessasQuebradas","contatosValue",
    "contatosUnicos","snapRecebido","snapVencer","snapVencido","snapshotStamp",
    "lastImportTime","lastImportDetail","lastImportSource","lastImportPeriod",
-   "periodImportCoverage","periodImportNote"].forEach(id=>$(id).textContent="—");
+   "periodImportCoverage","periodImportNote","comparisonPeriod"].forEach(id=>$(id).textContent="—");
+  $("comparisonGrid").hidden=true;
+  $("comparisonUnavailable").style.display="block";
+  $("comparisonUnavailable").textContent=mensagem;
+  $("comparisonNote").textContent="A comparação foi removida porque a leitura do painel falhou.";
   $("depositosMeta").textContent="Dados indisponíveis para o filtro";
   $("notice").textContent="Não foi possível validar os dados para o período selecionado.";
   $("dailyChart").innerHTML='<div class="empty" style="display:block">'+esc(mensagem)+'</div>';
   $("usersTable").innerHTML='<tr><td colspan="8">'+esc(mensagem)+'</td></tr>';
 }
+function renderComparacao(c) {
+  const grid=$("comparisonGrid"), unavailable=$("comparisonUnavailable");
+  const periodoAtual=c?.periodo_atual, periodoAnterior=c?.periodo_anterior;
+  if(!c || !c.disponivel) {
+    grid.hidden=true;
+    unavailable.style.display="block";
+    unavailable.textContent=c?.motivo || "Comparação indisponível para esta seleção.";
+    $("comparisonPeriod").textContent=periodoAnterior
+      ? periodoAnterior.inicio+" a "+periodoAnterior.fim+" · período anterior calculado"
+      : "Período anterior não disponível";
+    $("comparisonNote").textContent="Não foi calculada variação porque não há evidência suficiente de cobertura comparável.";
+    return;
+  }
+  grid.hidden=false;
+  unavailable.style.display="none";
+  $("comparisonPeriod").textContent=periodoAtual.inicio+" a "+periodoAtual.fim+
+    " vs "+periodoAnterior.inicio+" a "+periodoAnterior.fim;
+  const metrics=[
+    ["depositos","compareDepositosDelta","compareDepositosDetail","compareDepositosPercent"],
+    ["acordos","compareAcordosDelta","compareAcordosDetail","compareAcordosPercent"],
+    ["promessas","comparePromessasDelta","comparePromessasDetail","comparePromessasPercent"]
+  ];
+  for(const [key,deltaId,detailId,percentId] of metrics) {
+    const metric=c.metricas[key];
+    const delta=BigInt(metric.delta_centavos);
+    $(deltaId).textContent=(delta>0n?"+ ":"")+money(metric.delta_centavos);
+    $(detailId).textContent="Atual "+money(metric.atual_centavos)+" · anterior "+money(metric.anterior_centavos);
+    $(percentId).textContent=metric.variacao_percentual===null
+      ? "Variação percentual não calculada: base anterior zero ou negativa."
+      : "Variação: "+metric.variacao_percentual.replace(".",",")+"%";
+  }
+  $("comparisonNote").textContent=c.nota || "";
+}
 function render(d) {
+  renderComparacao(d.comparacao);
   const s=d.resumo; $("sourceChip").textContent=d.modo;
   $("notice").textContent=d.demo ? "DEMONSTRAÇÃO — os valores abaixo vêm de amostra fictícia versionada. Não são dados da empresa." : "BANCO EXISTENTE — conexão somente-leitura. Fonte monetária: " + (d.leitura_centavos ? "INTEGER em centavos, com conciliação completa" : "REAL legado convertido para centavos para apresentação.");
   const a=d.atualizacao||{};
