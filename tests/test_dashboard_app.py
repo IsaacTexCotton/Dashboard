@@ -6,6 +6,7 @@ import importar
 from dashboard_app import (
     DashboardStore,
     ErroDashboard,
+    HTML,
     criar_conexao_demo,
     determinar_modo_leitura,
     montar_dados_painel,
@@ -98,6 +99,44 @@ class TestPainelDemo(unittest.TestCase):
                 validar_leitura_centavos(con)
         finally:
             con.close()
+
+
+    def test_metadata_de_importacao_e_intervalo_nao_inferem_cadencia(self):
+        result = montar_dados_painel(
+            self.con, inicio="2026-10-12", fim="2026-10-14",
+            leitura_centavos=True, demo=False,
+        )
+        meta = result["atualizacao"]
+        self.assertTrue(meta["disponivel"])
+        self.assertEqual(meta["ultima_importacao"]["origem_rotulo"], "Demonstração sintética")
+        self.assertTrue(meta["ultima_importacao"]["quando"])
+        self.assertIsInstance(meta["ultima_importacao"]["linhas"], int)
+        self.assertEqual(meta["importacoes_no_periodo"], 1)
+        self.assertEqual(meta["dias_com_importacao_registrada"], 1)
+        self.assertEqual(meta["dias_calendario_periodo"], 3)
+        self.assertIn("não prova a cadência", meta["nota"])
+
+    def test_demo_nao_apresenta_horario_de_criacao_como_recencia_operacional(self):
+        result = montar_dados_painel(self.con, leitura_centavos=True, demo=True)
+        meta = result["atualizacao"]
+        self.assertTrue(meta["demo"])
+        self.assertFalse(meta["disponivel"])
+        self.assertIsNone(meta["ultima_importacao"])
+        self.assertIn("sem recência operacional", meta["motivo"])
+
+    def test_metadados_ausentes_nao_bloqueiam_leitura_dos_indicadores(self):
+        self.con.execute("DROP TABLE importacoes")
+        result = montar_dados_painel(self.con, leitura_centavos=True, demo=False)
+        self.assertEqual(result["resumo"]["depositos_centavos"], 2_500_000)
+        self.assertFalse(result["atualizacao"]["disponivel"])
+        self.assertIsNone(result["atualizacao"]["ultima_importacao"])
+
+    def test_erro_de_leitura_limpa_resultados_antigos_na_interface_local(self):
+        self.assertIn("function limparPainel(mensagem)", HTML)
+        self.assertIn("limparPainel(error.message", HTML)
+        self.assertIn('"sourceChip","periodLabel","depositosValue"', HTML)
+        self.assertIn("Não foi possível validar os dados para o período selecionado.", HTML)
+        self.assertIn('$("periodImportCoverage").textContent="—"', HTML)
 
 
 if __name__ == "__main__":
