@@ -17,6 +17,31 @@ Para implementação e revisão das Issues [#4](https://github.com/IsaacTexCotto
 
 **Ratificação administrativa/formal não é etapa nem gate deste projeto.** O avanço é determinado por critérios técnicos verificáveis, testes, revisão de código e evidência operacional. Não marcar critérios como concluídos sem evidência, e não confundir testes com dados sintéticos com homologação de produção.
 
+## Prévia visual local
+
+A interface local permite visualizar indicadores, posição de acordos, movimento diário e resumo por usuário. Por padrão, rode primeiro a demonstração com dados fictícios em SQLite na memória; ela não usa credenciais nem chama o CRM:
+
+```bash
+python dashboard_app.py --demo
+```
+
+Abra [http://127.0.0.1:8765](http://127.0.0.1:8765). Encerre com `Ctrl+C`. Para usar um arquivo já existente sem modificá-lo, informe `--db caminho/para/cobranca.db`; o banco deve existir e é aberto em modo somente-leitura. Esse modo não executa migração nem backfill.
+
+Para ver a demonstração com leitura das colunas `INTEGER` já conciliadas (apenas dados sintéticos), use no macOS/Linux:
+
+```bash
+DUPLA_ESCRITA=1 LEITURA_CENTAVOS=1 python dashboard_app.py --demo
+```
+
+No PowerShell do Windows:
+
+```powershell
+$env:DUPLA_ESCRITA="1"
+$env:LEITURA_CENTAVOS="1"
+python dashboard_app.py --demo
+```
+
+A leitura por centavos de um banco existente exige `DUPLA_ESCRITA=1`, fase global `backfill_conciliado`, ausência de linhas fora da fase `conciliado` e igualdade integral REAL→centavos. Caso contrário, a aplicação recusa iniciar nesse modo. O servidor escuta apenas em `127.0.0.1`; não é hospedagem pública.
 ## Requisitos
 
 Python 3.10 ou superior; não há dependências externas para executar ferramentas e testes.

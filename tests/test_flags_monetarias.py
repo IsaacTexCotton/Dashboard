@@ -42,9 +42,16 @@ class TestFlagsMonetarias(unittest.TestCase):
         with self.assertRaisesRegex(ErroValidacao, "exige DUPLA_ESCRITA=1"):
             self._ler({"LEITURA_CENTAVOS": "1"})
 
-    def test_recusa_leitura_ainda_nao_implementada_mesmo_com_dupla_escrita(self):
-        with self.assertRaisesRegex(ErroValidacao, "leitura do dashboard por centavos ainda não está implementada"):
-            self._ler({"DUPLA_ESCRITA": "1", "LEITURA_CENTAVOS": "1"})
+    def test_permite_leitura_quando_ambas_as_flags_estao_ativas(self):
+        self.assertTrue(self._ler({"DUPLA_ESCRITA": "1", "LEITURA_CENTAVOS": "1"}))
+
+    def test_flag_legada_nao_substitui_dupla_escrita_na_leitura(self):
+        with patch.dict(os.environ, {
+            "DASHBOARD_MONETARIO_DUAL_WRITE": "1",
+            "LEITURA_CENTAVOS": "1",
+        }, clear=True):
+            with self.assertRaisesRegex(ErroValidacao, "exige DUPLA_ESCRITA=1"):
+                importar._modo_dupla_escrita()
 
     def test_main_recusa_flag_antes_de_abrir_arquivo_ou_banco(self):
         with patch.dict(os.environ, {"LEITURA_CENTAVOS": "1"}, clear=True):
