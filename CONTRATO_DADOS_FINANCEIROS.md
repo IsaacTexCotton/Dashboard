@@ -176,3 +176,44 @@ Fatos diários (`fatos`) e snapshots (`acordos_posicao`) são conjuntos diferent
 - Manter a evidência do payload sanitizado fora do Git e repetir comandos se o contrato ou os scripts mudarem. Não consultar o CRM para gerar evidências.
 
 A validação automatizada deste payload sanitizado está concluída. A igualdade dos acordos e a precisão monetária foram decididas em princípio, mas seus requisitos ainda não estão todos prontos para bloqueio/alteração de esquema; as pendências acima continuam sendo gates antes de produção.
+
+
+---
+
+## Adendo da Issue #5 — esquema por métrica (minuta pendente de ratificação)
+
+**Status:** especificação proposta; não autoriza DDL, migração, backfill ou ativação operacional. As regras de sinal abaixo permanecem provisórias até validação com extração do CRM sanitizada e autorizada. Este adendo prevalece sobre formulações antigas incompatíveis com a nomenclatura semântica.
+
+### Contrato das colunas em centavos
+
+Todas as colunas abaixo são `INTEGER`, representam centavos de real (BRL), sem escala adicional, e mantêm as colunas históricas `REAL` inalteradas.
+
+| Tabela | Coluna-alvo | Origem JSON | Tipo aplicável | Nulabilidade | Sinal |
+|---|---|---|---|---|---|
+| `fatos` | `deposito_valor_centavos` | `depositos.porUsuario[].valor` | `deposito` | `NULL` se não aplicável; em `legado`, também pode indicar backfill pendente | Negativo permitido (estorno) |
+| `fatos` | `acordo_valor_centavos` | `acordos.porUsuario[].valor` | `acordo` | `NULL` se não aplicável; em `legado`, também pode indicar backfill pendente | `>= 0` |
+| `fatos` | `acordo_pago_centavos` | `acordos.porUsuario[].pagos` | `acordo` | `NULL` se não aplicável; em `legado`, também pode indicar backfill pendente | `>= 0` |
+| `fatos` | `acordo_pendente_centavos` | `acordos.porUsuario[].pendente` | `acordo` | `NULL` se não aplicável; em `legado`, também pode indicar backfill pendente | Negativo permitido (crédito) |
+| `fatos` | `promessa_prometido_centavos` | `promessas.porUsuario[].prometido` | `promessa` | `NULL` se não aplicável; em `legado`, também pode indicar backfill pendente | `>= 0` |
+| `fatos` | `promessa_cumprido_centavos` | `promessas.porUsuario[].cumprido` | `promessa` | `NULL` se não aplicável; em `legado`, também pode indicar backfill pendente | `>= 0` |
+| `fatos` | `promessa_em_aberto_centavos` | `promessas.porUsuario[].emAberto` | `promessa` | `NULL` se não aplicável; em `legado`, também pode indicar backfill pendente | Negativo permitido (crédito) |
+| `fatos` | `promessa_quebrado_centavos` | `promessas.porUsuario[].quebrado` | `promessa` | `NULL` se não aplicável; em `legado`, também pode indicar backfill pendente | `>= 0` |
+| `acordos_posicao` | `recebido_periodo_centavos` | `valoresAcordo.valorRecebidoPeriodo` | Todos os snapshots | Só pode ser `NULL` transitoriamente na fase `legado`, enquanto aguarda backfill | Negativo permitido (líquido de estornos) |
+| `acordos_posicao` | `a_vencer_centavos` | `valoresAcordo.valorAVencer` | Todos os snapshots | Só pode ser `NULL` transitoriamente na fase `legado`, enquanto aguarda backfill | `>= 0` |
+| `acordos_posicao` | `vencido_centavos` | `valoresAcordo.valorVencido` | Todos os snapshots | Só pode ser `NULL` transitoriamente na fase `legado`, enquanto aguarda backfill | `>= 0` |
+
+### Fase, NULL e zero
+
+A coluna proposta `monetario_fase` é `TEXT` com `CHECK` restrito a `legado`, `dual` e `conciliado`; o padrão aditivo é `legado`. Registros históricos devem receber esse padrão. Em `fatos`, `NULL` numa métrica não aplicável é permanente e legítimo; `0` significa zero monetário real. Para `tipo = 'contato'`, as oito métricas monetárias devem ser sempre `NULL`. Em `acordos_posicao`, as três métricas se aplicam a todo snapshot; `NULL` só é tolerado como pendência transitória de linha `legado`.
+
+Para linhas `dual` ou `conciliado`, toda métrica aplicável deve estar preenchida. Durante a transição, o importador é responsável pela obrigatoriedade de novas gravações e o diagnóstico separa pendência histórica `legado` de erro nas fases `dual`/`conciliado`. Triggers de obrigatoriedade só devem ser instalados/exercitados depois que o backfill estiver conciliado e aprovado.
+
+### Restrições propostas
+
+Cada coluna recebe `CHECK (col IS NULL OR typeof(col) = 'integer')`. As métricas não negativas recebem também `CHECK (col IS NULL OR col >= 0)`. Nas oito colunas de `fatos`, acrescenta-se a condição de aplicabilidade `CHECK (col IS NULL OR tipo = 'tipo_aplicavel')`. Essas constraints não impõem `valor = pagos + pendente` nem a relação equivalente das promessas; essas relações pertencem ao gate de reconciliação faseado definido em outra seção.
+
+A afinidade `INTEGER` do SQLite pode converter o texto numérico `'123'` em inteiro antes de avaliar `typeof(col)`. Portanto, o CHECK não prova o tipo lexical do token JSON original. O parser precisa validar o token antes da coerção; o protótipo documentado na Issue #5 demonstra esse limite.
+
+### Limite de implementação
+
+Esta seção é somente a especificação-alvo. Não modifica nem autoriza alterar o importador, aplicar migração, iniciar backfill, executar uma importação real ou ativar flags. A implementação funcional permanece subordinada à ratificação registrada na Issue #5 e aos gates operacionais da Issue #17.
