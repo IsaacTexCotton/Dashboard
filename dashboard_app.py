@@ -13,7 +13,7 @@ import os
 import sqlite3
 import sys
 from contextlib import contextmanager
-from datetime import date
+from datetime import date, timedelta
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from typing import Any, Iterator
@@ -58,9 +58,9 @@ HTML = r"""<!doctype html>
 main{max-width:1240px;margin:auto;padding:28px 22px 52px}.top{display:flex;gap:20px;align-items:flex-start;justify-content:space-between;margin-bottom:24px}.eyebrow{font-size:12px;letter-spacing:.13em;text-transform:uppercase;font-weight:750;color:var(--teal)}h1{font-size:clamp(28px,4vw,38px);line-height:1.15;letter-spacing:-.03em;margin:5px 0 7px}.sub{color:var(--muted);margin:0}.source{padding:8px 12px;border:1px solid var(--line);border-radius:999px;background:#fff;font-size:12px;font-weight:700;white-space:nowrap}
 .notice{border:1px solid #b9dfe1;background:#eef9f9;border-radius:12px;padding:12px 15px;margin:18px 0 22px;font-size:13px;color:#204c55}
 .controls{display:flex;align-items:end;gap:12px;flex-wrap:wrap;background:var(--card);padding:16px;border:1px solid var(--line);border-radius:14px;margin-bottom:22px}.field{display:flex;flex-direction:column;gap:5px}.field label{font-size:12px;color:var(--muted);font-weight:700}.field input{font:inherit;color:var(--ink);border:1px solid #cbd8dd;border-radius:8px;padding:9px 10px;background:white}.btn{border:0;background:var(--navy);color:white;font-weight:700;font:inherit;border-radius:8px;padding:10px 16px;cursor:pointer}.btn:disabled{opacity:.5;cursor:wait}
-.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:14px}.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;min-width:0;box-shadow:0 1px 2px #163d4d08}.card h2{font-size:13px;color:var(--muted);font-weight:700;margin:0 0 10px}.big{font-weight:780;font-size:clamp(20px,2vw,27px);letter-spacing:-.035em;overflow-wrap:anywhere}.meta{font-size:12px;color:var(--muted);margin-top:6px}.split{display:flex;justify-content:space-between;gap:14px;margin-top:12px;padding-top:10px;border-top:1px solid #edf1f3;font-size:13px}.split strong{display:block;color:var(--ink);font-size:14px}.section{margin-top:22px}.section-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin:0 0 10px}.section h2{font-size:18px;letter-spacing:-.02em;margin:0}.section-head p{color:var(--muted);font-size:12px;margin:0}.lower{display:grid;grid-template-columns:1.15fr 1fr;gap:14px}.panel{background:white;border:1px solid var(--line);border-radius:14px;padding:18px;min-width:0}.bar-row{display:grid;grid-template-columns:100px 1fr minmax(100px,auto);align-items:center;gap:10px;margin:14px 0;font-size:12px}.bar-label{font-weight:650}.bar-track{height:10px;background:#edf2f4;border-radius:100px;overflow:hidden}.bar{height:100%;background:var(--teal);border-radius:100px;min-width:0}.bar-value{text-align:right;font-variant-numeric:tabular-nums}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;white-space:nowrap;font-size:13px}th,td{text-align:right;padding:10px 9px;border-bottom:1px solid #edf1f3}th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.03em}th:first-child,td:first-child{text-align:left}tbody tr:last-child td{border-bottom:0}.snapshot-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.snapshot-metric{padding:12px;border-radius:10px;background:#f6f9fa}.snapshot-metric span{font-size:12px;color:var(--muted);display:block}.snapshot-metric strong{font-size:18px;display:block;overflow-wrap:anywhere;margin-top:4px}.small-note{font-size:12px;color:var(--muted);margin-top:12px}.status{min-height:22px;margin:8px 0;color:var(--muted);font-size:13px}.error{color:#a12d2d}.empty{color:var(--muted);padding:18px 0;font-size:13px}
-@media(max-width:900px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.lower{grid-template-columns:1fr}}
-@media(max-width:520px){main{padding:20px 13px 36px}.top{display:block}.source{display:inline-block;margin-top:12px}.grid{grid-template-columns:1fr}.snapshot-grid{grid-template-columns:1fr}.bar-row{grid-template-columns:78px 1fr;gap:8px}.bar-value{grid-column:2;text-align:left}.controls{align-items:stretch}.field{flex:1;min-width:130px}.field input{width:100%}}
+.data-status-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0 0 18px}.status-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:13px 15px;min-width:0}.status-card span{display:block;font-size:11px;color:var(--muted);font-weight:700}.status-card strong{display:block;font-size:14px;color:var(--ink);margin-top:4px;overflow-wrap:anywhere}.status-card small{display:block;color:var(--muted);font-size:10px;line-height:1.45;margin-top:5px}.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:14px}.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;min-width:0;box-shadow:0 1px 2px #163d4d08}.card h2{font-size:13px;color:var(--muted);font-weight:700;margin:0 0 10px}.big{font-weight:780;font-size:clamp(20px,2vw,27px);letter-spacing:-.035em;overflow-wrap:anywhere}.meta{font-size:12px;color:var(--muted);margin-top:6px}.split{display:flex;justify-content:space-between;gap:14px;margin-top:12px;padding-top:10px;border-top:1px solid #edf1f3;font-size:13px}.split strong{display:block;color:var(--ink);font-size:14px}.section{margin-top:22px}.section-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin:0 0 10px}.section h2{font-size:18px;letter-spacing:-.02em;margin:0}.section-head p{color:var(--muted);font-size:12px;margin:0}.lower{display:grid;grid-template-columns:1.15fr 1fr;gap:14px}.panel{background:white;border:1px solid var(--line);border-radius:14px;padding:18px;min-width:0}.bar-row{display:grid;grid-template-columns:100px 1fr minmax(100px,auto);align-items:center;gap:10px;margin:14px 0;font-size:12px}.bar-label{font-weight:650}.bar-track{height:10px;background:#edf2f4;border-radius:100px;overflow:hidden}.bar{height:100%;background:var(--teal);border-radius:100px;min-width:0}.bar-value{text-align:right;font-variant-numeric:tabular-nums}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;white-space:nowrap;font-size:13px}th,td{text-align:right;padding:10px 9px;border-bottom:1px solid #edf1f3}th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.03em}th:first-child,td:first-child{text-align:left}tbody tr:last-child td{border-bottom:0}.snapshot-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.snapshot-metric{padding:12px;border-radius:10px;background:#f6f9fa}.snapshot-metric span{font-size:12px;color:var(--muted);display:block}.snapshot-metric strong{font-size:18px;display:block;overflow-wrap:anywhere;margin-top:4px}.small-note{font-size:12px;color:var(--muted);margin-top:12px}.status{min-height:22px;margin:8px 0;color:var(--muted);font-size:13px}.error{color:#a12d2d}.empty{color:var(--muted);padding:18px 0;font-size:13px}
+@media(max-width:900px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.data-status-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.lower{grid-template-columns:1fr}}
+@media(max-width:520px){main{padding:20px 13px 36px}.top{display:block}.source{display:inline-block;margin-top:12px}.data-status-grid{grid-template-columns:1fr}.grid{grid-template-columns:1fr}.snapshot-grid{grid-template-columns:1fr}.bar-row{grid-template-columns:78px 1fr;gap:8px}.bar-value{grid-column:2;text-align:left}.controls{align-items:stretch}.field{flex:1;min-width:130px}.field input{width:100%}}
 </style>
 </head>
 <body>
@@ -69,6 +69,11 @@ main{max-width:1240px;margin:auto;padding:28px 22px 52px}.top{display:flex;gap:2
 <div class="notice" id="notice">Carregando o painel local…</div>
 <form class="controls" id="filters"><div class="field"><label for="inicio">Data inicial</label><input type="date" id="inicio" required></div><div class="field"><label for="fim">Data final</label><input type="date" id="fim" required></div><button class="btn" id="loadBtn" type="submit">Atualizar painel</button></form>
 <div class="status" id="status" role="status"></div>
+<section class="data-status-grid" aria-label="Atualização e registros de importação">
+  <article class="status-card"><span>Última importação registrada</span><strong id="lastImportTime">—</strong><small id="lastImportDetail">Metadados ainda não carregados.</small></article>
+  <article class="status-card"><span>Origem e período do último lote</span><strong id="lastImportSource">—</strong><small id="lastImportPeriod">—</small></article>
+  <article class="status-card"><span>Datas com importação no filtro</span><strong id="periodImportCoverage">—</strong><small id="periodImportNote">A contagem não substitui um calendário esperado de carga.</small></article>
+</section>
 <section class="grid">
 <article class="card"><h2>Depósitos</h2><div class="big" id="depositosValue">—</div><div class="meta" id="depositosMeta">Valor no período</div></article>
 <article class="card"><h2>Acordos — valor de face</h2><div class="big" id="acordosValue">—</div><div class="split"><div>Pago<strong id="acordosPago">—</strong></div><div>Pendente<strong id="acordosPendente">—</strong></div></div></article>
@@ -100,12 +105,53 @@ async function load(inicio, fim) {
     if(!$("inicio").value)$("inicio").value=data.periodo.inicio;
     if(!$("fim").value)$("fim").value=data.periodo.fim;
     render(data); $("status").textContent = "Dados atualizados.";
-  } catch(error) { $("status").className = "status error"; $("status").textContent = error.message || "Erro ao carregar o painel."; }
+  } catch(error) { limparPainel(error.message || "Erro ao carregar o painel."); $("status").className = "status error"; $("status").textContent = error.message || "Erro ao carregar o painel."; }
   finally { $("loadBtn").disabled = false; }
+}
+function limparPainel(mensagem) {
+  ["depositosValue","acordosValue","acordosPago","acordosPendente","promessasValue",
+   "promessasCumpridas","promessasAberto","promessasQuebradas","contatosValue",
+   "contatosUnicos","snapRecebido","snapVencer","snapVencido","snapshotStamp",
+   "lastImportTime","lastImportDetail","lastImportSource","lastImportPeriod",
+   "periodImportCoverage","periodImportNote"].forEach(id=>$(id).textContent="—");
+  $("depositosMeta").textContent="Dados indisponíveis para o filtro";
+  $("notice").textContent="Não foi possível validar os dados para o período selecionado.";
+  $("dailyChart").innerHTML='<div class="empty" style="display:block">'+esc(mensagem)+'</div>';
+  $("usersTable").innerHTML='<tr><td colspan="8">'+esc(mensagem)+'</td></tr>';
 }
 function render(d) {
   const s=d.resumo; $("sourceChip").textContent=d.modo;
   $("notice").textContent=d.demo ? "DEMONSTRAÇÃO — os valores abaixo vêm de amostra fictícia versionada. Não são dados da empresa." : "BANCO EXISTENTE — conexão somente-leitura. Fonte monetária: " + (d.leitura_centavos ? "INTEGER em centavos, com conciliação completa" : "REAL legado convertido para centavos para apresentação.");
+  const a=d.atualizacao||{};
+  if(d.demo) {
+    $("lastImportTime").textContent="Não aplicável — demonstração";
+    $("lastImportDetail").textContent="Amostra sintética em memória; não representa uma atualização operacional.";
+    $("lastImportSource").textContent="Demonstração sintética";
+    $("lastImportPeriod").textContent="Dados fictícios versionados";
+    $("periodImportCoverage").textContent="Não avaliado";
+    $("periodImportNote").textContent="A demonstração não mede a cobertura operacional.";
+  } else if(a.disponivel) {
+    const u=a.ultima_importacao;
+    $("lastImportTime").textContent=u ? (u.quando||"Registro sem timestamp") : "Nenhuma importação registrada";
+    $("lastImportDetail").textContent=u
+      ? ((u.linhas===null||u.linhas===undefined?"":count(u.linhas)+" fatos no lote. ")+"O fuso do timestamp não é explicitado pelo campo.")
+      : "O banco não contém registro de importação.";
+    $("lastImportSource").textContent=u ? u.origem_rotulo : "—";
+    $("lastImportPeriod").textContent=u
+      ? "Período do último lote: "+(u.inicio||"—")+" a "+(u.fim||"—")
+      : "Nenhum lote registrado";
+    const importDays=a.dias_com_importacao_registrada;
+    $("periodImportCoverage").textContent=(importDays===null||importDays===undefined)
+      ? "—" : count(importDays)+" de "+count(a.dias_calendario_periodo)+" datas";
+    $("periodImportNote").textContent="Registro histórico de importações; não confirma a cadência de carga esperada.";
+  } else {
+    $("lastImportTime").textContent="Indisponível";
+    $("lastImportDetail").textContent=a.motivo||"Metadados de importação não disponíveis.";
+    $("lastImportSource").textContent="—";
+    $("lastImportPeriod").textContent="—";
+    $("periodImportCoverage").textContent="—";
+    $("periodImportNote").textContent="Sem metadados não é possível estimar recência ou cobertura.";
+  }
   $("depositosValue").textContent=money(s.depositos_centavos); $("depositosMeta").textContent=count(s.depositos_quantidade)+" depósitos registrados";
   $("acordosValue").textContent=money(s.acordos_centavos); $("acordosPago").textContent=money(s.acordos_pagos_centavos); $("acordosPendente").textContent=money(s.acordos_pendentes_centavos);
   $("promessasValue").textContent=money(s.promessas_centavos); $("promessasCumpridas").textContent=money(s.promessas_cumpridas_centavos); $("promessasAberto").textContent=money(s.promessas_em_aberto_centavos); $("promessasQuebradas").textContent="Quebrado: "+money(s.promessas_quebradas_centavos);
@@ -284,6 +330,106 @@ def _empty_day(day: str) -> dict[str, Any]:
     }
 
 
+
+def _atualizacao_importacoes(
+    con: sqlite3.Connection,
+    inicio: str,
+    fim: str,
+    *,
+    demo: bool,
+) -> dict[str, Any]:
+    """Resume metadados locais de importação sem inferir a cadência esperada.
+
+    Não calcula idade relativa nem presume fuso horário. A tabela importacoes
+    registra lotes concluídos; ausência dessa tabela não deve impedir leitura.
+    """
+    dias_periodo = (date.fromisoformat(fim) - date.fromisoformat(inicio)).days + 1
+    indisponivel: dict[str, Any] = {
+        "disponivel": False,
+        "demo": demo,
+        "ultima_importacao": None,
+        "importacoes_no_periodo": None,
+        "dias_com_importacao_registrada": None,
+        "dias_calendario_periodo": dias_periodo,
+    }
+    if demo:
+        indisponivel["motivo"] = "Amostra sintética em memória; sem recência operacional."
+        return indisponivel
+
+    colunas = _columns(con, "importacoes")
+    obrigatorias = {"id", "quando", "origem", "inicio", "fim", "linhas"}
+    if not obrigatorias.issubset(colunas):
+        indisponivel["motivo"] = "Tabela importacoes ou colunas esperadas indisponíveis."
+        return indisponivel
+
+    try:
+        ultima = con.execute(
+            "SELECT quando, origem, inicio, fim, linhas "
+            "FROM importacoes ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+        no_periodo = con.execute(
+            "SELECT inicio, fim FROM importacoes "
+            "WHERE fim >= ? AND inicio <= ? ORDER BY inicio, fim",
+            (inicio, fim),
+        ).fetchall()
+    except sqlite3.Error:
+        indisponivel["motivo"] = "Não foi possível consultar metadados de importação."
+        return indisponivel
+
+    ultimo_lote = None
+    if ultima is not None:
+        origem_raw = str(ultima["origem"] or "").strip().lower()
+        origem_rotulo = {
+            "api": "API/CRM",
+            "arquivo": "Arquivo local",
+            "demo-sintetica": "Demonstração sintética",
+        }.get(origem_raw, "Outra origem registrada" if origem_raw else "Origem não registrada")
+        ultimo_lote = {
+            "quando": str(ultima["quando"]) if ultima["quando"] is not None else None,
+            "origem_rotulo": origem_rotulo,
+            "inicio": str(ultima["inicio"]) if ultima["inicio"] is not None else None,
+            "fim": str(ultima["fim"]) if ultima["fim"] is not None else None,
+            "linhas": int(ultima["linhas"]) if isinstance(ultima["linhas"], int) else None,
+        }
+
+    # Conta a união dos intervalos de importação que interceptam o filtro.
+    # Não percorre dia a dia, evitando custo proporcional a intervalos enormes.
+    inicio_periodo = date.fromisoformat(inicio)
+    fim_periodo = date.fromisoformat(fim)
+    intervalos: list[tuple[date, date]] = []
+    for row in no_periodo:
+        try:
+            primeiro = date.fromisoformat(str(row["inicio"]))
+            ultimo_dia = date.fromisoformat(str(row["fim"]))
+        except (TypeError, ValueError):
+            continue
+        if primeiro.isoformat() != str(row["inicio"]) or ultimo_dia.isoformat() != str(row["fim"]):
+            continue
+        primeiro = max(primeiro, inicio_periodo)
+        ultimo_dia = min(ultimo_dia, fim_periodo)
+        if primeiro <= ultimo_dia:
+            intervalos.append((primeiro, ultimo_dia))
+
+    intervalos.sort()
+    unidos: list[tuple[date, date]] = []
+    for primeiro, ultimo_dia in intervalos:
+        if unidos and primeiro <= unidos[-1][1] + timedelta(days=1):
+            anterior_inicio, anterior_fim = unidos[-1]
+            unidos[-1] = (anterior_inicio, max(anterior_fim, ultimo_dia))
+        else:
+            unidos.append((primeiro, ultimo_dia))
+    dias_com_importacao = sum((b - a).days + 1 for a, b in unidos)
+
+    return {
+        "disponivel": True,
+        "demo": False,
+        "ultima_importacao": ultimo_lote,
+        "importacoes_no_periodo": len(no_periodo),
+        "dias_com_importacao_registrada": dias_com_importacao,
+        "dias_calendario_periodo": dias_periodo,
+        "nota": "Contagem de registros existentes; não prova a cadência de carga esperada.",
+    }
+
 def montar_dados_painel(
     con: sqlite3.Connection,
     *,
@@ -404,6 +550,7 @@ def montar_dados_painel(
         "modo": "INTEGER · centavos conciliados" if leitura_centavos else "REAL legado · leitura",
         "periodo": {"inicio": inicio, "fim": fim},
         "limites": {"inicio": data_min, "fim": data_max},
+        "atualizacao": _atualizacao_importacoes(con, inicio, fim, demo=demo),
         "resumo": resumo,
         "snapshot": snapshot,
         "diario": [by_day[d] for d in sorted(by_day)],
