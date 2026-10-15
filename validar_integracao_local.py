@@ -14,7 +14,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import importar
+
 ROOT = Path(__file__).resolve().parent
+GRUPOS_TIPOS = {
+    "depositos": "deposito",
+    "acordos": "acordo",
+    "promessas": "promessa",
+    "contatos": "contato",
+}
+TIPOS = tuple(GRUPOS_TIPOS.values())
 
 
 def executar(nome: str, args: list[str], env: dict[str, str], timeout: int = 60) -> dict[str, Any]:
@@ -39,6 +48,40 @@ def consultar_banco(path: Path) -> dict[str, Any]:
         tipos = dict(con.execute("SELECT tipo, COUNT(*) FROM fatos GROUP BY tipo").fetchall())
     return {"fatos": fatos, "dias_com_fatos": dias, "registros_log_importacao": logs,
             "snapshots_acordo": snapshots, "fatos_por_tipo": tipos}
+
+
+def contar_origem_e_normalizados(payload: dict[str, Any], fatos: list[tuple]) -> dict[str, Any]:
+    """Conta grupos da origem e fatos normalizados, sem incluir valores do payload."""
+    data = payload.get("data")
+    if not isinstance(data, dict):
+        raise ValueError("data: estrutura ausente ou inválida")
+    por_grupo: dict[str, int] = {}
+    por_tipo: dict[str, int] = {}
+    for grupo, tipo in GRUPOS_TIPOS.items():
+        objeto = data.get(grupo)
+        if not isinstance(objeto, dict) or not isinstance(objeto.get("porUsuario"), list):
+            raise ValueError(f"data.{grupo}.porUsuario: lista ausente ou inválida")
+        por_grupo[grupo] = len(objeto["porUsuario"])
+        por_tipo[tipo] = por_grupo[grupo]
+    normalizados = {tipo: 0 for tipo in TIPOS}
+    for fato in fatos:
+        tipo = fato[2]
+        if tipo not in normalizados:
+            raise ValueError(f"tipo normalizado desconhecido: {tipo!r}")
+        normalizados[tipo] += 1
+    return {
+        "origem_por_grupo": por_grupo,
+        "origem_por_tipo": por_tipo,
+        "normalizados_por_tipo": normalizados,
+        "itens_origem": sum(por_grupo.values()),
+        "fatos_normalizados": len(fatos),
+        "origem_confere_normalizados": por_tipo == normalizados,
+    }
+
+
+def contagens_persistidas(state: dict[str, Any]) -> dict[str, int]:
+    tipos_observados = state.get("fatos_por_tipo", {})
+    return {tipo: int(tipos_observados.get(tipo, 0)) for tipo in TIPOS}
 
 
 def finalizar(report: dict[str, Any], caminho: str | None, codigo: int) -> int:
@@ -78,6 +121,31 @@ def main(argv: list[str] | None = None) -> int:
         return finalizar(report, args.relatorio, 2)
     report["etapas"].append({"etapa": "arquivo_local", "status": "OK",
                              "detalhe": "Arquivo legível e JSON sintaticamente válido"})
+
+    try:
+        payload = importar._carregar_arquivo(str(entrada))
+        data = payload.get("data") if isinstance(payload, dict) else None
+        if not isinstance(data, dict):
+            raise ValueError("resposta.data: estrutura ausente ou inválida")
+        _, fatos_normalizados, _ = importar.normalizar(payload, data.get("inicio"))
+        contagem_fatos = contar_origem_e_normalizados(payload, fatos_normalizados)
+    except (OSError, RuntimeError, ValueError, TypeError, KeyError, AttributeError) as exc:
+        report["etapas"].append({
+            "etapa": "contagem_origem_normalizada", "status": "FAIL",
+            "detalhe": exc.__class__.__name__,
+        })
+        return finalizar(report, args.relatorio, 2)
+
+    report["contagem_fatos"] = contagem_fatos
+    origem_ok = contagem_fatos["origem_confere_normalizados"]
+    report["etapas"].append({
+        "etapa": "contagem_origem_normalizada",
+        "status": "OK" if origem_ok else "FAIL",
+        "detalhe": "Contagens por grupo confrontadas com os fatos normalizados",
+    })
+    if not origem_ok:
+        report["status"] = "FAIL"
+        return finalizar(report, args.relatorio, 1)
 
     with tempfile.TemporaryDirectory(prefix="caixa-futuro-integracao-") as temp_dir:
         db = Path(temp_dir) / "integracao.db"
@@ -120,6 +188,30 @@ def main(argv: list[str] | None = None) -> int:
                                      "detalhe": exc.__class__.__name__})
             return finalizar(report, args.relatorio, 1)
 
+        origem_por_tipo = contagem_fatos["origem_por_tipo"]
+        normalizados_por_tipo = contagem_fatos["normalizados_por_tipo"]
+        persistidos_1 = contagens_persistidas(state_1)
+        persistencia_1_ok = (
+            origem_por_tipo == normalizados_por_tipo == persistidos_1
+            and state_1["fatos"] == contagem_fatos["fatos_normalizados"]
+        )
+        report["contagem_fatos"]["persistidos_primeira_importacao_por_tipo"] = persistidos_1
+        report["contagem_fatos"]["fatos_persistidos_primeira_importacao"] = state_1["fatos"]
+        report["contagem_fatos"]["primeira_importacao_confere"] = persistencia_1_ok
+        report["etapas"].append({
+            "etapa": "conciliacao_contagem_primeira_importacao",
+            "status": "OK" if persistencia_1_ok else "FAIL",
+            "detalhe": "Origem, normalização e SQLite temporário reconciliados por tipo",
+            "contagens_por_tipo": {
+                "origem": origem_por_tipo,
+                "normalizados": normalizados_por_tipo,
+                "persistidos": persistidos_1,
+            },
+        })
+        if not persistencia_1_ok:
+            report["status"] = "FAIL"
+            return finalizar(report, args.relatorio, 1)
+
         second = executar("importar.py", ["--arquivo", str(entrada)], env)
         second_ok = second["codigo_saida"] == 0
         report["etapas"].append({"etapa": "reimportacao_mesmo_dia",
@@ -134,12 +226,34 @@ def main(argv: list[str] | None = None) -> int:
                                      "detalhe": exc.__class__.__name__})
             return finalizar(report, args.relatorio, 1)
 
-        idempotente = (state_1["fatos"] == state_2["fatos"]
+        persistidos_2 = contagens_persistidas(state_2)
+        persistencia_2_ok = (
+            origem_por_tipo == normalizados_por_tipo == persistidos_2
+            and state_2["fatos"] == contagem_fatos["fatos_normalizados"]
+        )
+        report["contagem_fatos"]["persistidos_apos_reimportacao_por_tipo"] = persistidos_2
+        report["contagem_fatos"]["fatos_persistidos_apos_reimportacao"] = state_2["fatos"]
+        report["contagem_fatos"]["reimportacao_confere"] = persistencia_2_ok
+        report["etapas"].append({
+            "etapa": "conciliacao_contagem_reimportacao",
+            "status": "OK" if persistencia_2_ok else "FAIL",
+            "detalhe": "Contagem de origem, normalização e SQLite permanece igual após reimportação",
+            "contagens_por_tipo": {
+                "origem": origem_por_tipo,
+                "normalizados": normalizados_por_tipo,
+                "persistidos": persistidos_2,
+            },
+        })
+        idempotente = (
+            persistencia_1_ok and persistencia_2_ok
+            and state_1["fatos"] == state_2["fatos"]
             and state_1["dias_com_fatos"] == state_2["dias_com_fatos"]
-            and state_2["registros_log_importacao"] == state_1["registros_log_importacao"] + 1)
+            and state_1["fatos_por_tipo"] == state_2["fatos_por_tipo"]
+            and state_2["registros_log_importacao"] == state_1["registros_log_importacao"] + 1
+        )
         report["etapas"].append({"etapa": "idempotencia_fatos",
             "status": "OK" if idempotente else "FAIL",
-            "detalhe": "Reimportação mantém fatos e registra nova execução",
+            "detalhe": "Reimportação mantém totais por tipo e registra nova execução",
             "antes": state_1, "depois": state_2})
         if not idempotente:
             return finalizar(report, args.relatorio, 1)
