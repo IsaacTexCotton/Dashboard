@@ -2,6 +2,9 @@
 import hashlib
 import sqlite3
 import unittest
+from unittest.mock import patch
+
+import migrar_schema_monetario as schema_monetario
 
 from migrar_schema_monetario import (
     ErroMigracaoMonetaria,
@@ -352,6 +355,81 @@ class TestMigracaoSchemaMonetario(unittest.TestCase):
             con.rollback()
             with self.assertRaises(ErroMigracaoMonetaria):
                 definir_fase_migracao(con, "backfill_em_andamento")
+        finally:
+            con.close()
+
+    def test_conciliacao_e_transicao_ocorrem_dentro_de_begin_immediate(self):
+        con = banco_legado()
+        try:
+            migrar_schema_monetario(con)
+            definir_fase_migracao(con, "backfill_em_andamento")
+            con.execute(
+                "UPDATE fatos SET deposito_valor_centavos=1234 WHERE tipo='deposito'"
+            )
+            con.execute(
+                "INSERT INTO acordos_posicao(capturado_em,data,recebido_periodo,a_vencer,vencido,"
+                "recebido_periodo_centavos,a_vencer_centavos,vencido_centavos) "
+                "VALUES ('ts_lock','2026-10-14',-10.5,200.0,15.25,-1050,20000,1525)"
+            )
+            con.commit()
+
+            original = schema_monetario.verificar_conciliacao_monetaria
+            chamadas = []
+
+            def verificar_com_transacao(conexao):
+                chamadas.append(conexao.in_transaction)
+                self.assertTrue(conexao.in_transaction, "verificação fora de transação")
+                return original(conexao)
+
+            with patch.object(
+                schema_monetario,
+                "verificar_conciliacao_monetaria",
+                side_effect=verificar_com_transacao,
+            ):
+                definir_fase_migracao(con, "backfill_conciliado")
+
+            self.assertEqual(chamadas, [True])
+            self.assertFalse(con.in_transaction)
+            self.assertEqual(
+                con.execute(f"SELECT fase FROM {TABELA_ESTADO} WHERE id=1").fetchone()[0],
+                "backfill_conciliado",
+            )
+            self.assertEqual(
+                {row[0] for row in con.execute("SELECT DISTINCT monetario_fase FROM fatos")},
+                {"conciliado"},
+            )
+            self.assertEqual(
+                {row[0] for row in con.execute("SELECT DISTINCT monetario_fase FROM acordos_posicao")},
+                {"conciliado"},
+            )
+        finally:
+            con.close()
+
+    def test_conciliacao_divergente_nao_altera_nenhuma_fase(self):
+        con = banco_legado()
+        try:
+            migrar_schema_monetario(con)
+            definir_fase_migracao(con, "backfill_em_andamento")
+            con.execute(
+                "UPDATE fatos SET deposito_valor_centavos=1235 WHERE tipo='deposito'"
+            )
+            con.commit()
+
+            with self.assertRaisesRegex(
+                ErroMigracaoMonetaria,
+                "conciliação incompleta ou divergente",
+            ):
+                definir_fase_migracao(con, "backfill_conciliado")
+
+            self.assertFalse(con.in_transaction)
+            self.assertEqual(
+                con.execute(f"SELECT fase FROM {TABELA_ESTADO} WHERE id=1").fetchone()[0],
+                "backfill_em_andamento",
+            )
+            self.assertEqual(
+                con.execute("SELECT monetario_fase FROM fatos WHERE usuario='ana'").fetchone()[0],
+                "legado",
+            )
         finally:
             con.close()
 
