@@ -364,7 +364,7 @@ class TestMigracaoSchemaMonetario(unittest.TestCase):
             migrar_schema_monetario(con)
             definir_fase_migracao(con, "backfill_em_andamento")
             con.execute(
-                "UPDATE fatos SET deposito_valor_centavos=1235 WHERE tipo='deposito'"
+                "UPDATE fatos SET deposito_valor_centavos=1234 WHERE tipo='deposito'"
             )
             con.execute(
                 "INSERT INTO acordos_posicao(capturado_em,data,recebido_periodo,a_vencer,vencido,"
@@ -411,7 +411,7 @@ class TestMigracaoSchemaMonetario(unittest.TestCase):
             migrar_schema_monetario(con)
             definir_fase_migracao(con, "backfill_em_andamento")
             con.execute(
-                "UPDATE fatos SET deposito_valor_centavos=1234 WHERE tipo='deposito'"
+                "UPDATE fatos SET deposito_valor_centavos=1235 WHERE tipo='deposito'"
             )
             con.commit()
 
