@@ -23,19 +23,20 @@ class WebDemoPeriodValidationTests(unittest.TestCase):
         cls.source = json.loads((ROOT / "amostra_resposta.json").read_text(encoding="utf-8"))
         cls.synthetic = json.loads((ROOT / "amostra_resposta_ficticia.json").read_text(encoding="utf-8"))
         match = re.search(
-            r'<script id="demo-payload" type="application/json">\s*(.*?)\s*</script>',
+            r'<script id="demo-history" type="application/json">\s*(.*?)\s*</script>',
             cls.html,
             re.DOTALL,
         )
         if not match:
             raise AssertionError("O payload sintético precisa estar embutido no HTML.")
-        cls.embedded = json.loads(match.group(1))
+        cls.history = json.loads(match.group(1))
+        cls.embedded = cls.history[-1]
 
     def test_period_inputs_are_present_and_default_to_payload_date(self):
-        self.assertIn('id="start" value="2026-10-15" required', self.html)
+        self.assertIn('id="start" value="2026-10-01" required', self.html)
         self.assertIn('id="end" value="2026-10-15" required', self.html)
         self.assertIn('id="reset"', self.html)
-        self.assertIn("const defaultStart=sourceData.inicio,defaultEnd=sourceData.fim;", self.html)
+        self.assertIn("const defaultStart=historyResponses[0].data.inicio,defaultEnd=historyResponses[historyResponses.length-1].data.fim;", self.html)
 
     def test_invalid_period_marks_fields_and_hides_previous_results(self):
         self.assertIn('const invalid=!start||!end||start>end;', self.html)
@@ -50,8 +51,8 @@ class WebDemoPeriodValidationTests(unittest.TestCase):
         self.assertIn('status.classList.toggle("error",invalid);', self.html)
 
     def test_demo_remains_offline_and_uses_only_synthetic_json(self):
-        self.assertIn('id="demo-payload" type="application/json"', self.html)
-        self.assertIn('JSON.parse(document.getElementById("demo-payload").textContent)', self.html)
+        self.assertIn('id="demo-history" type="application/json"', self.html)
+        self.assertIn('JSON.parse(document.getElementById("demo-history").textContent)', self.html)
         self.assertIn("dados fictícios", self.html)
         self.assertIn("Sem conexão com CRM", self.html)
         self.assertIn("banco real", self.html)
@@ -69,19 +70,19 @@ class WebDemoPeriodValidationTests(unittest.TestCase):
             len(self.source["data"]["depositos"]["porUsuario"]),
         )
 
-    def test_demo_changes_values_without_inventing_a_historical_series(self):
+    def test_demo_displays_15_days_of_explicit_fictitious_history(self):
         data = self.synthetic["data"]
         self.assertEqual(data["inicio"], data["fim"])
         self.assertEqual(data["depositos"]["valorTotal"], 27800.0)
         self.assertEqual(data["acordos"]["valorTotal"], 26300.0)
         self.assertEqual(data["promessas"]["prometidoTotal"], 46700.0)
         self.assertEqual(data["contatos"]["registrosTotaisTotal"], 148)
-        self.assertIn("const dailyData=[{", self.html)
-        self.assertIn("date:sourceData.inicio", self.html)
-        self.assertNotIn('date:"2026-10-08"', self.html)
-        self.assertNotIn("A série de oito dias foi criada artificialmente", self.html)
-        self.assertIn("não foram adicionados campos, usuários ou datas históricas", self.html)
-        self.assertIn("Payload fictício de 1 data", self.html)
+        self.assertEqual(len(self.history), 15)
+        self.assertEqual(self.history[0]["data"]["inicio"], "2026-10-01")
+        self.assertEqual(self.history[-1]["data"]["inicio"], "2026-10-15")
+        self.assertIn("const dailyData=historyResponses.map(response=>{", self.html)
+        self.assertIn("Histórico fictício de 15 datas", self.html)
+        self.assertIn("série histórica é apenas uma simulação", self.html)
 
     def test_cockpit_groups_flow_and_portfolio_snapshot_separately(self):
         self.assertIn("Resumo do período", self.html)
@@ -101,11 +102,11 @@ class WebDemoPeriodValidationTests(unittest.TestCase):
 
     def test_user_contact_metric_is_directly_read_from_payload(self):
         self.assertIn(
-            "sourceData.contatos.porUsuario.map(row=>({usuario:row.usuario,nome:row.nome,quantidade:row.contatosUnicos}))",
+            "unicos:d.contatos.porUsuario.map(row=>({usuario:row.usuario,nome:row.nome,quantidade:row.contatosUnicos}))",
             self.html,
         )
         self.assertIn(
-            "sourceData.contatos.porUsuario.forEach(row=>{const u=get(row);u.unicos=row.contatosUnicos;});",
+            "last.contatos.porUsuario.forEach(row=>{const u=get(row);u.unicos=row.contatosUnicos;});",
             self.html,
         )
         self.assertIn("não são um total global deduplicado", self.html)
@@ -115,8 +116,8 @@ class WebDemoPeriodValidationTests(unittest.TestCase):
         self.assertIn("não identifica clientes ou títulos prioritários", self.html)
         self.assertIn("identificador do título/acordo", self.html)
         self.assertIn("Comparação com período anterior", self.html)
-        self.assertIn("o JSON de referência contém uma única data", self.html)
-        self.assertIn("não há série histórica nesta amostra", self.html)
+        self.assertIn("A série diária fictícia permite testar filtros e comparações", self.html)
+        self.assertIn("não comprova tendência", self.html)
 
     def test_no_data_period_clears_snapshot_and_shows_empty_states(self):
         self.assertIn('setText("received",last?money(last.posicao.recebido):"—")', self.html)
@@ -137,19 +138,19 @@ class WebDemoPeriodValidationTests(unittest.TestCase):
         self.assertIn("function renderComparison(start,end,currentDays)", self.html)
         self.assertIn("currentDays.length!==duration||previousDays.length!==duration", self.html)
         self.assertIn(
-            "Comparação indisponível: o JSON de referência contém uma única data, sem período anterior para comparar.",
+            "Comparação indisponível: um dos períodos não tem cobertura diária fictícia completa.",
             self.html,
         )
         self.assertIn('id="comparisonGrid"', self.html)
         self.assertIn('id="comparisonUnavailable"', self.html)
-        self.assertIn("O payload não inclui série histórica", self.html)
+        self.assertIn("cobertura diária fictícia completa", self.html)
 
     def test_daily_chart_uses_the_selected_sample_date_without_claiming_a_trend(self):
         self.assertIn("function renderTrend(days)", self.html)
         self.assertIn("const days=selectDays(start,end)", self.html)
         self.assertIn("renderTrend(days);renderComparison(start,end,days);", self.html)
         self.assertIn('id="dailyTrend"', self.html)
-        self.assertIn("Movimentos da data informada", self.html)
+        self.assertIn("Evolução diária do período", self.html)
         self.assertNotIn('const dailyData=[\n {date:', self.html)
 
 
