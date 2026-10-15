@@ -14,8 +14,8 @@ from modelo_monetario import mapear_fato_centavos, mapear_posicao_centavos
 DIA = "2026-10-14"
 
 
-def criar_banco(isolation_level=""):
-    con = sqlite3.connect(":memory:", isolation_level=isolation_level)
+def criar_banco(isolation_level="", database=":memory:"):
+    con = sqlite3.connect(database, isolation_level=isolation_level)
     con.executescript("""
     CREATE TABLE usuarios (usuario TEXT PRIMARY KEY, nome TEXT);
     CREATE TABLE fatos (
@@ -381,3 +381,181 @@ class TestRollbackPosicaoEscritaDupla(unittest.TestCase):
             self.assertFalse(con.in_transaction)
         finally:
             con.close()
+
+
+# Testes adicionais do contrato revisto da Issue #4. Todos os bancos são
+# arquivos temporários criados no próprio teste; nunca usam o banco do app.
+import os
+import subprocess
+import sys
+import tempfile
+import threading
+from pathlib import Path
+
+
+class TestAtomicidadeArquivoELeitorConcorrente(unittest.TestCase):
+    def _criar_banco_arquivo_com_estado_anterior(self, caminho):
+        con = criar_banco(database=str(caminho))
+        semear_fato_legado(con)
+        con.execute(
+            """INSERT INTO acordos_posicao
+            (capturado_em, data, recebido_periodo, a_vencer, vencido,
+             recebido_periodo_centavos, a_vencer_centavos, vencido_centavos)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            ("2026-10-14T12:00:00", DIA, 7.0, 8.0, 9.0, 700, 800, 900),
+        )
+        con.commit()
+        con.close()
+
+    def test_interrupcao_de_processo_em_transacao_aberta_recupera_estado_anterior(self):
+        with tempfile.TemporaryDirectory(prefix="issue4-crash-") as temp_dir:
+            caminho = Path(temp_dir) / "financeiro-sintetico.sqlite"
+            self._criar_banco_arquivo_com_estado_anterior(caminho)
+            root = Path(__file__).resolve().parents[1]
+            child = r"""
+import os
+import sqlite3
+import sys
+from test_escrita_dupla import argumentos, gravar_dia_duplo
+
+caminho = sys.argv[1]
+con = sqlite3.connect(caminho, timeout=3)
+def encerrar_processso_no_meio():
+    os._exit(86)
+con.create_function("encerrar_processso_no_meio", 0, encerrar_processso_no_meio)
+con.execute(
+    "CREATE TRIGGER interromper_escrita BEFORE INSERT ON fatos "
+    "WHEN NEW.usuario = 'bia' BEGIN SELECT encerrar_processso_no_meio(); END"
+)
+con.commit()
+gravar_dia_duplo(con, **argumentos())
+"""
+            env = os.environ.copy()
+            env["PYTHONPATH"] = os.pathsep.join(
+                [str(root / "tests"), str(root), env.get("PYTHONPATH", "")]
+            )
+            resultado = subprocess.run(
+                [sys.executable, "-c", child, str(caminho)],
+                cwd=str(root),
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=False,
+            )
+            self.assertEqual(resultado.returncode, 86, resultado.stderr)
+
+            con = sqlite3.connect(caminho, timeout=3)
+            try:
+                self.assertEqual(con.execute("PRAGMA integrity_check").fetchone()[0], "ok")
+                self.assertEqual(
+                    con.execute(
+                        "SELECT usuario, valor, deposito_valor_centavos "
+                        "FROM fatos WHERE data=? ORDER BY usuario",
+                        (DIA,),
+                    ).fetchall(),
+                    [("antigo", 9.99, None)],
+                )
+                self.assertEqual(
+                    con.execute(
+                        "SELECT capturado_em, recebido_periodo, recebido_periodo_centavos "
+                        "FROM acordos_posicao"
+                    ).fetchall(),
+                    [("2026-10-14T12:00:00", 7.0, 700)],
+                )
+                self.assertEqual(con.execute("SELECT COUNT(*) FROM importacoes").fetchone()[0], 0)
+                self.assertEqual(
+                    con.execute("SELECT usuario FROM usuarios ORDER BY usuario").fetchall(),
+                    [("antigo",)],
+                )
+            finally:
+                con.close()
+
+    def test_leitor_concorrente_ve_estado_anterior_ou_lote_duplo_completo(self):
+        with tempfile.TemporaryDirectory(prefix="issue4-reader-") as temp_dir:
+            caminho = Path(temp_dir) / "financeiro-sintetico.sqlite"
+            self._criar_banco_arquivo_com_estado_anterior(caminho)
+            entrou_na_transacao = threading.Event()
+            liberar_escritor = threading.Event()
+            erros_escritor = []
+
+            escritor = sqlite3.connect(
+                str(caminho), timeout=3, isolation_level=None, check_same_thread=False
+            )
+            def pausar_apos_delete():
+                entrou_na_transacao.set()
+                if not liberar_escritor.wait(timeout=8):
+                    raise RuntimeError("timeout do teste esperando liberação do escritor")
+                return 0
+
+            escritor.create_function("pausar_apos_delete", 0, pausar_apos_delete)
+            escritor.execute("""
+                CREATE TRIGGER pausar_no_meio
+                AFTER DELETE ON fatos
+                BEGIN SELECT pausar_apos_delete(); END
+            """)
+            escritor.commit()
+
+            def executar_escrita():
+                try:
+                    gravar_dia_duplo(escritor, **argumentos())
+                except BaseException as exc:
+                    erros_escritor.append(exc)
+
+            thread = threading.Thread(target=executar_escrita, daemon=True)
+            try:
+                thread.start()
+                self.assertTrue(entrou_na_transacao.wait(timeout=5), "escritor não alcançou a escrita parcial")
+                leitor = sqlite3.connect(str(caminho), timeout=3)
+                try:
+                    # A transação já apagou fatos dentro da visão não confirmada,
+                    # mas outro processo deve continuar vendo o estado commitado anterior.
+                    durante = leitor.execute(
+                        "SELECT usuario, valor, deposito_valor_centavos "
+                        "FROM fatos WHERE data=? ORDER BY usuario",
+                        (DIA,),
+                    ).fetchall()
+                    self.assertEqual(durante, [("antigo", 9.99, None)])
+                    snapshot_durante = leitor.execute(
+                        "SELECT recebido_periodo, recebido_periodo_centavos "
+                        "FROM acordos_posicao WHERE capturado_em=?",
+                        ("2026-10-14T12:00:00",),
+                    ).fetchone()
+                    self.assertEqual(snapshot_durante, (7.0, 700))
+                finally:
+                    liberar_escritor.set()
+                    thread.join(timeout=8)
+                    leitor.close()
+
+                self.assertFalse(thread.is_alive(), "escritor não terminou")
+                self.assertEqual(erros_escritor, [])
+                after = sqlite3.connect(str(caminho), timeout=3)
+                try:
+                    self.assertEqual(
+                        after.execute(
+                            "SELECT usuario, valor, deposito_valor_centavos "
+                            "FROM fatos WHERE data=? ORDER BY usuario",
+                            (DIA,),
+                        ).fetchall(),
+                        [("ana", 12.34, 1234), ("bia", 100.0, None)],
+                    )
+                    # A leitura acordos_posicao acima só selecionou a métrica
+                    # de posição; verifica também as outras duas representações.
+                    self.assertEqual(
+                        after.execute(
+                            "SELECT recebido_periodo, recebido_periodo_centavos, "
+                            "a_vencer, a_vencer_centavos, vencido, vencido_centavos "
+                            "FROM acordos_posicao WHERE capturado_em=?",
+                            ("2026-10-14T12:00:00",),
+                        ).fetchone(),
+                        (20.0, 2000, 30.0, 3000, 40.0, 4000),
+                    )
+                    self.assertEqual(after.execute("SELECT COUNT(*) FROM importacoes").fetchone()[0], 1)
+                    self.assertEqual(after.execute("PRAGMA integrity_check").fetchone()[0], "ok")
+                finally:
+                    after.close()
+            finally:
+                liberar_escritor.set()
+                if thread.is_alive():
+                    thread.join(timeout=2)
+                escritor.close()
