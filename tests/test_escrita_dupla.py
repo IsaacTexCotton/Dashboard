@@ -320,3 +320,64 @@ class TestEscritaDupla(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestRollbackPosicaoEscritaDupla(unittest.TestCase):
+    def _semear_posicao(self, con):
+        con.execute(
+            """INSERT INTO acordos_posicao
+            (capturado_em, data, recebido_periodo, a_vencer, vencido,
+             recebido_periodo_centavos, a_vencer_centavos, vencido_centavos)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            ("2026-10-13T12:00:00", "2026-10-13", 7.0, 8.0, 9.0, 700, 800, 900),
+        )
+        con.commit()
+
+    def _estado_preexistente(self, con):
+        fatos = con.execute(
+            "SELECT usuario, tipo, valor, deposito_valor_centavos FROM fatos ORDER BY usuario"
+        ).fetchall()
+        posicoes = con.execute(
+            "SELECT capturado_em, recebido_periodo, recebido_periodo_centavos "
+            "FROM acordos_posicao ORDER BY capturado_em"
+        ).fetchall()
+        importacoes = con.execute("SELECT COUNT(*) FROM importacoes").fetchone()[0]
+        return fatos, posicoes, importacoes
+
+    def test_falha_em_centavos_da_posicao_reverte_fatos_e_lado_legado(self):
+        con = criar_banco()
+        try:
+            semear_fato_legado(con)
+            self._semear_posicao(con)
+            antes = self._estado_preexistente(con)
+            con.execute("""
+              CREATE TRIGGER falha_centavos_posicao BEFORE INSERT ON acordos_posicao
+              WHEN NEW.recebido_periodo_centavos=2000
+              BEGIN SELECT RAISE(ABORT, 'falha simulada em centavos da posição'); END;
+            """)
+            con.commit()
+            with self.assertRaises(sqlite3.IntegrityError):
+                gravar_dia_duplo(con, **argumentos())
+            self.assertEqual(self._estado_preexistente(con), antes)
+            self.assertFalse(con.in_transaction)
+        finally:
+            con.close()
+
+    def test_falha_no_real_da_posicao_reverte_fatos_e_centavos(self):
+        con = criar_banco()
+        try:
+            semear_fato_legado(con)
+            self._semear_posicao(con)
+            antes = self._estado_preexistente(con)
+            con.execute("""
+              CREATE TRIGGER falha_real_posicao BEFORE INSERT ON acordos_posicao
+              WHEN NEW.recebido_periodo=20.0
+              BEGIN SELECT RAISE(ABORT, 'falha simulada no REAL da posição'); END;
+            """)
+            con.commit()
+            with self.assertRaises(sqlite3.IntegrityError):
+                gravar_dia_duplo(con, **argumentos())
+            self.assertEqual(self._estado_preexistente(con), antes)
+            self.assertFalse(con.in_transaction)
+        finally:
+            con.close()
