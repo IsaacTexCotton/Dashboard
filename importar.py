@@ -286,14 +286,9 @@ def _modo_dupla_escrita() -> bool:
 
     dupla_escrita = valor_dupla == "1"
     leitura_centavos = valor_leitura == "1"
-    if leitura_centavos and not dupla_escrita:
+    if leitura_centavos and os.environ.get("DUPLA_ESCRITA", "0").strip() != "1":
         raise ErroValidacao(
             "configuração inválida: LEITURA_CENTAVOS=1 exige DUPLA_ESCRITA=1"
-        )
-    if leitura_centavos:
-        raise ErroValidacao(
-            "LEITURA_CENTAVOS=1 foi solicitado, mas a leitura do dashboard por "
-            "centavos ainda não está implementada; operação recusada"
         )
     return dupla_escrita
 
