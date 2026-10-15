@@ -109,5 +109,24 @@ class WebDemoPeriodValidationTests(unittest.TestCase):
         self.assertIn("Promessas", self.html)
 
 
+    def test_initial_html_fallback_matches_default_synthetic_period(self):
+        # Before JavaScript runs, the visible fallback matches 12–15 Oct 2026.
+        self.assertIn('id="depValue">R$ 95.000,00</div>', self.html)
+        self.assertIn('id="depCount">66 depósitos no período</div>', self.html)
+        self.assertIn('id="agrValue">R$ 80.900,00</div>', self.html)
+        self.assertIn('id="agrPaid">R$ 53.300,00</strong>', self.html)
+        self.assertIn('id="agrOpen">R$ 27.600,00</strong>', self.html)
+        self.assertIn('id="promValue">R$ 128.100,00</div>', self.html)
+        self.assertIn('id="promPaid">R$ 94.700,00</strong>', self.html)
+        self.assertIn('id="promOpen">R$ 33.400,00</strong>', self.html)
+        self.assertIn('id="contactRecords">593</div>', self.html)
+        self.assertIn('id="received">R$ 22.000,00</strong>', self.html)
+        self.assertIn('id="due">R$ 950.000,00</strong>', self.html)
+        self.assertIn('id="overdue">R$ 268.000,00</strong>', self.html)
+        self.assertIn('id="cmpDepDelta">+ R$ 11.700,00</div>', self.html)
+        self.assertIn('id="cmpAgrDelta">+ R$ 15.900,00</div>', self.html)
+        self.assertIn('id="cmpPromDelta">+ R$ 30.100,00</div>', self.html)
+
+
 if __name__ == "__main__":
     unittest.main()
