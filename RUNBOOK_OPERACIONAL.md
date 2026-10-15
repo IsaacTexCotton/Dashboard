@@ -2,7 +2,7 @@
 
 ## Propósito e limites
 
-Este roteiro protege o SQLite antes de testes ou reprocessamentos. Não autoriza, por si só, consulta ao CRM, importação para produção, alteração do esquema ou restauração de banco de produção. Antes de qualquer operação real, obtenha um payload sanitizado/autorizado e aprovação do responsável financeiro.
+Este roteiro protege o SQLite antes de testes ou reprocessamentos. Os comandos abaixo não executam sozinhos uma migração. Use somente payload sanitizado obtido por canal autorizado e siga as regras de acesso da empresa; confirme o caminho do banco e o escopo da operação antes de qualquer etapa mutável.
 
 ## 1. Preparação
 
@@ -15,7 +15,7 @@ mkdir -p backups
 python diagnosticar_banco.py ./cobranca.db --json
 ```
 
-Se o diagnóstico retornar `FAIL`, pare e investigue. Examine também os `WARN`; eles não significam aprovação automática.
+Se o diagnóstico retornar `FAIL`, pare e investigue. Examine e registre os `WARN`; não prossiga enquanto seu impacto não estiver compreendido.
 
 ## 2. Criar e verificar o backup
 
@@ -50,15 +50,15 @@ O sucesso local comprova apenas os cenários cobertos pelo JSON e pelos testes. 
 ## 4. Critérios antes de produção
 
 - [ ] Resposta real sanitizada e autorizada, com período identificado.
-- [ ] Totais aditivos reconciliados; divergências explicadas e aprovadas.
+- [ ] Totais aditivos reconciliados; cada divergência foi classificada, explicada e registrada com evidência.
 - [ ] Datas, campos obrigatórios, nulos e valores extremos revisados.
 - [ ] Responsável financeiro aprovou o significado das métricas e snapshots, e os casos de renegociação, descontos, cancelamentos, parcelas não vencidas e pagamentos parciais foram avaliados para a regra `valor = pagos + pendente`.
-- [ ] A política aprovada e revisada está versionada em `POLITICA_PRECISAO_MONETARIA.md`; o escopo já identifica explicitamente o dashboard de Cobrança em Contas a Pagar/Financeiro.
+- [ ] A política e o contrato estão versionados e consistentes com as regras implementadas; o escopo identifica o dashboard de Cobrança em Contas a Pagar/Financeiro.
 - [ ] TI/Contabilidade confirmou se o ERP e o módulo de títulos usam *half-up* para juros, multas e descontos.
 - [ ] Antes de alterar regras monetárias, foram resolvidos os conflitos de sinal por campo e implementados testes para arredondamento fronteiriço, somas sem deriva, importação com 3/4/6 casas decimais, valores legados `REAL` problemáticos e igualdade de rateio/parcelamento.
 - [ ] Parsing decimal sem `float`, armazenamento de novos valores em centavos e comparação exata foram implementados e testados; a tolerância monetária não é usada como substituto de conversão exata.
 - [ ] Implementação de cobrança respeita as regras da política: juros simples `pro rata die`, multa aplicada uma vez, boleto/custas importados como valor de origem, pagamento confirmado separado de pagamento informado/pendente de baixa.
-- [ ] Qualquer migração de `REAL` possui inventário de leitores/escritores, análise de compatibilidade, backup verificado, colunas paralelas, script idempotente, dupla escrita/conciliação, aprovação de corte e rollback testado.
+- [ ] Qualquer migração de `REAL` possui inventário de leitores/escritores, análise de compatibilidade, backup/restauração verificados, colunas paralelas, script idempotente, dupla escrita/conciliação e rollback testado.
 - [ ] O campo `timestamp` do JSON é preservado exatamente como recebido; ausência/vazio bloqueia a importação, sem fallback para relógio local nem inferência/conversão de fuso.
 - [ ] `main` exige o workflow de CI como verificação obrigatória.
 - [ ] Backup recente criado e verificado, com manifesto íntegro.
@@ -76,8 +76,8 @@ Não há restauração automática nesta ferramenta: substituir um banco usado p
 2. Identifique backup e manifesto; execute `backup_sqlite.py verificar <backup>` e exija `status: OK`.
 3. Preserve o banco atual para investigação, incluindo `-wal` e `-shm` se existirem. Não descarte o arquivo que falhou.
 4. Copie o backup verificado para um arquivo temporário no mesmo volume do destino e rode `diagnosticar_banco.py` nele.
-5. Só com aprovação do responsável, faça a troca durante uma janela de manutenção, mantendo o banco anterior preservado.
-6. Reabra a aplicação, valide leituras críticas e registre aprovador, horário, backup, SHA-256 e resultado.
+5. Faça a troca somente após concluir os critérios técnicos, na janela de manutenção registrada, preservando o banco anterior e o responsável pela execução.
+6. Reabra a aplicação, valide leituras críticas e registre operador, horário, backup, SHA-256, critérios verificados e resultado.
 
 Não renomeie ou restaure arquivos enquanto a aplicação estiver escrevendo. Se houver dúvida, interrompa e preserve os artefatos para análise.
 
