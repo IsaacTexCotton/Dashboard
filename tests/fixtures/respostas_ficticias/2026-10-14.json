@@ -1,0 +1,128 @@
+{
+  "success": true,
+  "data": {
+    "inicio": "2026-10-14",
+    "fim": "2026-10-14",
+    "usuarioFiltro": null,
+    "depositos": {
+      "quantidadeTotal": 48,
+      "valorTotal": 4548,
+      "porUsuario": [
+        {
+          "usuario": "NEGOCIADOR.A",
+          "nome": "Negociador A",
+          "quantidade": 15,
+          "valor": 1442.5
+        },
+        {
+          "usuario": "NEGOCIADOR.B",
+          "nome": "Negociador B",
+          "quantidade": 16,
+          "valor": 1516
+        },
+        {
+          "usuario": "NEGOCIADOR.C",
+          "nome": "Negociador C",
+          "quantidade": 17,
+          "valor": 1589.5
+        }
+      ]
+    },
+    "acordos": {
+      "quantidadeTotal": 7,
+      "valorTotal": 8649.25,
+      "pagosTotal": 3265.38,
+      "pendenteTotal": 5383.87,
+      "porUsuario": [
+        {
+          "usuario": "NEGOCIADOR.A",
+          "nome": "Negociador A",
+          "quantidade": 3,
+          "valor": 4237,
+          "pagos": 1059.25,
+          "pendente": 3177.75
+        },
+        {
+          "usuario": "NEGOCIADOR.B",
+          "nome": "Negociador B",
+          "quantidade": 4,
+          "valor": 4412.25,
+          "pagos": 2206.13,
+          "pendente": 2206.12
+        }
+      ]
+    },
+    "promessas": {
+      "quantidadeTotal": 8,
+      "prometidoTotal": 25728,
+      "cumpridoTotal": 6003.21,
+      "emAbertoTotal": 19724.79,
+      "quebradoTotal": 1286.41,
+      "porUsuario": [
+        {
+          "usuario": "NEGOCIADOR.A",
+          "nome": "Negociador A",
+          "quantidade": 5,
+          "prometido": 8350.5,
+          "cumprido": 1252.58,
+          "emAberto": 7097.92,
+          "quebrado": 417.53
+        },
+        {
+          "usuario": "NEGOCIADOR.B",
+          "nome": "Negociador B",
+          "quantidade": 1,
+          "prometido": 8576,
+          "cumprido": 3430.4,
+          "emAberto": 5145.6,
+          "quebrado": 428.8
+        },
+        {
+          "usuario": "NEGOCIADOR.C",
+          "nome": "Negociador C",
+          "quantidade": 2,
+          "prometido": 8801.5,
+          "cumprido": 1320.23,
+          "emAberto": 7481.27,
+          "quebrado": 440.08
+        }
+      ]
+    },
+    "contatos": {
+      "contatosUnicosTotal": 176,
+      "registrosTotaisTotal": 250,
+      "porUsuario": [
+        {
+          "usuario": "NEGOCIADOR.A",
+          "nome": "Negociador A",
+          "contatosUnicos": 44,
+          "registrosTotais": 61
+        },
+        {
+          "usuario": "NEGOCIADOR.B",
+          "nome": "Negociador B",
+          "contatosUnicos": 45,
+          "registrosTotais": 62
+        },
+        {
+          "usuario": "NEGOCIADOR.C",
+          "nome": "Negociador C",
+          "contatosUnicos": 46,
+          "registrosTotais": 63
+        },
+        {
+          "usuario": "NEGOCIADOR.D",
+          "nome": "Negociador D",
+          "contatosUnicos": 47,
+          "registrosTotais": 64
+        }
+      ]
+    },
+    "valoresAcordo": {
+      "valorRecebidoPeriodo": 3265.38,
+      "valorAVencer": 220010.5,
+      "valorVencido": 14757
+    }
+  },
+  "timestamp": "2026-10-14T12:00:00.0000000"
+}

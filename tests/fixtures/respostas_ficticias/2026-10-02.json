@@ -1,0 +1,84 @@
+{
+  "success": true,
+  "data": {
+    "inicio": "2026-10-02",
+    "fim": "2026-10-02",
+    "usuarioFiltro": null,
+    "depositos": {
+      "quantidadeTotal": 7,
+      "valorTotal": 528.5,
+      "porUsuario": [
+        {
+          "usuario": "NEGOCIADOR.A",
+          "nome": "Negociador A",
+          "quantidade": 3,
+          "valor": 227.5
+        },
+        {
+          "usuario": "NEGOCIADOR.B",
+          "nome": "Negociador B",
+          "quantidade": 4,
+          "valor": 301
+        }
+      ]
+    },
+    "acordos": {
+      "quantidadeTotal": 3,
+      "valorTotal": 1291,
+      "pagosTotal": 322.75,
+      "pendenteTotal": 968.25,
+      "porUsuario": [
+        {
+          "usuario": "NEGOCIADOR.A",
+          "nome": "Negociador A",
+          "quantidade": 3,
+          "valor": 1291,
+          "pagos": 322.75,
+          "pendente": 968.25
+        }
+      ]
+    },
+    "promessas": {
+      "quantidadeTotal": 3,
+      "prometidoTotal": 2221.5,
+      "cumpridoTotal": 333.23,
+      "emAbertoTotal": 1888.27,
+      "quebradoTotal": 111.08,
+      "porUsuario": [
+        {
+          "usuario": "NEGOCIADOR.A",
+          "nome": "Negociador A",
+          "quantidade": 3,
+          "prometido": 2221.5,
+          "cumprido": 333.23,
+          "emAberto": 1888.27,
+          "quebrado": 111.08
+        }
+      ]
+    },
+    "contatos": {
+      "contatosUnicosTotal": 15,
+      "registrosTotaisTotal": 27,
+      "porUsuario": [
+        {
+          "usuario": "NEGOCIADOR.A",
+          "nome": "Negociador A",
+          "contatosUnicos": 8,
+          "registrosTotais": 13
+        },
+        {
+          "usuario": "NEGOCIADOR.B",
+          "nome": "Negociador B",
+          "contatosUnicos": 9,
+          "registrosTotais": 14
+        }
+      ]
+    },
+    "valoresAcordo": {
+      "valorRecebidoPeriodo": 322.75,
+      "valorAVencer": 70001.5,
+      "valorVencido": 4251
+    }
+  },
+  "timestamp": "2026-10-02T12:00:00.0000000"
+}

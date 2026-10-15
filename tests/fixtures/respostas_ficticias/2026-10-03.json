@@ -1,0 +1,86 @@
+{
+  "success": true,
+  "data": {
+    "inicio": "2026-10-03",
+    "fim": "2026-10-03",
+    "usuarioFiltro": null,
+    "depositos": {
+      "quantidadeTotal": 9,
+      "valorTotal": 731,
+      "porUsuario": [
+        {
+          "usuario": "NEGOCIADOR.A",
+          "nome": "Negociador A",
+          "quantidade": 4,
+          "valor": 328.75
+        },
+        {
+          "usuario": "NEGOCIADOR.B",
+          "nome": "Negociador B",
+          "quantidade": 5,
+          "valor": 402.25
+        }
+      ]
+    },
+    "acordos": {
+      "quantidadeTotal": 5,
+      "valorTotal": 3248.25,
+      "pagosTotal": 1196.19,
+      "pendenteTotal": 2052.06,
+      "porUsuario": [
+        {
+          "usuario": "NEGOCIADOR.A",
+          "nome": "Negociador A",
+          "quantidade": 4,
+          "valor": 1536.5,
+          "pagos": 768.25,
+          "pendente": 768.25
+        },
+        {
+          "usuario": "NEGOCIADOR.B",
+          "nome": "Negociador B",
+          "quantidade": 1,
+          "valor": 1711.75,
+          "pagos": 427.94,
+          "pendente": 1283.81
+        }
+      ]
+    },
+    "promessas": {
+      "quantidadeTotal": 4,
+      "prometidoTotal": 2732.25,
+      "cumpridoTotal": 1092.9,
+      "emAbertoTotal": 1639.35,
+      "quebradoTotal": 136.61,
+      "porUsuario": [
+        {
+          "usuario": "NEGOCIADOR.A",
+          "nome": "Negociador A",
+          "quantidade": 4,
+          "prometido": 2732.25,
+          "cumprido": 1092.9,
+          "emAberto": 1639.35,
+          "quebrado": 136.61
+        }
+      ]
+    },
+    "contatos": {
+      "contatosUnicosTotal": 11,
+      "registrosTotaisTotal": 17,
+      "porUsuario": [
+        {
+          "usuario": "NEGOCIADOR.A",
+          "nome": "Negociador A",
+          "contatosUnicos": 11,
+          "registrosTotais": 17
+        }
+      ]
+    },
+    "valoresAcordo": {
+      "valorRecebidoPeriodo": 1196.19,
+      "valorAVencer": 82502.25,
+      "valorVencido": 5126.5
+    }
+  },
+  "timestamp": "2026-10-03T12:00:00.0000000"
+}
