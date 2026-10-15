@@ -67,7 +67,11 @@ def _centavos(
             negativos_permitidos=negativos_permitidos,
         )
     except ErroMonetario as exc:
-        raise importar.ErroValidacao(str(exc)) from exc
+        mensagem = str(exc).replace(
+            "valor negativo não permitido",
+            "valor monetário negativo não permitido",
+        )
+        raise importar.ErroValidacao(mensagem) from exc
 
 
 def _formatar_centavos(valor: int) -> str:
