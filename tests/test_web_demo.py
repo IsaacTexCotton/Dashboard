@@ -1,32 +1,57 @@
+import json
 import re
 import unittest
 from pathlib import Path
 
 
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def json_schema(value):
+    """Preserva chaves, tipos escalares e estrutura/quantidade das listas."""
+    if isinstance(value, dict):
+        return {key: json_schema(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [json_schema(item) for item in value]
+    return type(value).__name__
+
+
 class WebDemoPeriodValidationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.html = (Path(__file__).resolve().parents[1] / "web-demo" / "index.html").read_text(encoding="utf-8")
+        cls.html = (ROOT / "web-demo" / "index.html").read_text(encoding="utf-8")
+        cls.source = json.loads((ROOT / "amostra_resposta.json").read_text(encoding="utf-8"))
+        cls.synthetic = json.loads((ROOT / "amostra_resposta_ficticia.json").read_text(encoding="utf-8"))
+        match = re.search(
+            r'<script id="demo-payload" type="application/json">\s*(.*?)\s*</script>',
+            cls.html,
+            re.DOTALL,
+        )
+        if not match:
+            raise AssertionError("O payload sintético precisa estar embutido no HTML.")
+        cls.embedded = json.loads(match.group(1))
 
-    def test_period_inputs_are_present_and_required(self):
-        self.assertIn('id="start" value="2026-10-12" required', self.html)
+    def test_period_inputs_are_present_and_default_to_payload_date(self):
+        self.assertIn('id="start" value="2026-10-15" required', self.html)
         self.assertIn('id="end" value="2026-10-15" required', self.html)
         self.assertIn('id="reset"', self.html)
+        self.assertIn("const defaultStart=sourceData.inicio,defaultEnd=sourceData.fim;", self.html)
 
     def test_invalid_period_marks_fields_and_hides_previous_results(self):
         self.assertIn('const invalid=!start||!end||start>end;', self.html)
         self.assertIn('setAttribute("aria-invalid",String(!start||start>end))', self.html)
         self.assertIn('setAttribute("aria-invalid",String(!end||start>end))', self.html)
-        self.assertIn('dashboard.hidden=true;', self.html)
-        self.assertIn('sections.forEach(s=>s.hidden=true);', self.html)
-        self.assertIn('Período inválido. Informe uma data inicial igual ou anterior à data final.', self.html)
+        self.assertIn("dashboard.hidden=true;", self.html)
+        self.assertIn("sections.forEach(s=>s.hidden=true);", self.html)
+        self.assertIn("Período inválido. Informe uma data inicial igual ou anterior à data final.", self.html)
 
     def test_valid_period_restores_dashboard_after_an_error(self):
-        self.assertIn('dashboard.hidden=false;sections.forEach(s=>s.hidden=false);', self.html)
+        self.assertIn("dashboard.hidden=false;sections.forEach(s=>s.hidden=false);", self.html)
         self.assertIn('status.classList.toggle("error",invalid);', self.html)
 
-    def test_demo_remains_offline_and_uses_only_synthetic_data(self):
-        self.assertIn("const dailyData=[", self.html)
+    def test_demo_remains_offline_and_uses_only_synthetic_json(self):
+        self.assertIn('id="demo-payload" type="application/json"', self.html)
+        self.assertIn('JSON.parse(document.getElementById("demo-payload").textContent)', self.html)
         self.assertIn("dados fictícios", self.html)
         self.assertIn("Sem conexão com CRM", self.html)
         self.assertIn("banco real", self.html)
@@ -34,15 +59,31 @@ class WebDemoPeriodValidationTests(unittest.TestCase):
         self.assertNotIn("XMLHttpRequest", self.html)
         self.assertNotIn("WebSocket(", self.html)
 
-    def test_synthetic_series_covers_eight_explicit_dates(self):
-        dates = re.findall(r'\{date:"(2026-10-\d{2})",depositos:', self.html)
-        self.assertEqual(len(dates), 8)
-        self.assertEqual(dates[0], "2026-10-08")
-        self.assertEqual(dates[-1], "2026-10-15")
-        self.assertIn("Cenário sintético: 08–15 out 2026", self.html)
-        self.assertIn("nenhum número abaixo representa resultado real", self.html)
+    def test_synthetic_payload_keeps_identical_schema_and_array_structure(self):
+        self.assertEqual(json_schema(self.synthetic), json_schema(self.source))
+        self.assertNotEqual(self.synthetic, self.source)
+        self.assertEqual(self.embedded, self.synthetic)
+        self.assertEqual(set(self.synthetic["data"]["depositos"]), set(self.source["data"]["depositos"]))
+        self.assertEqual(
+            len(self.synthetic["data"]["depositos"]["porUsuario"]),
+            len(self.source["data"]["depositos"]["porUsuario"]),
+        )
 
-    def test_cockpit_groups_flow_and_portfolio_position_separately(self):
+    def test_demo_changes_values_without_inventing_a_historical_series(self):
+        data = self.synthetic["data"]
+        self.assertEqual(data["inicio"], data["fim"])
+        self.assertEqual(data["depositos"]["valorTotal"], 27800.0)
+        self.assertEqual(data["acordos"]["valorTotal"], 26300.0)
+        self.assertEqual(data["promessas"]["prometidoTotal"], 46700.0)
+        self.assertEqual(data["contatos"]["registrosTotaisTotal"], 148)
+        self.assertIn("const dailyData=[{", self.html)
+        self.assertIn("date:sourceData.inicio", self.html)
+        self.assertNotIn('date:"2026-10-08"', self.html)
+        self.assertNotIn("A série de oito dias foi criada artificialmente", self.html)
+        self.assertIn("não foram adicionados campos, usuários ou datas históricas", self.html)
+        self.assertIn("Payload fictício de 1 data", self.html)
+
+    def test_cockpit_groups_flow_and_portfolio_snapshot_separately(self):
         self.assertIn("Resumo do período", self.html)
         self.assertIn("Posição da carteira", self.html)
         self.assertIn("posição não é fluxo acumulado", self.html)
@@ -58,24 +99,31 @@ class WebDemoPeriodValidationTests(unittest.TestCase):
         self.assertIn('id="focusPromise"', self.html)
         self.assertIn('id="focusAgreement"', self.html)
 
-    def test_user_contact_metric_has_non_global_deduplication_caveat(self):
+    def test_user_contact_metric_is_directly_read_from_payload(self):
+        self.assertIn(
+            "sourceData.contatos.porUsuario.map(row=>({usuario:row.usuario,nome:row.nome,quantidade:row.contatosUnicos}))",
+            self.html,
+        )
+        self.assertIn(
+            "sourceData.contatos.porUsuario.forEach(row=>{const u=get(row);u.unicos=row.contatosUnicos;});",
+            self.html,
+        )
         self.assertIn("não são um total global deduplicado", self.html)
-        self.assertIn("Únicos por usuário", self.html)
-        self.assertIn("Contatos únicos* (última data)", self.html)
+        self.assertNotIn("function split(total", self.html)
 
-    def test_demo_discloses_missing_individual_case_data_and_synthetic_history(self):
+    def test_demo_discloses_missing_individual_case_data_and_absent_history(self):
         self.assertIn("não identifica clientes ou títulos prioritários", self.html)
         self.assertIn("identificador do título/acordo", self.html)
         self.assertIn("Comparação com período anterior", self.html)
-        self.assertIn("A série de oito dias foi criada artificialmente", self.html)
-        self.assertIn("não comprova tendência ou resultado real", self.html)
+        self.assertIn("o JSON de referência contém uma única data", self.html)
+        self.assertIn("não há série histórica nesta amostra", self.html)
 
     def test_no_data_period_clears_snapshot_and_shows_empty_states(self):
         self.assertIn('setText("received",last?money(last.posicao.recebido):"—")', self.html)
         self.assertIn('setText("focusOverdue",last?money(last.posicao.vencido):"—")', self.html)
         self.assertIn('$("tableEmpty").style.display=has?"none":"block"', self.html)
         self.assertIn('$("barsEmpty").style.display=has?"none":"block"', self.html)
-        self.assertIn('setText("status",days.length+" de "+daysBetween(start,end)+" datas com dados fictícios"', self.html)
+        self.assertIn("datas com dados fictícios", self.html)
 
     def test_missing_period_does_not_look_like_a_zero_result(self):
         self.assertIn('setText("depValue",has?money(totals.depValor):"—")', self.html)
@@ -85,48 +133,25 @@ class WebDemoPeriodValidationTests(unittest.TestCase):
         self.assertIn('"Sem dados no período"', self.html)
         self.assertIn('setText("agrPaid",has?money(totals.agrPago):"—")', self.html)
 
-    def test_comparison_uses_equal_length_periods_and_requires_full_coverage(self):
+    def test_comparison_is_unavailable_without_an_explicit_previous_period(self):
         self.assertIn("function renderComparison(start,end,currentDays)", self.html)
-        self.assertIn("const duration=daysBetween(start,end),previousEnd=addDays(start,-1),previousStart=addDays(previousEnd,-duration+1);", self.html)
         self.assertIn("currentDays.length!==duration||previousDays.length!==duration", self.html)
-        self.assertIn("Comparação indisponível: o cenário sintético não contém todas as datas dos dois períodos.", self.html)
+        self.assertIn(
+            "Comparação indisponível: o JSON de referência contém uma única data, sem período anterior para comparar.",
+            self.html,
+        )
         self.assertIn('id="comparisonGrid"', self.html)
         self.assertIn('id="comparisonUnavailable"', self.html)
+        self.assertIn("O payload não inclui série histórica", self.html)
 
-    def test_percent_change_is_not_computed_for_zero_or_negative_baseline(self):
-        self.assertIn("function percentChange(current,previous){return previous<=0?null:", self.html)
-        self.assertIn("Variação percentual indisponível: base anterior zero ou negativa.", self.html)
-        self.assertIn('id="cmpDepDelta"', self.html)
-        self.assertIn('id="cmpAgrDelta"', self.html)
-        self.assertIn('id="cmpPromDelta"', self.html)
-
-    def test_daily_trend_is_filtered_by_the_same_selected_dates(self):
+    def test_daily_chart_uses_the_selected_sample_date_without_claiming_a_trend(self):
         self.assertIn("function renderTrend(days)", self.html)
         self.assertIn("const days=selectDays(start,end)", self.html)
         self.assertIn("renderTrend(days);renderComparison(start,end,days);", self.html)
         self.assertIn('id="dailyTrend"', self.html)
-        self.assertIn("Acordos", self.html)
-        self.assertIn("Promessas", self.html)
-
-
-    def test_initial_html_fallback_matches_default_synthetic_period(self):
-        # Before JavaScript runs, the visible fallback matches 12–15 Oct 2026.
-        self.assertIn('id="depValue">R$ 95.000,00</div>', self.html)
-        self.assertIn('id="depCount">66 depósitos no período</div>', self.html)
-        self.assertIn('id="agrValue">R$ 80.900,00</div>', self.html)
-        self.assertIn('id="agrPaid">R$ 53.300,00</strong>', self.html)
-        self.assertIn('id="agrOpen">R$ 27.600,00</strong>', self.html)
-        self.assertIn('id="promValue">R$ 128.100,00</div>', self.html)
-        self.assertIn('id="promPaid">R$ 94.700,00</strong>', self.html)
-        self.assertIn('id="promOpen">R$ 33.400,00</strong>', self.html)
-        self.assertIn('id="contactRecords">593</div>', self.html)
-        self.assertIn('id="received">R$ 22.000,00</strong>', self.html)
-        self.assertIn('id="due">R$ 950.000,00</strong>', self.html)
-        self.assertIn('id="overdue">R$ 268.000,00</strong>', self.html)
-        self.assertIn('id="cmpDepDelta">+ R$ 11.700,00</div>', self.html)
-        self.assertIn('id="cmpAgrDelta">+ R$ 15.900,00</div>', self.html)
-        self.assertIn('id="cmpPromDelta">+ R$ 30.100,00</div>', self.html)
+        self.assertIn("Movimentos da data informada", self.html)
+        self.assertNotIn('const dailyData=[\n {date:', self.html)
 
 
 if __name__ == "__main__":
-    unittest.main()
+    unittest.main(verbosity=2)
