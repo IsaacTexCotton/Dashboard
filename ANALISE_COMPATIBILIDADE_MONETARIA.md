@@ -1,17 +1,17 @@
 # Análise de compatibilidade monetária — CAIXA FUTURO
 
-**Status:** análise e minutas v1.1 atualizadas com propostas recebidas em 14/10/2026; assinatura formal pendente; nenhuma alteração funcional ou migração autorizada/executada.  
+**Status:** análise técnica de compatibilidade atualizada em 15/10/2026; nenhuma alteração funcional, migração de schema ou corte de leitura foi executado.
 **Data:** 2026-10-14  
 **Branch:** docs/analise-compatibilidade-monetaria  
 **Base observada mais recente:** main, commit 92097eb5966e7446b0d632ec1ebd227a5a7520f3.
 
 ## 1. Resumo e limites
 
-Foram consultados POLITICA_PRECISAO_MONETARIA.md, CONTRATO_DADOS_FINANCEIROS.md, RUNBOOK_OPERACIONAL.md, importar.py, auditar_resposta.py, os seis módulos de teste e o workflow CI. As propostas v1.1 foram registradas em documentos separados como minutas pendentes de assinatura; v1.0 continua formalmente aprovada até a ratificação. O inventário dos leitores de REAL permanece incompleto porque `caixa-futuro-fase1.zip` não foi inspecionado. O CI #42 passou no head documental `82c5e3284a3e1db61c55ed77123e245639b93b27`; a alteração deste próprio relatório exige uma execução atualizada. Nenhum banco local/de produção foi aberto; não houve consulta ao CRM nem uso de credenciais; nenhuma migração, alteração de schema ou corte de leitura foi executado.
+Foram consultados os documentos de política, contrato, runbook, importador, auditoria, testes e workflow CI. A política v1.1 está descrita como especificação técnica versionada neste repositório. Este documento acompanha regras e evidências técnicas, não registros administrativos. O inventário de leitores de REAL ainda precisa incluir todos os artefatos e consumidores externos. O CI citado corresponde a uma revisão específica; cada alteração deve ser conferida na execução correspondente. Nenhum banco de produção foi aberto; não houve consulta ao CRM nem alteração de schema, backfill ou corte de leitura.
 
 ## 2. Evidências verificadas
 
-- A Política v1.0 formalmente aprovada estabelece INTEGER em centavos para valores monetários finais novos, aritmética inteira/decimal exata, half-up e igualdade exata. A minuta v1.1 nesta branch propõe regras de entrada por classe de campo e mantém o writer legado REAL ativo até descomissionamento formal.
+- A política monetária descreve INTEGER em centavos para novos valores monetários finais, aritmética decimal exata, *half-up* e igualdade exata. A especificação v1.1 detalha regras de entrada por classe de campo e preservação do escritor legado durante a transição.
 - O contrato de dados registra que valorRecebidoPeriodo é fluxo do período, enquanto valorAVencer e valorVencido são posições por captura; snapshots devem permanecer no histórico e não ser somados como fluxo.
 - O runbook exige diagnóstico e backup verificado antes de operações de banco, e proíbe versionar banco, backup, payload real ou dados pessoais.
 - A base da PR documental foi observada em `main` no commit `92097eb5966e7446b0d632ec1ebd227a5a7520f3`; esse hash identifica a base da revisão, não o head documental desta branch.
@@ -78,8 +78,8 @@ Foram identificados **6 módulos de teste, com 65 métodos `test_*`** na revisã
 
 ### Lacunas relevantes para a migração
 
-- Os testes existentes **afirmam o comportamento antigo** de tolerar divergência de R$ 0,01 na auditoria e rejeitar todos os valores negativos. Eles precisarão ser alterados conforme as regras ratificadas por campo; não basta adicionar novos testes mantendo assertions incompatíveis.
-- Não foram identificados testes específicos para parsing monetário decimal exato, escala de entrada ratificada, conversão `Decimal → INTEGER`, nomes/constraints das novas colunas, backfill idempotente, dupla escrita atômica, alternância de leitura/rollback ou janela de dez dias úteis.
+- Os testes existentes refletem o comportamento antigo de tolerar divergência de R$ 0,01 na auditoria e rejeitar todos os valores negativos; devem ser revisados conforme as regras técnicas definidas por campo.
+- Ainda faltam testes específicos para parsing monetário decimal exato, escala de entrada, conversão `Decimal → INTEGER`, constraints das novas colunas, backfill idempotente, dupla escrita atômica, alternância de leitura/rollback e janela de dez dias úteis.
 - Os testes de backup e recuperação usam banco isolado/de teste; **não equivalem** a um backup real verificado nem a um ensaio operacional autorizado em homologação.
 - A amostra `amostra_resposta.json` é fictícia segundo o contrato. Não serve como prova do comportamento de sinais no CRM nem da equação de promessas em produção.
 - A árvore contém `caixa-futuro-fase1.zip`, artefato binário que não foi inspecionado internamente nesta etapa. Por isso, não declaro fechado o inventário de todos os possíveis consumidores/leitores embutidos nele. A varredura de consumidores permanece um gate antes do corte.
@@ -101,7 +101,7 @@ Foram identificados **6 módulos de teste, com 65 métodos `test_*`** na revisã
 - Colunas REAL devem permanecer inalteradas; usar colunas paralelas e conciliação.
 - Valores de face, pagamentos confirmados, pendentes de baixa, créditos e abatimentos têm semânticas diferentes. Não liberar negativos globalmente nem presumir que pagos e pendente cobrem todos os cenários contábeis.
 
-### Matriz proposta de sinais v1.1 — pendente de assinatura e validação da origem
+### Matriz de sinais v1.1 — validação da origem pendente
 
 | Campo/métrica | Regra proposta | Validação que continua necessária |
 |---|---|---|
@@ -113,7 +113,7 @@ Foram identificados **6 módulos de teste, com 65 métodos `test_*`** na revisã
 | Recebido no período (`recebido_periodo_centavos`) | negativos permitidos | confirmar tratamento de devoluções/estornos e se o total é bruto ou líquido |
 | A vencer/vencido (`a_vencer_centavos`, `vencido_centavos`) | não negativos | confirmar representação de crédito/abatimento na carteira |
 
-Esta é a matriz de sinais **proposta** para o contrato v1.1. Enquanto a v1.1 não for assinada, não alterar o comportamento de produção. Após assinatura, validar a semântica com extração autorizada e sanitizada e testes por campo; não inferir regra contábil somente pelos nomes.
+Esta matriz documenta as regras-alvo para o contrato v1.1. Não alterar o comportamento operacional até que a semântica por campo tenha evidência de origem sanitizada e testes de regressão. Não inferir regra contábil somente pelos nomes.
 
 ## 5. Arquitetura recomendada
 
@@ -123,26 +123,26 @@ Esta é a matriz de sinais **proposta** para o contrato v1.1. Enquanto a v1.1 n�
 4. **Entrada decimal conforme classe do campo:** para valor monetário final, aceitar casas além da segunda somente se todos os dígitos excedentes forem zero (`1.230` aceito; `1.231` rejeitado sem arredondamento). Para grandezas de cálculo, preservar a escala `_eN` contratada com aritmética exata e aplicar *half-up* somente ao resultado monetário final. Valores oficiais de origem (boleto, extrato, custas) não devem ser recalculados.
 5. Manter catálogo explícito de semântica e sinal por campo; nunca corrigir sinal silenciosamente.
 6. Conciliar inteiros em centavos por igualdade exata. Relatório por campo/período deve apresentar contagem, total legado convertido, total novo e delta em centavos, separando fluxos de snapshots.
-7. Migração aditiva e idempotente: conferir schema, criar apenas colunas ausentes, usar chave primária estável, registrar inválidos sem expor dados pessoais e abortar em incompatibilidade. Não sobrescrever destino divergente sem modo de reparo aprovado.
+7. Migração aditiva e idempotente: conferir schema, criar apenas colunas ausentes, usar chave primária estável, registrar inválidos sem expor dados pessoais e abortar em incompatibilidade. Não sobrescrever destino divergente sem procedimento de reparo documentado e testado.
 
 ### Decisão de desenho consolidada: `REAL congelado` e dupla escrita
 
-A decisão proposta mais recente resolve a ambiguidade: `REAL congelado` significa preservar o schema e a semântica legados, não interromper a escrita. Após a assinatura formal da Política v1.1/contrato e aprovação dos gates técnicos, o escritor mantém o caminho legado em `REAL` com semântica inalterada e grava as colunas novas `INTEGER`/`_centavos` na **mesma transação SQLite**. Falha em qualquer lado deve reverter ambos.
+A regra técnica `REAL congelado` preserva o schema e a semântica legados, sem interromper a escrita. Após os gates técnicos de compatibilidade, o escritor mantém o caminho legado em `REAL` com semântica inalterada e grava as colunas novas `INTEGER`/`_centavos` na mesma transação SQLite. Falha em qualquer lado deve reverter ambos.
 
-A escrita em `REAL` permanece ativa durante a dupla escrita, durante o corte e por pelo menos **90 dias corridos após o corte**; depois disso, continua até o descomissionamento formal aprovado pela Controladoria. O anexo de consumidores deve registrar leitores ainda dependentes de `REAL` e a data/gate em que cada leitor muda. O teste de rollback após o corte precisa criar dados novos pós-corte e confirmar que a leitura revertida para `REAL` os encontra.
+A escrita em `REAL` permanece ativa durante a dupla escrita, durante o corte e por pelo menos 90 dias corridos após o corte; continua depois disso até que os critérios documentados de descomissionamento sejam satisfeitos. Registrar leitores ainda dependentes de `REAL` e comprovar com dados novos que o rollback de leitura encontra os registros pós-corte.
 
-Essa é uma minuta de desenho, não uma autorização de implementação: nenhuma alteração funcional, coluna ou backfill antes da ratificação/assinatura formal e dos gates pertinentes.
+Nenhuma alteração funcional, coluna ou backfill deve ser executado antes de inventário, testes isolados, evidência da origem, backup/restauração verificados, conciliação e rollback ensaiado.
 ## 6. Plano faseado executável — ainda não executado
 
 ### Fase 0 — inventário e semântica
 - Mapear todos os leitores/escritores, SQL, views, gráficos, relatórios, exportações e integrações.
 - Confirmar formato decimal oficial e sinais por campo.
-- Confirmar no contrato os nomes semânticos por métrica, as regras de `NULL`/`CHECK` e a dupla escrita transacional já descrita na minuta; recolher ratificação formal antes de implementação.
-- Gate: revisão de engenharia e semântica aprovada pela área financeira.
+- Confirmar no contrato os nomes semânticos por métrica, as regras de `NULL`/`CHECK` e a dupla escrita transacional; testar todas as regras em dados sintéticos e em payload sanitizado autorizado antes da implantação.
+- Gate: revisão de engenharia concluída, semântica documentada por campo e casos de exceção cobertos por testes.
 
 ### Fase 1 — backup e baseline
 - Identificar o caminho real por DASHBOARD_DB; não adivinhar.
-- Em ambiente autorizado, controlar escritores e executar backup_sqlite.py criar e backup_sqlite.py verificar em destino exclusivo; exigir status OK, integrity_check aprovado e manifesto SHA-256 protegido.
+- Em ambiente autorizado, controlar escritores e executar backup_sqlite.py criar e backup_sqlite.py verificar em destino exclusivo; exigir `status: OK`, `integrity_check` sem falhas e manifesto SHA-256 preservado.
 - Registrar contagens, user_version e totais por campo/período fora do Git.
 - Executar diagnosticar_banco.py e guardar relatório restrito.
 - Gate: backup verificado e baseline reproduzível. Nenhum backup foi criado nesta análise.
@@ -159,104 +159,104 @@ Essa é uma minuta de desenho, não uma autorização de implementação: nenhum
 - Gate: contagens preservadas e legado inalterado.
 
 ### Fase 4 — leitura paralela e conciliação
-- Manter a leitura legada até aprovação do corte; após assinatura formal e liberação dos gates, gravar `REAL` e `_centavos` na mesma transação SQLite, preservando a semântica do escritor legado.
+- Manter a leitura legada até que a conciliação, CI, backup/restauração e rollback satisfaçam os critérios técnicos de corte; então gravar `REAL` e `_centavos` na mesma transação, preservando a semântica do escritor legado.
 - Comparar por campo e período, reportar diferenças de 1 centavo e explicar todas as divergências.
-- Manter a escrita em `REAL` durante e após o corte por pelo menos 90 dias corridos e até o descomissionamento formal aprovado pela Controladoria.
-- Gate Controladoria: zero divergência inexplicada, semântica confirmada e aprovação escrita.
+- Manter a escrita em `REAL` durante e após o corte por pelo menos 90 dias corridos e até que os critérios documentados de descomissionamento sejam satisfeitos.
+- Gate técnico: zero divergência inexplicada, semântica documentada e resultados da conciliação reproduzíveis.
 
 ### Fase 5 — corte e rollback
 - Habilitar leitura _centavos primeiro em homologação, com regressão de consultas, relatórios e exportações.
 - Definir janela, responsável, gatilhos de aborto e rollback; ensaiar em cópia.
-- Antes do corte, reverter descartando ambiente de teste. Após corte, voltar leitura via feature flag para legado sem apagar colunas novas; restaurar backup somente com aprovação e análise das escritas posteriores.
-- Gate final: conciliação aprovada, testes/CI verdes, backup verificado, runbook e responsáveis definidos.
-- Remover REAL somente em etapa futura separada e aprovada.
+- Antes do corte, reverter descartando o ambiente de teste. Após corte, voltar leitura via feature flag para legado sem apagar colunas novas; avaliar restauração de backup somente após preservar o estado atual e analisar as escritas posteriores conforme o runbook.
+- Gate final: conciliação sem divergências inexplicadas, testes/CI verdes, backup e restauração verificados, runbook e responsável operacional definidos.
+- Remover REAL somente em release futura separada, após a janela de estabilidade e comprovação de que todos os consumidores usam centavos.
 
 ## 7. Testes mínimos especificados
 
 | Categoria | Casos | Esperado |
 |---|---|---|
 | Half-up positivo | 0,005; 0,004; 1,005; 2,675 | 1, 0, 101, 268 centavos para entradas decimais em reais |
-| Half-up negativo | -0,005; -0,004 | -1 e 0 centavos; aceitar só em campos aprovados |
+| Half-up negativo | -0,005; -0,004 | -1 e 0 centavos; aceitar só em campos definidos na matriz |
 | Importação | 3, 4 e 6 casas decimais | parsing decimal exato; arredondar uma vez no final |
 | REAL legado | 1,005; 2,675; 0,1 + 0,2 | conversão determinística e diferenças explicitadas; documentar perda original |
 | Somas extensas | muitos itens e frações subcentavo | sem deriva; arredondamento no nível correto |
 | Rateio/parcelamento | 10.000 centavos em 3 partes | 3333 + 3333 + 3334; soma exata |
 | Reconciliação | diferença 0,00 e 0,01 | igualdade passa; diferença de 1 centavo falha |
-| Sinais | negativo por campo, crédito, estorno, abatimento | conforme matriz aprovada, sem autorização global |
+| Sinais | negativo por campo, crédito, estorno, abatimento | conforme matriz documentada, sem autorização global |
 | Idempotência | repetir migração, schema parcial, destino já preenchido | sem duplicação; conflito explícito |
 | Falha/atomicidade | interrupção, constraint, overflow, inválido | rollback; legado preservado |
 | Integração | snapshots, fluxos, totais por usuário | sem somar snapshots como fluxos; contagens preservadas |
 
 Estes são testes especificados, não resultados de execução. A integração GitHub usada nesta inspeção não executou a suite local.
 
-## 8. Critérios de aprovação da Controladoria
+## 8. Critérios de saída técnica e financeira
 
-Entregar inventário final, baseline reproduzível, relatório por período/campo com totais e diferenças em centavos, justificativa aprovada para cada divergência, decisão sobre sinais e pagamentos pendentes, testes e CI ligados ao commit, backup verificado e rollback ensaiado. Gate: nenhuma divergência inexplicada; não substituir igualdade exata por tolerância informal.
+Entregar inventário final, baseline reproduzível, relatório por período/campo com totais e deltas em centavos, classificação documentada de cada divergência, decisão por campo sobre sinais e pagamentos pendentes, CI associado ao commit, backup/restauração verificados e rollback ensaiado. Critério de saída: nenhuma divergência inexplicada; igualdade exata para dados novos.
 
-## 9. Decisões recebidas e estado de ratificação
+## 9. Decisões técnicas registradas e estado de validação
 
-As propostas complementares mais recentes resolveram o desenho técnico dos três bloqueadores principais: (1) colunas por métrica semântica, (2) `REAL congelado` com escrita de compatibilidade mantida por pelo menos 90 dias após o corte e até o descomissionamento formal, e (3) Política v1.1 com validação diferenciada para valores finais e grandezas de cálculo. Essa resolução está registrada como **minuta**, não como prova de assinatura financeira. Até a assinatura da Política v1.1/contrato e aprovação dos gates, a v1.0 permanece a política formalmente aprovada e nenhuma alteração funcional é autorizada.
+As decisões técnicas registradas neste documento cobrem: (1) colunas por métrica semântica, (2) `REAL congelado` com escrita de compatibilidade por pelo menos 90 dias após o corte e até satisfazer critérios de retirada, e (3) validação distinta para valores finais e grandezas de cálculo. A implementação funcional e a migração continuam condicionadas a testes, evidência de origem, inventário, backup/restauração e rollback.
 
 | Tema | Decisão registrada | Estado/gate técnico |
 |---|---|---|
 | Sinais negativos | Permitidos somente em depósitos (estorno), `valorRecebidoPeriodo`, `acordos.porUsuario[].pendente` e `promessas.porUsuario[].emAberto`; alerta visível; demais valores e todas as quantidades não negativos | Validar com extração real sanitizada/autorizada e testes por campo; sem payload de CRM nesta análise |
-| Entrada decimal | Proposta de Política v1.1 separa valor monetário final de grandeza de cálculo: valores finais aceitam casas excedentes só se forem zeros finais (`1.230` aceito; `1.231` rejeitado); escala interna segue contrato e *half-up* só no resultado final | A solução está registrada como minuta da Política v1.1 e no contrato; aguarda assinatura formal antes de alterar o runtime. Validar a forma original de entrada da origem antes de habilitar |
-| Compatibilidade com REAL | Termo proposto passa a ser `REAL congelado`; escritor legado permanece com semântica inalterada durante a dupla escrita, no corte e por pelo menos 90 dias corridos pós-corte, até descomissionamento formal; ambos os lados na mesma transação | Desenho alinhado na minuta v1.1; depende de assinatura formal, inventário de consumidores e testes de atomicidade/rollback com dados pós-corte |
-| Esquema | Nomes semânticos por métrica aprovados como proposta documental: oito colunas em `fatos` e três em `acordos_posicao`; `NULL` final significa não aplicável ao tipo e `0` significa zero; CHECK por tipo/sinal e obrigatoriedade gradual | Modelo descrito no contrato proposto v1.1; ainda exige assinatura formal e implementação/teste. Durante backfill, `NULL` em campo aplicável é estado de migração, não semântica final, e precisa de marcador de fase |
+| Entrada decimal | A especificação v1.1 separa valor monetário final de grandeza de cálculo: valores finais aceitam casas excedentes somente se forem zeros finais (`1.230` aceito; `1.231` rejeitado); escala interna segue contrato e *half-up* só no resultado final | Validar a grafia original de entrada e os casos de fronteira com testes antes de habilitar o caminho novo |
+| Compatibilidade com REAL | `REAL congelado`: o writer legado mantém semântica durante dupla escrita, corte e pelo menos 90 dias corridos pós-corte, até os critérios documentados de retirada; ambas as representações na mesma transação | Inventário de consumidores completo e testes de atomicidade/rollback com dados pós-corte |
+| Esquema | O modelo define oito colunas semânticas em `fatos` e três em `acordos_posicao`; `NULL` final significa não aplicável e `0` significa zero; CHECK por tipo/sinal e obrigatoriedade gradual | Implementar e testar o modelo em banco descartável; durante backfill, diferenciar NULL transitório por marcador de fase |
 | Conversão do histórico | `Decimal(repr(valor))`, *half-up*, função única `real_para_centavos`, relatório de conversões suspeitas | `repr(float)` não recupera de forma garantida a grafia original do JSON. A conversão serve como interpretação determinística do REAL existente, com perda histórica explicitada; definir a regra exata de suspeita |
 | Relações contábeis | Acordos: `valor = pagos + pendente`; promessas: `prometido = cumprido + emAberto + quebrado` | A amostra fictícia versionada não comprova a relação das promessas em dados reais. Verificar com extração autorizada antes do alerta |
 | Pagamento sem baixa | Continua em pendente/em aberto; só é considerado pago/recebido após baixa confirmada; campo próprio, se existir, deve ser exibido separado e não somado a pagos | Inventariar se a origem fornece esse campo e comprovar como os totais são montados |
 | ERP/Systêxtil | Valor calculado pela origem prevalece; app não apresenta cálculo próprio de juros/multa/desconto antes de validar a fórmula contra pelo menos 30 títulos sanitizados | Gate de TI/Contabilidade antes de habilitar cálculo próprio |
-| Corte e rollback | Dez dias úteis de conciliação; centavos novos com tolerância zero; 100% das divergências classificadas; Controladoria aprova e Diretoria assina; restauração testada; REAL descomissionado em etapa posterior após 90 dias sem incidentes | Definir calendário/critério para “dia útil”, produzir relatórios reais, obter aprovações e ensaiar rollback em homologação |
+| Corte e rollback | Dez dias úteis de conciliação; centavos novos com tolerância zero; 100% das divergências classificadas; restauração testada; REAL removido apenas em etapa separada após 90 dias sem incidentes | Definir calendário de dia útil, produzir relatórios reais e ensaiar rollback em homologação |
 
 ## 10. Revisão de consistência técnica
 
 | ID / severidade | Inconsistência ou risco | Tratamento necessário |
 |---|---|---|
-| TC-01 — **Bloqueador até assinatura** | A minuta v1.1 resolve a distinção: valor final rejeita dígito não zero após a segunda casa; zeros finais são aceitos; grandezas de cálculo preservam a escala contratada e arredondam *half-up* apenas no resultado final | Manter a versão 1.0 como formalmente aprovada até assinatura da v1.1; confirmar a representação aceita pela origem e não ativar regra nova antes da versão aprovada |
-| TC-02 — **Bloqueador até assinatura** | A minuta usa “REAL congelado”: legado permanece gravável apenas pelo caminho de compatibilidade, na mesma transação, durante o corte e por no mínimo 90 dias depois; só para no descomissionamento aprovado | Completar o inventário de consumidores REAL; testar falha de cada lado da transação e rollback de leitura com dados pós-corte; manter a escrita legado ativa se o descomissionamento não for aprovado ao final dos 90 dias |
-| TC-03 — **Bloqueador até assinatura** | O contrato v1.1 propõe oito colunas semânticas em `fatos` e três em `acordos_posicao`; CHECKs imediatos preservam compatibilidade com linhas antigas ainda não backfilled e restringem tipo/sinal | Antes de criar esquema, obter assinatura formal; implementar validadores por tipo, diagnóstico sensível à fase e triggers de obrigatoriedade apenas depois do backfill conciliado |
+| TC-01 — **Bloqueador técnico** | Valor final rejeita dígito não zero após a segunda casa; zeros finais são aceitos; grandezas de cálculo preservam a escala contratada e aplicam *half-up* ao resultado final | Confirmar a representação aceita pela origem e testar a regra sem arredondar a entrada |
+| TC-02 — **Bloqueador técnico** | `REAL congelado`: legado permanece gravável no caminho de compatibilidade na mesma transação durante e após o corte | Completar inventário de consumidores REAL; testar falha de cada lado e rollback com dados pós-corte |
+| TC-03 — **Bloqueador técnico** | O contrato define oito colunas semânticas em `fatos` e três em `acordos_posicao`; CHECKs preservam linhas legadas durante backfill | Implementar validadores por tipo, diagnóstico por fase e triggers pós-backfill somente em banco descartável e com testes verdes |
 | TC-04 — **Alto** | Parsing exato requer validação do token bruto também para inteiros; `parse_float=Decimal` isolado não rejeita expoente e `parse_constant` padrão pode aceitar `NaN`/`Infinity` | Parser único usa `parse_int` e `parse_float` com gramática sem `e/E`, `parse_constant` rejeitante, rejeição explícita de bool e validação de strings somente se declaradas no contrato. A validação integral do payload antecede a transação do dia |
 | TC-05 — **Alto** | `Decimal(repr(x))` é determinístico para a representação curta do float, mas não recupera com garantia o texto original (ex.: zeros finais ou grafia equivalente podem já ter sido perdidos) | Documentar conversão de REAL histórico como estimativa técnica auditável, não como reconstrução do payload. Não classificar o centavo convertido como mais verdadeiro que o legado sem reconciliação |
 | TC-06 — **Alto** | Os sinais variam por campo; `NULL` é semântica final de não aplicabilidade, mas colunas aditivas estarão temporariamente nulas em linhas históricas antes do backfill | Usar CHECKs de coerência por tipo e de sinal que aceitem NULL durante a fase aditiva; distinguir backfill pendente por marcador de fase, exigir métricas aplicáveis no importador/diagnóstico e ativar triggers depois do backfill e conciliação |
-| TC-07 — **Alto** | SQLite não vincula `Decimal` diretamente sem adaptação. A dupla escrita precisa definir como o valor exato em centavos alimenta as colunas novas e como o fluxo legado mantém compatibilidade com REAL | Manter cálculos e reconciliação no domínio Decimal/inteiro; confinar a eventual conversão para REAL ao adaptador legado explicitamente aprovado; realizar ambas as gravações na mesma transação e testar falha de cada lado |
-| TC-08 — **Alto** | A relação das promessas está aprovada no documento de decisão, mas não foi comprovada pela evidência atualmente versionada. Os 10 dias úteis de alerta não definem como tratar dias sem carga, falhas nem feriados | Verificar a relação com payload autorizado; definir critério de contagem da janela e exigir carga/auditoria válida por dia antes de avançar o gate |
+| TC-07 — **Alto** | SQLite não vincula `Decimal` diretamente sem adaptação. A dupla escrita precisa definir como valores exatos alimentam colunas novas e como o fluxo legado mantém compatibilidade | Manter cálculos no domínio Decimal/inteiro; documentar e testar o adaptador de compatibilidade REAL; comprovar atomicidade e rollback |
+| TC-08 — **Alto** | A relação das promessas está descrita nos documentos, mas ainda não foi comprovada por evidência suficiente. Os 10 dias úteis não definem dias sem carga, falhas nem feriados | Verificar relação com payload sanitizado e definir contagem da janela com critérios reproduzíveis |
 | TC-09 — **Alto** | A validação de 30 títulos do ERP ainda não foi produzida; arredondar *half-up* pelo app não prova que a fórmula do ERP, sua base de dias e o momento do arredondamento sejam iguais | Deixar cálculo próprio desligado; validar 30 casos reais sanitizados contra a origem e documentar divergências antes de alterar a política |
-| TC-10 — **Médio** | O inventário completo de consumidores, testes e CI ainda não está demonstrado | Inspecionar todo o repositório, identificar leituras e escritas de REAL, automatizar os testes e exigir execução verde de CI no PR. Ausência de resultado observado não equivale a CI aprovado nem prova que inexiste workflow |
+| TC-10 — **Médio** | O inventário de consumidores, testes e CI ainda não está completo | Inspecionar repositório e consumidores externos; identificar leituras/escritas de REAL; obter execução verde de CI no commit integrado; ausência de resultado observado não prova ausência de workflow |
 | TC-11 — **Médio** | A regra de “conversão suspeita” menciona “fração mínima” sem limite numérico operacional | Definir escala, algoritmo, epsilon/limite e formato do relatório em especificação versionada. Não usar tolerância para relaxar a igualdade exata dos dados novos |
 
 ### Recomendação de desenho
 
 1. Separar três operações que não devem compartilhar semântica: **parse da origem** (validar formato e escala contratados), **conversão monetária exata** (Decimal para centavos, ou cálculo interno com arredondamento *half-up* apenas no resultado) e **conversão histórica de REAL** (diagnóstico e trilha de auditoria).
 2. Manter a regra de igualdade exata para os novos valores em centavos; classificar divergências de legado como evidências de conversão ou erro, sem aplicar tolerância monetária ao dado novo.
-3. Manter juros/multa/desconto calculados pelo app desabilitados até aprovação dos 30 títulos e não promover a amostra fictícia a evidência de produção.
-4. Tratar TC-01, TC-02 e TC-03 como resolvidos no desenho proposto, mas manter migração de esquema, corte ou modificação do caminho de gravação bloqueados até a assinatura formal da Política v1.1/contrato e aprovação dos gates técnicos.
+3. Manter juros/multa/desconto calculados pelo app desabilitados até validar 30 títulos sanitizados contra os valores de origem; não tratar a amostra fictícia como evidência de produção.
+4. Tratar TC-01, TC-02 e TC-03 como resolvidos apenas no desenho técnico; manter migração de schema, corte ou modificação do caminho de gravação bloqueados até que os gates técnicos sejam demonstrados.
 
 ## 11. Gates obrigatórios antes da implementação/migração
 
-- [ ] Assinatura formal da Política de Precisão Monetária v1.1 e do contrato que registra os desenhos propostos para TC-01 a TC-03.
-- [ ] Inventário completo dos consumidores REAL e aprovação final do modelo das oito colunas semânticas em `fatos` e três em `acordos_posicao`.
-- [ ] Implementação/testes dos CHECKs, diagnóstico sensível à fase e triggers pós-backfill; nenhuma coluna ou backfill antes da aprovação formal.
+- [ ] Política v1.1 e contrato versionados, consistentes e com regras de escala reproduzíveis.
+- [ ] Inventário completo dos consumidores REAL e modelo das oito colunas semânticas em `fatos` e três em `acordos_posicao` documentado.
+- [ ] Implementação/testes dos CHECKs, diagnóstico sensível à fase e triggers pós-backfill; nenhuma coluna ou backfill antes da validação técnica em banco descartável.
 - [ ] Especificação do parser: tipos JSON/strings aceitos, rejeição de notação científica, escala, booleanos/nulos, limites e política para mais de duas casas.
 - [ ] Extração real sanitizada e autorizada para validar sinais, semântica do pagamento sem baixa e equação das promessas.
 - [ ] Evidência de ao menos 30 títulos sanitizados comparados com ERP/Systêxtil antes de habilitar cálculos próprios de encargos.
 - [ ] Inventário completo de consumidores, testes e CI; testes automatizados verdes.
 - [ ] Backup com manifesto/SHA-256 e restauração verificada em homologação, seguindo `RUNBOOK_OPERACIONAL.md`.
-- [ ] Dez dias úteis de conciliação diária, divergências 100% classificadas, zero divergência inexplicada, aprovação da Controladoria e assinatura da Diretoria.
-- [ ] Plano de rollback testado antes do corte; descomissionamento de REAL tratado em release separada após 90 dias corridos sem incidentes e aprovação própria.
+- [ ] Dez dias úteis de conciliação diária, divergências 100% classificadas e zero divergência inexplicada.
+- [ ] Plano de rollback testado antes do corte; descomissionamento de REAL em release separada após 90 dias corridos sem incidentes e inventário de consumidores atualizado.
 
 ### Acompanhamento explícito dos bloqueadores no GitHub
 
-- [ ] [Issue #3 — Ratificar regra de entrada com mais de 2 casas](https://github.com/IsaacTexCotton/Dashboard/issues/3) — decisão da Diretoria Financeira e revisão versionada da política.
-- [ ] [Issue #4 — Definir contrato de dupla escrita REAL/INTEGER](https://github.com/IsaacTexCotton/Dashboard/issues/4) — redação formal aprovada por TI/Controladoria/Diretoria.
-- [ ] [Issue #5 — Definir colunas INTEGER específicas por métrica](https://github.com/IsaacTexCotton/Dashboard/issues/5) — aprovação do modelo por métrica e das constraints.
+- [ ] [Issue #3 — Definir regra de entrada monetária com mais de 2 casas](https://github.com/IsaacTexCotton/Dashboard/issues/3) — validar token de origem e casos de fronteira.
+- [ ] [Issue #4 — Definir contrato de dupla escrita REAL/INTEGER](https://github.com/IsaacTexCotton/Dashboard/issues/4) — inventário completo e teste de atomicidade/rollback.
+- [ ] [Issue #5 — Definir colunas INTEGER específicas por métrica](https://github.com/IsaacTexCotton/Dashboard/issues/5) — validar constraints por tipo/sinal em banco descartável.
  
 ## 12. Estado desta entrega
 
 - [x] Política, contrato, runbook, importador, auditoria e esquema atual consultados remotamente.
 - [x] Decisões recebidas comparadas com política, contrato e implementação observável.
 - [x] Revisão de consistência técnica e plano de execução preparados em documentos da mesma branch.
-- [ ] Assinatura formal da Política v1.1 e do contrato monetário proposto; issues #3–#5 permanecem abertas até registro da ratificação.
+- [ ] Política v1.1 e contrato monetário versionados; issues #3–#5 encerradas quando seus critérios técnicos reproduzíveis forem atendidos.
 - [x] Inventário da árvore textual, workflow CI e seis módulos de teste concluído; total de 65 métodos de teste identificados na revisão. [ ] Inventário de todos os consumidores/leitores ainda pendente, incluindo inspeção interna de `caixa-futuro-fase1.zip`.
 - [x] GitHub Actions `Testes CAIXA FUTURO` — execução [#42](https://github.com/IsaacTexCotton/Dashboard/actions/runs/38581680436) concluiu `success` no head documental `82c5e3284a3e1db61c55ed77123e245639b93b27`, incluindo testes automatizados existentes e amostra sem CRM; a alteração deste próprio relatório exige uma execução atualizada. Testes específicos da migração ainda não foram implementados/executados.
 - [ ] Backup real verificado/restauração testada: não executados.
