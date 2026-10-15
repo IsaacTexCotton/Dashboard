@@ -66,6 +66,7 @@ A transição de `REAL` para `INTEGER` em centavos é incremental; a existência
 - A fase `conciliado` é atribuída às linhas somente quando a verificação integral de igualdade REAL→centavos passa e a fase global avança para `backfill_conciliado`.
 - A migração instala guardas de fase idempotentes: depois de `backfill_conciliado`, novas linhas não podem cair no padrão `legado` e linhas existentes não podem voltar a essa fase.
 - `diagnosticar_banco.py --json` é somente-leitura: NULL em métrica aplicável na fase `legado` é pendência (`WARN`); ausência ou divergência em linhas `dual`/`conciliado` é falha (`FAIL`).
+- `auditar_resposta.py` soma e compara dinheiro em centavos inteiros, sem tolerância de R$ 0,01; tokens monetários precisam ser `int`/`Decimal` exatos, com precisão além de duas casas aceita somente quando os dígitos excedentes são zero.
 - Testes de migração/backfill usam bancos sintéticos. Nenhuma migração, backfill ou importação em banco real foi executada, e nenhum corte foi habilitado.
 
 ## Limites antes de produção

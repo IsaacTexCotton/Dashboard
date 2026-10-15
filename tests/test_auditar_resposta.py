@@ -12,8 +12,7 @@ sys.path.insert(0, str(ROOT))
 import auditar_resposta
 import importar
 
-with (ROOT / "amostra_resposta.json").open(encoding="utf-8") as f:
-    AMOSTRA = json.load(f)
+AMOSTRA = importar._carregar_arquivo(str(ROOT / "amostra_resposta.json"))
 
 
 class AuditoriaTestes(unittest.TestCase):
@@ -29,11 +28,11 @@ class AuditoriaTestes(unittest.TestCase):
         checks = auditar_resposta.auditar(payload)
         check = next(c for c in checks if c.grupo == "depositos" and c.metrica == "valorTotal")
         self.assertEqual(check.status, "DIVERGÊNCIA")
-        self.assertEqual(check.diferenca, "1.0")
+        self.assertEqual(check.diferenca, "1.00")
 
     def test_divergencia_de_um_centavo_nao_e_tolerada(self):
         payload = copy.deepcopy(AMOSTRA)
-        payload["data"]["depositos"]["valorTotal"] = 25000.01
+        payload["data"]["depositos"]["valorTotal"] = Decimal("25000.01")
         checks = auditar_resposta.auditar(payload)
         check = next(c for c in checks if c.grupo == "depositos" and c.metrica == "valorTotal")
         self.assertEqual(check.status, "DIVERGÊNCIA")
@@ -82,9 +81,29 @@ class AuditoriaTestes(unittest.TestCase):
                 ):
                     auditar_resposta.auditar(payload)
 
+    def test_aceita_zeros_finais_apos_a_segunda_casa(self):
+        payload = copy.deepcopy(AMOSTRA)
+        payload["data"]["depositos"]["valorTotal"] = Decimal("25000.000")
+        checks = auditar_resposta.auditar(payload)
+        check = next(c for c in checks if c.grupo == "depositos" and c.metrica == "valorTotal")
+        self.assertEqual(check.status, "OK")
+        self.assertEqual(check.total_api, "25000.00")
+
+    def test_rejeita_digito_nao_zero_apos_centavos(self):
+        payload = copy.deepcopy(AMOSTRA)
+        payload["data"]["depositos"]["valorTotal"] = Decimal("25000.001")
+        with self.assertRaisesRegex(importar.ErroValidacao, "precisão excede 2 casas"):
+            auditar_resposta.auditar(payload)
+
+    def test_rejeita_float_intermediario_no_auditor_monetario(self):
+        payload = copy.deepcopy(AMOSTRA)
+        payload["data"]["depositos"]["valorTotal"] = 25000.01
+        with self.assertRaisesRegex(importar.ErroValidacao, "float intermediário proibido"):
+            auditar_resposta.auditar(payload)
+
     def test_divergencia_de_dois_centavos_bloqueia(self):
         payload = copy.deepcopy(AMOSTRA)
-        payload["data"]["depositos"]["valorTotal"] = 25000.02
+        payload["data"]["depositos"]["valorTotal"] = Decimal("25000.02")
         checks = auditar_resposta.auditar(payload)
         check = next(c for c in checks if c.grupo == "depositos" and c.metrica == "valorTotal")
         self.assertEqual(check.status, "DIVERGÊNCIA")
@@ -128,7 +147,7 @@ class AuditoriaTestes(unittest.TestCase):
     def test_cli_divergencia_retorna_um(self):
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "resposta.json"
-            payload = copy.deepcopy(AMOSTRA)
+            payload = json.loads((ROOT / "amostra_resposta.json").read_text(encoding="utf-8"))
             payload["data"]["depositos"]["quantidadeTotal"] = 16
             path.write_text(json.dumps(payload), encoding="utf-8")
             proc = subprocess.run([sys.executable, str(ROOT / "auditar_resposta.py"), str(path)],

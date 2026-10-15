@@ -349,7 +349,9 @@ class PersistenciaTestes(unittest.TestCase):
     def test_importacao_api_bloqueia_divergencia_antes_de_criar_banco(self):
         with tempfile.TemporaryDirectory() as td:
             db = Path(td) / "nao_deve_existir.db"
-            payload = json.loads(json.dumps(AMOSTRA))
+            # A resposta da API passa pelo parser JSON estrito; manter Decimal
+            # no mock em vez de simular floats provenientes de json.loads comum.
+            payload = importar._carregar_arquivo(str(ROOT / "amostra_resposta.json"))
             payload["data"]["depositos"]["valorTotal"] += 100
             with patch.object(importar, "DB", str(db)), patch.dict(
                 os.environ, {"CRM_URL": "https://crm.invalid", "CRM_TOKEN": "token-de-teste"}
@@ -379,7 +381,7 @@ class PersistenciaTestes(unittest.TestCase):
     def test_importacao_api_bloqueia_valor_negativo_antes_de_criar_banco(self):
         with tempfile.TemporaryDirectory() as td:
             db = Path(td) / "nao_deve_existir.db"
-            payload = json.loads(json.dumps(AMOSTRA))
+            payload = importar._carregar_arquivo(str(ROOT / "amostra_resposta.json"))
             payload["data"]["promessas"]["porUsuario"][0]["quebrado"] = -1
             with patch.object(importar, "DB", str(db)), patch.dict(
                 os.environ, {"CRM_URL": "https://crm.invalid", "CRM_TOKEN": "token-de-teste"}
