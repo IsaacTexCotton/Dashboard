@@ -180,7 +180,7 @@ A validação automatizada deste payload sanitizado está concluída. A igualdad
 
 ---
 
-## Adendo da Issue #5 — esquema por métrica (minuta pendente de ratificação)
+## Adendo da Issue #5 — esquema por métrica (especificação técnica proposta)
 
 **Status:** especificação proposta; não autoriza DDL, migração, backfill ou ativação operacional. As regras de sinal abaixo permanecem provisórias até validação com extração do CRM sanitizada e autorizada. Este adendo prevalece sobre formulações antigas incompatíveis com a nomenclatura semântica.
 
@@ -216,4 +216,4 @@ A afinidade `INTEGER` do SQLite pode converter o texto numérico `'123'` em inte
 
 ### Limite de implementação
 
-Esta seção é somente a especificação-alvo. Não modifica nem autoriza alterar o importador, aplicar migração, iniciar backfill, executar uma importação real ou ativar flags. A implementação funcional permanece subordinada à ratificação registrada na Issue #5 e aos gates operacionais da Issue #17.
+Esta seção é somente a especificação-alvo. Não modifica nem autoriza alterar o importador, aplicar migração, iniciar backfill, executar uma importação real ou ativar flags. A implementação funcional permanece condicionada à conclusão da especificação técnica da Issue #5 e aos gates operacionais da Issue #17.
