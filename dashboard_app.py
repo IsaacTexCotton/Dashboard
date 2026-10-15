@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Prévia local e somente-leitura do CAIXA FUTURO.
 
---demo monta um SQLite exclusivamente em memória a partir de amostra_resposta.json.
+--demo monta um SQLite exclusivamente em memória a partir de amostra_resposta_ficticia.json.
 --db lê um arquivo SQLite existente em modo read-only e nunca cria/migra/backfilla.
 O servidor vincula somente 127.0.0.1; não publica a interface na rede.
 """
@@ -320,7 +320,7 @@ def criar_conexao_demo() -> sqlite3.Connection:
     try:
         con.executescript(importar.SCHEMA)
         migrar_schema_monetario(con)
-        resposta = importar._carregar_arquivo(str(ROOT / "amostra_resposta.json"))
+        resposta = importar._carregar_arquivo(str(ROOT / "amostra_resposta_ficticia.json"))
         dia = resposta["data"]["inicio"]
         importar.gravar(con, dia, resposta, "demo-sintetica", dupla_escrita=True)
         definir_fase_migracao(con, "backfill_em_andamento")
