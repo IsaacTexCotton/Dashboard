@@ -130,9 +130,8 @@ class NormalizacaoTestes(unittest.TestCase):
 
         payload = importar.loads_json_estrito(json.dumps(AMOSTRA))
         with patch.object(
-            importar, "float",
-            side_effect=AssertionError("conversão float não deve ser chamada"),
-            create=True,
+            importar, "_para_real_legado",
+            side_effect=AssertionError("adaptador REAL legado não deve ser chamado"),
         ):
             usuarios, fatos, posicao = importar.normalizar(
                 payload, "2026-10-13", converter_monetarios_float=False
@@ -147,9 +146,8 @@ class NormalizacaoTestes(unittest.TestCase):
 
         payload = importar.loads_json_estrito(json.dumps(AMOSTRA))
         with patch.object(
-            importar, "float",
-            side_effect=AssertionError("conversão float não deve ser chamada"),
-            create=True,
+            importar, "_para_real_legado",
+            side_effect=AssertionError("adaptador REAL legado não deve ser chamado"),
         ):
             usuarios, fatos, _ = importar.normalizar_duplo(
                 payload, "2026-10-13", "2026-10-14T12:00:00"
