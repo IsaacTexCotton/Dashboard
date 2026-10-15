@@ -58,6 +58,7 @@ class TestMigracaoSchemaMonetario(unittest.TestCase):
             resultado = migrar_schema_monetario(con)
             self.assertEqual(resultado["total_colunas"], 13)
             self.assertEqual(len(resultado["colunas_criadas"]), 13)
+            self.assertEqual(len(resultado["triggers_fase_criados"]), 4)
             self.assertEqual(resultado["fase"], "schema_adicionado")
             self.assertEqual(
                 con.execute(
@@ -128,7 +129,9 @@ class TestMigracaoSchemaMonetario(unittest.TestCase):
             primeira = migrar_schema_monetario(con)
             segunda = migrar_schema_monetario(con)
             self.assertEqual(len(primeira["colunas_criadas"]), 13)
+            self.assertEqual(len(primeira["triggers_fase_criados"]), 4)
             self.assertEqual(segunda["colunas_criadas"], [])
+            self.assertEqual(segunda["triggers_fase_criados"], [])
             self.assertEqual(
                 con.execute("SELECT COUNT(*) FROM pragma_table_info('fatos')").fetchone()[0],
                 19,
@@ -297,6 +300,16 @@ class TestMigracaoSchemaMonetario(unittest.TestCase):
                 con.execute(f"SELECT fase FROM {TABELA_ESTADO} WHERE id=1").fetchone()[0],
                 "backfill_conciliado",
             )
+            with self.assertRaises(sqlite3.IntegrityError):
+                con.execute(
+                    "INSERT INTO fatos(data,usuario,tipo,qtd,qtd_unicos,valor,valor_pago,"
+                    "valor_aberto,valor_quebrado,importado_em) "
+                    "VALUES ('2026-10-15','legado_novo','deposito',1,0,1.0,0,0,0,'agora')"
+                )
+            con.rollback()
+            with self.assertRaises(sqlite3.IntegrityError):
+                con.execute("UPDATE fatos SET monetario_fase='legado' WHERE usuario='ana'")
+            con.rollback()
             with self.assertRaises(ErroMigracaoMonetaria):
                 definir_fase_migracao(con, "backfill_em_andamento")
         finally:
