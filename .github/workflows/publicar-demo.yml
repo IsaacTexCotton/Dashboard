@@ -1,0 +1,55 @@
+name: Publicar demonstração estática
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "web-demo/**"
+      - ".github/workflows/publicar-demo.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Baixar repositório
+        uses: actions/checkout@v4
+      - name: Verificar prévia auto-contida
+        run: |
+          test -s web-demo/index.html
+          grep -q "Sem conexão com CRM" web-demo/index.html
+          grep -q "dados fictícios" web-demo/index.html
+      - name: Verificar se o GitHub Pages está habilitado
+        id: pages
+        env:
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          status="$(curl -sS -o /tmp/pages.json -w '%{http_code}' -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/${REPOSITORY}/pages")"
+          if [ "$status" = "200" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::GitHub Pages ainda não está configurado. Habilite Settings > Pages > Source: GitHub Actions e execute este workflow manualmente."
+          fi
+      - name: Preparar artefato do Pages
+        if: steps.pages.outputs.enabled == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: web-demo
+      - name: Publicar
+        if: steps.pages.outputs.enabled == 'true'
+        id: deployment
+        uses: actions/deploy-pages@v4

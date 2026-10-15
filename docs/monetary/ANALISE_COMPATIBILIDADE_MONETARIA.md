@@ -16,7 +16,7 @@ Foram consultados os documentos de política, contrato, runbook, importador, aud
 - O runbook exige diagnóstico e backup verificado antes de operações de banco, e proíbe versionar banco, backup, payload real ou dados pessoais.
 - A base da PR documental foi observada em `main` no commit `92097eb5966e7446b0d632ec1ebd227a5a7520f3`; esse hash identifica a base da revisão, não o head documental desta branch.
 
-Referências: [Política](POLITICA_PRECISAO_MONETARIA.md) · [Contrato](CONTRATO_DADOS_FINANCEIROS.md) · [Runbook](RUNBOOK_OPERACIONAL.md) · [Importador](importar.py) · [Auditor](auditar_resposta.py)
+Referências: [Política](POLITICA_PRECISAO_MONETARIA.md) · [Contrato](../architecture/CONTRATO_DADOS_FINANCEIROS.md) · [Runbook](../operations/RUNBOOK_OPERACIONAL.md) · [Importador](../../importar.py) · [Auditor](../../auditar_resposta.py)
 
 ## 3. Inventário do fluxo monetário
 
