@@ -60,6 +60,8 @@ A execução deve ocorrer em branch de implementação própria e PRs revisávei
 
 ### Fase 3 — Parsing e domínio monetário exato, sem persistência
 
+**Estado do código (15/10/2026):** parser JSON estrito, conversão de valor final para centavos, conversão determinística do REAL histórico, matriz de sinais por campo e testes de precisão estão implementados. No fluxo exato de dupla escrita/auditoria, a validação preserva `Decimal`/`int`; o `float` permanece restrito ao adaptador de compatibilidade REAL. Os sinais ainda precisam ser verificados com extração da origem sanitizada e autorizada.
+
 **Tarefas**
 - Implementar módulo comum de parsing/conversão, reutilizado por importador e auditoria; evitar dois parsers divergentes.
 - Validar a grafia do token JSON antes de criar `Decimal`, usando `parse_int` e `parse_float` com uma gramática que rejeita `e/E` e `parse_constant` que rejeita `NaN`/`Infinity`. Rejeitar booleanos explicitamente; strings só são aceitas se o contrato as declarar permitidas para o campo.
@@ -72,8 +74,10 @@ A execução deve ocorrer em branch de implementação própria e PRs revisávei
 
 ### Fase 4 — Auditoria exata e semântica contábil
 
+**Estado do código (15/10/2026):** a soma e a comparação dos totais monetários são calculadas em centavos inteiros com tolerância zero, com testes de diferença de um centavo e de precisão inválida. A igualdade `valor = pagos + pendente` e a regra equivalente das promessas não são bloqueantes, pois as exceções contábeis ainda não foram classificadas e testadas.
+
 **Tarefas**
-- Eliminar tolerância monetária de R$ 0,01 na auditoria nova; comparar inteiros em centavos com igualdade exata. Quantidades/contagens permanecem inteiras e exatas.
+- [x] Implementado: auditoria monetária compara inteiros em centavos com igualdade exata; quantidades/contagens permanecem inteiras e exatas.
 - Implementar checks separados para somas agregadas de origem versus usuários, identidade de acordos e identidade de promessas. Não somar `contatosUnicosTotal` entre usuários.
 - Tratar `valorRecebidoPeriodo` como fluxo do período e `valorAVencer`/`valorVencido` como posição por captura: nunca somar snapshots de capturas diferentes como fluxo.
 - Confirmar a regra das promessas e as exceções contábeis com payload real sanitizado, com foco em desconto, renegociação, cancelamento, pagamento parcial e pagamento informado sem baixa.
@@ -82,6 +86,8 @@ A execução deve ocorrer em branch de implementação própria e PRs revisávei
 **Saída:** todas as divergências de testes são explicáveis; regras contábeis foram comprovadas ou os casos pendentes permanecem explicitamente não bloqueantes.
 
 ### Fase 5 — Migração de esquema aditiva e backfill idempotente
+
+**Estado do código (15/10/2026):** migração aditiva/idempotente, 11 colunas de métricas em centavos e dois marcadores `monetario_fase` por linha estão implementados; a fase global e os guardas de fase são validados, e o backfill/diagnóstico têm testes sintéticos. Isso não significa que o script foi aplicado a um banco real. Um relatório operacional completo de conversões históricas suspeitas e a execução autorizada em homologação permanecem pendentes.
 
 **Pré-condições:** Fases 0–4 atendidas; backup e restauração verificados; revisão técnica concluída; CI verde.
 
@@ -96,6 +102,8 @@ A execução deve ocorrer em branch de implementação própria e PRs revisávei
 **Saída:** mesma contagem de registros e mesmas chaves; nenhuma alteração destrutiva; relatório de backfill integral e idempotência comprovada.
 
 ### Fase 6 — Dupla escrita transacional e conciliação técnica
+
+**Estado do código (15/10/2026):** escrita dupla do mesmo `Decimal` em REAL compatível e centavos na mesma transação, gravação da fase `dual`, reimportação/idempotência, atomicidade em arquivo e leitor concorrente têm cobertura sintética. O diagnóstico compara cada par exatamente. O leitor do dashboard por centavos ainda não existe no repositório; a flag `LEITURA_CENTAVOS=1` é recusada, logo não houve corte nem teste de rollback de leitura pós-corte.
 
 **Tarefas**
 - Modificar o escritor somente após os testes isolados de G-02 demonstrarem atomicidade, idempotência e rollback.
@@ -126,6 +134,8 @@ A execução deve ocorrer em branch de implementação própria e PRs revisávei
 - Regras de sinais validadas com evidência de origem; regras contábeis e 30 títulos do ERP validados conforme aplicável.
 - Inventário anexo lista os consumidores que ainda leem REAL e o gate/data planejada para cada um migrar leitura para centavos.
 - Relatórios de conciliação revisados e critérios técnicos de corte satisfeitos; responsável operacional e janela de mudança registrados.
+
+**Estado atual:** esta fase não pode iniciar enquanto não houver leitor de centavos integrado ao dashboard e todos os gates operacionais tiverem evidência. O importador recusa `LEITURA_CENTAVOS=1` em vez de fingir que o corte ocorreu.
 
 **Tarefas**
 - Alternar leitura para centavos com chave/configuração reversível.
@@ -188,7 +198,7 @@ A escrita legada em REAL permanece ativa durante os 90 dias corridos posteriores
 
 As decisões de desenho técnico registradas neste plano são: nomes semânticos por métrica, `REAL congelado` com escrita legada mantida ao menos 90 dias pós-corte e distinção entre valores finais e grandezas de cálculo. Nenhum backfill, corte ou alteração de banco real será executado sem evidência dos gates técnicos, configuração do ambiente confirmada, backup/restauração verificados e janela operacional registrada.
 
-Este plano foi preparado a partir da análise documental e das decisões recebidas em 14/10/2026. O GitHub Actions `Testes CAIXA FUTURO` — execução [#42](https://github.com/IsaacTexCotton/Dashboard/actions/runs/38581680436) no head documental `82c5e3284a3e1db61c55ed77123e245639b93b27` — concluiu com sucesso nos testes automatizados existentes e na validação da amostra sem CRM. Isso não valida uma migração que ainda não foi implementada: testes específicos de centavos/schema/dupla escrita/rollback permanecem pendentes. Não foram executados backup, migração, alteração de schema, dupla escrita, acesso ao CRM/ERP ou corte de produção nesta etapa.
+**Atualização de estado (15/10/2026):** o conjunto atual inclui testes específicos de parsing/precisão, mapeamento por métrica, esquema aditivo, backfill, flags, dupla escrita, reimportação, atomicidade, diagnóstico por fase e preservação de valores `REAL`. O CI executa a suíte completa e valida a amostra fictícia sem CRM. Verificar o status do workflow no HEAD candidato, não usar o antigo run #42 como evidência atual. Nenhum backup/restauração operacional em homologação, migração/backfill real, acesso ao CRM/ERP ou corte de leitura foi executado nesta implementação.
 
 
 ### Bloqueadores rastreados no GitHub
