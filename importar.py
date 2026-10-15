@@ -228,12 +228,36 @@ def _campo_decimal_exato(item: dict, campo: str, contexto: str) -> Decimal | int
 
 
 def _modo_dupla_escrita() -> bool:
-    valor = os.environ.get("DASHBOARD_MONETARIO_DUAL_WRITE", "0").strip()
-    if valor not in ("0", "1"):
+    """Valida as flags monetárias antes de qualquer I/O.
+
+    DUPLA_ESCRITA é o nome vigente. A variável antiga é aceita como fallback
+    temporário para não quebrar ambientes ainda não inventariados.
+    A leitura por centavos permanece fechada até existir um caminho de leitura
+    efetivamente integrado; nunca aceitar a flag e continuar lendo REAL em silêncio.
+    """
+    valor_dupla = os.environ.get("DUPLA_ESCRITA")
+    if valor_dupla is None:
+        valor_dupla = os.environ.get("DASHBOARD_MONETARIO_DUAL_WRITE", "0")
+    valor_dupla = valor_dupla.strip()
+    valor_leitura = os.environ.get("LEITURA_CENTAVOS", "0").strip()
+
+    if valor_dupla not in ("0", "1"):
+        raise ErroValidacao("DUPLA_ESCRITA deve ser exatamente 0 ou 1")
+    if valor_leitura not in ("0", "1"):
+        raise ErroValidacao("LEITURA_CENTAVOS deve ser exatamente 0 ou 1")
+
+    dupla_escrita = valor_dupla == "1"
+    leitura_centavos = valor_leitura == "1"
+    if leitura_centavos and not dupla_escrita:
         raise ErroValidacao(
-            "DASHBOARD_MONETARIO_DUAL_WRITE deve ser exatamente 0 ou 1"
+            "configuração inválida: LEITURA_CENTAVOS=1 exige DUPLA_ESCRITA=1"
         )
-    return valor == "1"
+    if leitura_centavos:
+        raise ErroValidacao(
+            "LEITURA_CENTAVOS=1 foi solicitado, mas a leitura do dashboard por "
+            "centavos ainda não está implementada; operação recusada"
+        )
+    return dupla_escrita
 
 
 def normalizar_duplo(resp: Any, dia: str, importado_em: str):
