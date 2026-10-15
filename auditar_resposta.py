@@ -11,7 +11,7 @@ import argparse
 import json
 import sys
 from dataclasses import dataclass
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -51,23 +51,29 @@ _NEGATIVOS_PERMITIDOS = {
 }
 
 
-def _decimal(
+def _centavos(
     valor: Any,
     campo: str,
     *,
     negativos_permitidos: bool = False,
-) -> Decimal:
-    if isinstance(valor, bool) or not isinstance(valor, (int, float, Decimal)):
-        raise importar.ErroValidacao(f"{campo}: esperado número JSON")
+) -> int:
+    """Converte valor monetário final para centavos sem tolerância/arredondamento."""
+    from precisao_monetaria import ErroMonetario, valor_final_centavos
+
     try:
-        numero = valor if isinstance(valor, Decimal) else Decimal(str(valor))
-    except (InvalidOperation, ValueError) as exc:
-        raise importar.ErroValidacao(f"{campo}: número inválido") from exc
-    if not numero.is_finite():
-        raise importar.ErroValidacao(f"{campo}: número não finito")
-    if numero < 0 and not negativos_permitidos:
-        raise importar.ErroValidacao(f"{campo}: valor monetário negativo não permitido")
-    return numero
+        return valor_final_centavos(
+            valor,
+            campo=campo,
+            negativos_permitidos=negativos_permitidos,
+        )
+    except ErroMonetario as exc:
+        raise importar.ErroValidacao(str(exc)) from exc
+
+
+def _formatar_centavos(valor: int) -> str:
+    sinal = "-" if valor < 0 else ""
+    absoluto = abs(valor)
+    return f"{sinal}{absoluto // 100}.{absoluto % 100:02d}"
 
 
 def auditar(resp: Any, tolerancia: Decimal | None = None) -> list[Check]:
@@ -91,32 +97,48 @@ def auditar(resp: Any, tolerancia: Decimal | None = None) -> list[Check]:
         if total_campo not in grupo_obj:
             checks.append(Check(grupo, total_campo, "ausente", "não calculado", "—", "PENDENTE"))
             continue
+
+        contexto_total = f"data.{grupo}.{total_campo}"
         if tipo == "inteiro":
-            total = Decimal(importar._inteiro(
-                grupo_obj[total_campo], f"data.{grupo}.{total_campo}"
+            total: int = importar._inteiro(grupo_obj[total_campo], contexto_total)
+            soma = 0
+            for indice, linha in enumerate(linhas):
+                contexto = f"data.{grupo}.porUsuario[{indice}].{linha_campo}"
+                if not isinstance(linha, dict) or linha_campo not in linha:
+                    raise importar.ErroValidacao(f"{contexto}: campo ausente")
+                soma += importar._inteiro(linha[linha_campo], contexto)
+            diferenca = total - soma
+            checks.append(Check(
+                grupo, total_campo, str(total), str(soma), str(diferenca),
+                "OK" if diferenca == 0 else "DIVERGÊNCIA",
             ))
-        else:
-            total = _decimal(
-                grupo_obj[total_campo],
-                f"data.{grupo}.{total_campo}",
-                negativos_permitidos=(grupo, linha_campo) in _NEGATIVOS_PERMITIDOS,
-            )
-        soma = Decimal("0")
+            continue
+
+        negativos_permitidos = (grupo, linha_campo) in _NEGATIVOS_PERMITIDOS
+        total_centavos = _centavos(
+            grupo_obj[total_campo],
+            contexto_total,
+            negativos_permitidos=negativos_permitidos,
+        )
+        soma_centavos = 0
         for indice, linha in enumerate(linhas):
+            contexto = f"data.{grupo}.porUsuario[{indice}].{linha_campo}"
             if not isinstance(linha, dict) or linha_campo not in linha:
-                raise importar.ErroValidacao(
-                    f"data.{grupo}.porUsuario[{indice}].{linha_campo}: campo ausente"
-                )
-            soma += _decimal(
+                raise importar.ErroValidacao(f"{contexto}: campo ausente")
+            soma_centavos += _centavos(
                 linha[linha_campo],
-                f"data.{grupo}.porUsuario[{indice}].{linha_campo}",
-                negativos_permitidos=(grupo, linha_campo) in _NEGATIVOS_PERMITIDOS,
+                contexto,
+                negativos_permitidos=negativos_permitidos,
             )
-        diferenca = total - soma
-        limite = Decimal("0")
-        fmt = lambda numero: format(numero, "f")
-        checks.append(Check(grupo, total_campo, fmt(total), fmt(soma), fmt(diferenca),
-                            "OK" if abs(diferenca) <= limite else "DIVERGÊNCIA"))
+        diferenca_centavos = total_centavos - soma_centavos
+        checks.append(Check(
+            grupo,
+            total_campo,
+            _formatar_centavos(total_centavos),
+            _formatar_centavos(soma_centavos),
+            _formatar_centavos(diferenca_centavos),
+            "OK" if diferenca_centavos == 0 else "DIVERGÊNCIA",
+        ))
 
     # Não somar contatos únicos por negociador: o cliente pode aparecer em mais de uma carteira.
     contatos = data.get("contatos", {})
@@ -124,7 +146,6 @@ def auditar(resp: Any, tolerancia: Decimal | None = None) -> list[Check]:
         checks.append(Check("contatos", "contatosUnicosTotal (não aditivo)",
                             str(contatos["contatosUnicosTotal"]), "não comparada", "—", "NÃO ADITIVO"))
     return checks
-
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Audita totais versus soma por usuário; não grava dados")
