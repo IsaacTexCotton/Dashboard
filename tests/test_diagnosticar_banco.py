@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 import diagnosticar_banco
 import importar
-from migrar_schema_monetario import migrar_schema_monetario
+from migrar_schema_monetario import TABELA_ESTADO, migrar_schema_monetario
 
 with (ROOT / "amostra_resposta.json").open(encoding="utf-8") as arquivo:
     AMOSTRA = json.load(arquivo)
@@ -79,6 +79,26 @@ class DiagnosticoBancoTestes(unittest.TestCase):
         check = next(c for c in report["checks"] if c["check"] == "coerencia_fase_monetaria")
         self.assertEqual(check["status"], "WARN", check["detail"])
         self.assertEqual(report["metrics"]["monetary_phase"]["legacy_pending_pairs"], 1)
+
+    def test_fase_legado_apos_conciliacao_global_e_fail(self):
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "legado-pos-conciliacao.db"
+            self._criar_banco_fase_monetaria(path, fase="legado", centavos=None)
+            con = sqlite3.connect(path)
+            try:
+                # Simula um estado inconsistente numa fixture sintética;
+                # a transição normal usa verificar_conciliacao_monetaria.
+                con.execute(
+                    f"UPDATE {TABELA_ESTADO} SET fase='backfill_conciliado' WHERE id=1"
+                )
+                con.commit()
+            finally:
+                con.close()
+            report = diagnosticar_banco.diagnosticar(path)
+        check = next(c for c in report["checks"] if c["check"] == "coerencia_fase_monetaria")
+        self.assertEqual(check["status"], "FAIL", check["detail"])
+        self.assertIn("fase legado após backfill_conciliado", check["detail"])
+        self.assertEqual(report["metrics"]["monetary_phase"]["legacy_pending_pairs"], 0)
 
     def test_banco_inexistente_nao_e_criado(self):
         with tempfile.TemporaryDirectory() as td:
