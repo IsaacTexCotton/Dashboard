@@ -85,9 +85,15 @@ def _numero(
     campo: str,
     *,
     negativos_permitidos: bool = False,
-) -> float:
+    converter_para_float: bool = True,
+) -> float | Decimal | int:
     if isinstance(valor, bool) or not isinstance(valor, (int, float, Decimal)):
         raise ErroValidacao(f"{campo}: esperado número JSON finito")
+    if not converter_para_float and isinstance(valor, float):
+        raise ErroValidacao(
+            f"{campo}: float intermediário proibido; token Decimal/int obrigatório "
+            "no caminho monetário exato"
+        )
     # O caminho operacional carrega JSON com loads_json_estrito, preservando
     # Decimal/int. Validar escala antes de qualquer conversão para float/REAL:
     # zeros excedentes são exatos; frações subcentavo são rejeitadas sem round.
@@ -98,6 +104,10 @@ def _numero(
             )
         except ErroMonetario as exc:
             raise ErroValidacao(str(exc).replace("valor negativo não permitido", "valor monetário negativo não permitido")) from exc
+    if not converter_para_float:
+        # O modo exato é usado por dupla escrita/auditoria: preserva Decimal/int
+        # até a conversão explícita no adaptador REAL e na coluna de centavos.
+        return valor
     try:
         numero = float(valor)
     except (OverflowError, ValueError) as exc:
@@ -123,13 +133,15 @@ def _campo_numero(
     contexto: str,
     *,
     negativos_permitidos: bool = False,
-) -> float:
+    converter_para_float: bool = True,
+) -> float | Decimal | int:
     if campo not in item:
         raise ErroValidacao(f"{contexto}: campo obrigatório ausente: {campo}")
     return _numero(
         item[campo],
         f"{contexto}.{campo}",
         negativos_permitidos=negativos_permitidos,
+        converter_para_float=converter_para_float,
     )
 
 
@@ -139,8 +151,13 @@ def _campo_inteiro(item: dict, campo: str, contexto: str) -> int:
     return _inteiro(item[campo], f"{contexto}.{campo}")
 
 
-def normalizar(resp: Any, dia: str):
-    """Valida e normaliza a resposta antes de qualquer escrita no SQLite."""
+def normalizar(
+    resp: Any,
+    dia: str,
+    *,
+    converter_monetarios_float: bool = True,
+):
+    """Valida a resposta; o modo exato preserva Decimal/int para o novo caminho."""
     dia = _dia_iso(dia, "dia de importação")
     resp = _objeto(resp, "resposta")
     if resp.get("success") is not True:
@@ -150,6 +167,21 @@ def normalizar(resp: Any, dia: str):
     fim = _dia_iso(d.get("fim"), "data.fim")
     if inicio != dia or fim != dia:
         raise ErroValidacao(f"período divergente: esperado {dia}–{dia}, recebido {inicio}–{fim}")
+
+    def campo_numero(
+        item: dict,
+        campo: str,
+        contexto: str,
+        *,
+        negativos_permitidos: bool = False,
+    ) -> float | Decimal | int:
+        return _campo_numero(
+            item,
+            campo,
+            contexto,
+            negativos_permitidos=negativos_permitidos,
+            converter_para_float=converter_monetarios_float,
+        )
 
     usuarios: dict[str, str | None] = {}
     fatos: list[tuple] = []
@@ -267,7 +299,9 @@ def normalizar_duplo(resp: Any, dia: str, importado_em: str):
     Esta função valida a estrutura geral antes de criar os pares e exige todas
     as métricas aplicáveis para os tipos de fato.
     """
-    usuarios, _fatos_legados, _posicao_legada_tuple = normalizar(resp, dia)
+    usuarios, _fatos_legados, _posicao_legada_tuple = normalizar(
+        resp, dia, converter_monetarios_float=False
+    )
     d = resp["data"]
     fatos_duplos: list[dict[str, Any]] = []
 
