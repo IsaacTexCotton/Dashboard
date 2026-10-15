@@ -25,6 +25,73 @@ class NormalizacaoTestes(unittest.TestCase):
         self.assertEqual(pos[1], "2026-10-13")
         self.assertEqual(pos[2:], (0.0, 1_000_000.0, 200_000.0))
 
+    def test_contagem_por_usuario_corresponde_a_fatos_normalizados_e_gravados(self):
+        # Fixture sintética com o formato 5+5+3+5 do relato de 18 itens.
+        # Cada linha porUsuario deve gerar exatamente um fato; não deduplicar
+        # entre tipos diferentes. O contador global de contatos únicos não é aditivo.
+        import auditar_resposta
+
+        payload = importar.loads_json_estrito(json.dumps(AMOSTRA))
+        data = payload["data"]
+        quantidades = {"depositos": 5, "acordos": 5, "promessas": 3, "contatos": 5}
+        totais_por_grupo = {
+            "depositos": {"quantidadeTotal": "quantidade", "valorTotal": "valor"},
+            "acordos": {
+                "quantidadeTotal": "quantidade", "valorTotal": "valor",
+                "pagosTotal": "pagos", "pendenteTotal": "pendente",
+            },
+            "promessas": {
+                "quantidadeTotal": "quantidade", "prometidoTotal": "prometido",
+                "cumpridoTotal": "cumprido", "emAbertoTotal": "emAberto",
+                "quebradoTotal": "quebrado",
+            },
+            "contatos": {"registrosTotaisTotal": "registrosTotais"},
+        }
+        for grupo, quantidade in quantidades.items():
+            base = data[grupo]["porUsuario"][0]
+            linhas = []
+            for indice in range(quantidade):
+                item = dict(base)
+                item["usuario"] = f"TESTE.{grupo.upper()}.{indice}"
+                item["nome"] = f"Usuário sintético {grupo} {indice}"
+                linhas.append(item)
+            data[grupo]["porUsuario"] = linhas
+            for campo_total, campo_item in totais_por_grupo[grupo].items():
+                data[grupo][campo_total] = sum(linha[campo_item] for linha in linhas)
+
+        checks = auditar_resposta.auditar(payload)
+        bloqueios = [check for check in checks if check.status in ("DIVERGÊNCIA", "PENDENTE")]
+        self.assertEqual(bloqueios, [], str(bloqueios))
+
+        itens_origem = sum(
+            len(data[grupo]["porUsuario"]) for grupo in quantidades
+        )
+        usuarios, fatos, _ = importar.normalizar(payload, "2026-10-13")
+        self.assertEqual(itens_origem, 18)
+        self.assertEqual(len(usuarios), 18)
+        self.assertEqual(len(fatos), itens_origem)
+        self.assertEqual(
+            {tipo: sum(1 for fato in fatos if fato[2] == tipo) for tipo in importar.TIPOS},
+            {"deposito": 5, "acordo": 5, "promessa": 3, "contato": 5},
+        )
+
+        con = sqlite3.connect(":memory:")
+        try:
+            con.executescript(importar.SCHEMA)
+            gravados = importar.gravar(con, "2026-10-13", payload, "teste-sintetico")
+            self.assertEqual(gravados, itens_origem)
+            self.assertEqual(con.execute("SELECT COUNT(*) FROM fatos").fetchone()[0], itens_origem)
+            self.assertEqual(
+                dict(con.execute("SELECT tipo, COUNT(*) FROM fatos GROUP BY tipo").fetchall()),
+                {"acordo": 5, "contato": 5, "deposito": 5, "promessa": 3},
+            )
+            self.assertEqual(
+                con.execute("SELECT linhas FROM importacoes").fetchone()[0],
+                itens_origem,
+            )
+        finally:
+            con.close()
+
     def test_rejeita_success_false(self):
         payload = json.loads(json.dumps(AMOSTRA))
         payload["success"] = False
