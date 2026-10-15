@@ -2,13 +2,13 @@
 
 **Projeto:** Dashboard de Cobrança (CAIXA FUTURO), Contas a Pagar / Financeiro  
 **Data:** 14/10/2026  
-**Estado:** Política v1.1 ratificada pelo solicitante em 14/10/2026; plano técnico em execução por etapas, com gates operacionais ainda obrigatórios.  
+**Estado:** plano técnico por fases, atualizado em 15/10/2026; avanço orientado por critérios verificáveis.
 **Branch de documentação:** `docs/analise-compatibilidade-monetaria`  
 **Regra de segurança:** nenhuma alteração de schema, migração, dupla escrita ou corte de produção está autorizada por este documento.
 
 ## 1. Objetivo e resultado esperado
 
-Migrar valores monetários de `REAL` para `INTEGER` em centavos, com parsing decimal exato, conciliação sem tolerância nos dados novos e rollback por chave de configuração, mantendo a compatibilidade do dashboard durante a transição. O plano preserva as colunas legadas até um descomissionamento aprovado em etapa separada.
+Migrar valores monetários de `REAL` para `INTEGER` em centavos, com parsing decimal exato, conciliação sem tolerância nos dados novos e rollback por chave de configuração, mantendo a compatibilidade do dashboard durante a transição. As colunas legadas permanecem durante a transição e só são retiradas em release separada após satisfazer critérios técnicos documentados.
 
 A execução deve ocorrer em branch de implementação própria e PRs revisáveis. Esta PR é documental e não deve misturar mudança de regras operacionais com código da migração.
 
@@ -16,26 +16,26 @@ A execução deve ocorrer em branch de implementação própria e PRs revisávei
 
 | ID | Decisão necessária | Proposta técnica para avaliação | Gate |
 |---|---|---|---|
-| G-01 | Regra de escala da entrada monetária | Minuta v1.1: valor final aceita casas excedentes apenas quando os dígitos após a 2ª casa são todos zero (`1.230` aceito; `1.231` rejeitado); grandezas de cálculo preservam escala contratada e arredondam *half-up* no resultado. Contrato deve classificar cada campo | Diretoria Financeira: assinatura formal da v1.1 ainda bloqueia mudança funcional |
-| G-02 | Continuidade da escrita em REAL | Minuta v1.1 troca o termo para `REAL congelado`: caminho legado mantém semântica inalterada durante dupla escrita, corte e por pelo menos 90 dias corridos pós-corte, até descomissionamento formal; centavos e REAL participam da mesma transação SQLite | TI/Controladoria/Diretoria: assinar política/contrato; validar leitores e rollback com dados pós-corte |
-| G-03 | Esquema por métrica e regras NULL/CHECK | Minuta do contrato define as oito colunas semânticas em `fatos`, três em `acordos_posicao`; CHECK de aplicabilidade por tipo e sinal; importador/diagnóstico exigem dados novos; triggers de obrigatoriedade só após backfill conciliado | Assinatura/aprovação formal precede criação de qualquer coluna/backfill |
-| G-04 | Regra operacional de conversão suspeita do REAL legado menciona “fração mínima” sem limite formal | Definir a fórmula e o limite exato do diagnóstico, com exemplos reproduzíveis; manter esse diagnóstico separado das regras de aceitação de dados novos | TI + Controladoria |
-| G-05 | Negativos em origem não comprovados para todos os campos listados e relação das promessas ainda não validada em dado real | Autorizar extração sanitizada e registrar evidência por campo/cenário; sem inferência a partir da amostra fictícia | TI + Controladoria |
+| G-01 | Regra de escala da entrada monetária | Valor final aceita casas excedentes apenas quando os dígitos após a 2ª casa são zeros (`1.230` aceito; `1.231` rejeitado); grandezas de cálculo preservam escala contratada e arredondam *half-up* no resultado; cada campo é classificado no contrato | Contrato versionado, exemplos de fronteira reproduzíveis, payload sanitizado e testes da gramática de entrada |
+| G-02 | Continuidade da escrita em REAL | Preservar a semântica legada durante dupla escrita, corte e por ao menos 90 dias corridos pós-corte; centavos e REAL na mesma transação SQLite | Inventário de leitores, teste de atomicidade e rollback pós-corte com dados novos em SQLite descartável |
+| G-03 | Esquema por métrica e regras NULL/CHECK | O contrato define oito colunas em `fatos` e três em `acordos_posicao`; CHECK por tipo/sinal; obrigatoriedade gradual após backfill conciliado | DDL aditiva e idempotente verificada em banco descartável; testes de CHECK, NULL, zero e fases; restauração de backup ensaiada |
+| G-04 | Regra de conversão suspeita do REAL legado | Definir fórmula e limite reproduzível, separado das regras de entrada nova | Especificação do algoritmo, exemplos e resultados determinísticos nos testes |
+| G-05 | Sinais na origem e relação das promessas | Validar os sinais por campo e a identidade das promessas com amostra sanitizada obtida por canal corporativo autorizado | Evidência por campo/cenário e testes de regressão; não inferir regras a partir da amostra fictícia |
 | G-06 | Fórmulas ERP/Systêxtil não validadas | Obter ao menos 30 títulos reais sanitizados e reproduzir ao centavo antes de habilitar qualquer cálculo próprio de encargo | Contabilidade + TI |
 
-**A ratificação da Política v1.1 foi declarada em 14/10/2026.** A integração de código pode avançar em PR isolada e sob feature flag. DDL, backfill, ativação de dupla escrita em produção e cutover continuam bloqueados até os respectivos gates técnicos (backup/restauração verificados, revisão, evidência de origem, conciliação e aprovações documentadas).
+**A especificação monetária v1.1 está documentada em versão controlada.** DDL, backfill, escrita dupla em produção e corte continuam bloqueados até que os gates técnicos sejam demonstrados: backup/restauração verificados, CI verde, evidência da origem, conciliação, rollback ensaiado e janela operacional registrada.
 
 ## 3. Fases, tarefas e critérios de saída
 
 ### Fase 0 — Governança e contrato
 
 **Tarefas**
-- Ratificar e assinar as decisões de negócio.
+- Consolidar e versionar decisões de negócio, sem ambiguidades críticas de implementação.
 - Resolver G-01 a G-04 e versionar a Política de Precisão Monetária/contrato de dados.
 - Fixar contrato de entrada: número JSON ou string decimal, sinal, escala, notação científica, nulo/ausente, separador decimal, limites de magnitude e tratamento de mais de duas casas.
 - Fixar nome e tipo de cada nova coluna, nulabilidade, condições de `CHECK` e chave de reconciliação.
 
-**Saída:** documentos versionados e aprovados; sem ambiguidades críticas de implementação.
+**Saída:** documentos versionados, regras consistentes e ambiguidades críticas resolvidas por critérios verificáveis.
 
 ### Fase 1 — Inventário de leituras, escritas e baseline
 
@@ -83,11 +83,11 @@ A execução deve ocorrer em branch de implementação própria e PRs revisávei
 
 ### Fase 5 — Migração de esquema aditiva e backfill idempotente
 
-**Pré-condições:** Fases 0–4 aceitas; backup verificado; revisão de código aprovada.
+**Pré-condições:** Fases 0–4 atendidas; backup e restauração verificados; revisão técnica concluída; CI verde.
 
 **Tarefas**
-- Criar migração versionada e idempotente para as colunas semânticas aprovadas: `deposito_valor_centavos`, `acordo_valor_centavos`, `acordo_pago_centavos`, `acordo_pendente_centavos`, `promessa_prometido_centavos`, `promessa_cumprido_centavos`, `promessa_em_aberto_centavos`, `promessa_quebrado_centavos`, `recebido_periodo_centavos`, `a_vencer_centavos` e `vencido_centavos`. Não renomear, reescrever ou remover colunas legadas `REAL`.
-- Preservar `NULL` quando significar “não informado”; não converter ausência para zero sem regra aprovada.
+- Criar migração versionada e idempotente para as colunas semânticas definidas no contrato:
+- Preservar `NULL` quando significar “não informado”; não converter ausência para zero sem regra explícita e testada.
 - Backfill do histórico a partir do REAL com `real_para_centavos`; marcar cada conversão suspeita e manter chave/valor original para auditoria.
 - Adicionar CHECKs imediatos: cada métrica de `fatos` só pode ser não nula para o `tipo` aplicável; CHECKs de sinal permitem negativos apenas em `deposito_valor_centavos`, `acordo_pendente_centavos`, `promessa_em_aberto_centavos` e `recebido_periodo_centavos`. NULL é aceito durante backfill; para `fatos`, o estado final NULL significa não aplicável e zero significa zero real.
 - Fazer `diagnosticar_banco.py` sensível à fase: NULL em métrica aplicável de linha histórica é pendência enquanto backfill estiver incompleto; métrica ausente em nova gravação após ativar dupla escrita é falha; depois do backfill conciliado, ausência em métrica aplicável deve falhar. Instalar triggers de obrigatoriedade somente após backfill e conciliação completos.
@@ -98,7 +98,7 @@ A execução deve ocorrer em branch de implementação própria e PRs revisávei
 ### Fase 6 — Dupla escrita transacional e conciliação técnica
 
 **Tarefas**
-- Modificar o escritor somente após assinatura/aprovação de G-02. Manter a gravação legada em REAL com semântica inalterada e gravar as colunas em centavos na **mesma transação**. A escrita em REAL continua durante a dupla escrita, no corte e por pelo menos 90 dias corridos pós-corte; só para com descomissionamento formal aprovado.
+- Modificar o escritor somente após os testes isolados de G-02 demonstrarem atomicidade, idempotência e rollback.
 - Calcular as colunas novas diretamente a partir do Decimal validado, não convertendo REAL de volta a centavos para dados novos.
 - Não usar REAL em cálculos, filtros monetários ou comparações no fluxo novo; se a compatibilidade exigir valor REAL, confinar o cast ao adaptador legado e documentá-lo.
 - Forçar falhas em cada lado (REAL e centavos) e provar rollback integral da transação; testar retry/idempotência, reprocessamento de um dia e rollback da leitura após o corte usando dados novos do período pós-corte.
@@ -119,13 +119,13 @@ A execução deve ocorrer em branch de implementação própria e PRs revisávei
 ### Fase 8 — Corte de leitura e rollback
 
 **Pré-condições obrigatórias**
-- Política monetária v1.1 e contrato de dados formalmente assinados/ratificados.
-- CI aprovado no head a integrar e testes específicos de parsing, schema, backfill, dupla escrita, diagnóstico e rollback verdes.
+- Política monetária v1.1 e contrato de dados versionados e tecnicamente consistentes.
+- CI verde no head a integrar e testes específicos de parsing, schema, backfill, dupla escrita, diagnóstico e rollback verdes.
 - Backup, manifesto e SHA-256 verificados; restauração em homologação ensaiada.
 - Dez dias úteis consecutivos de conciliação válida; zero divergência inexplicada e 100% das divergências classificadas.
 - Regras de sinais validadas com evidência de origem; regras contábeis e 30 títulos do ERP validados conforme aplicável.
 - Inventário anexo lista os consumidores que ainda leem REAL e o gate/data planejada para cada um migrar leitura para centavos.
-- Aprovação da Controladoria e assinatura final da Diretoria Financeira.
+- Relatórios de conciliação revisados e critérios técnicos de corte satisfeitos; responsável operacional e janela de mudança registrados.
 
 **Tarefas**
 - Alternar leitura para centavos com chave/configuração reversível.
@@ -139,7 +139,7 @@ A execução deve ocorrer em branch de implementação própria e PRs revisávei
 
 ### Fase 9 — Descomissionamento separado
 
-A escrita legada em REAL permanece ativa durante os 90 dias corridos posteriores ao corte e continua ativa depois desse prazo enquanto a aprovação formal de descomissionamento não ocorrer. Somente iniciar após pelo menos 90 dias corridos de operação sem incidente, com aprovação própria da Controladoria. Anexar inventário de consumidores que ainda leem REAL e a data/gate em que cada um deixou de ler. Verificar retenção/auditoria antes de remover qualquer dependência; não remover colunas automaticamente pelo decurso do prazo.
+A escrita legada em REAL permanece ativa durante os 90 dias corridos posteriores ao corte e além desse período até que os critérios documentados de descomissionamento sejam satisfeitos. Registrar inventário de consumidores que ainda leem REAL e evidência de migração de cada leitor. Não remover colunas automaticamente pelo decurso do prazo.
 
 ## 4. Matriz mínima de testes
 
@@ -153,19 +153,19 @@ A escrita legada em REAL permanece ativa durante os 90 dias corridos posteriores
 | Identidade contábil | Acordo pago total/parcial, pendente, crédito; promessa cumprida/em aberto/quebrada; cancelamento, desconto, renegociação e baixa pendente | Igualdades corretas ou exceção classificada; não contar pago antes de baixa |
 | Histórico REAL | `1.005`, `2.675`, `0.1 + 0.2`, nulo, valor negativo autorizado, valor com representação longa | Conversão determinística *half-up* e suspeitas listadas sem reescrita silenciosa do histórico |
 | Banco/transaction | Migração repetida, colunas já existentes, falha na gravação nova, falha na escrita legada, rollback, interrupção e retry | Migração idempotente; nenhuma transação parcial; registros/chaves preservados |
-| Regras temporais | fluxo `recebido_periodo`, snapshots `a_vencer`/`vencido`, timestamp original, dia sem carga, contagem dos 10 dias úteis | Fluxo e posição não confundidos; timestamp preservado; janela de alerta segue calendário formal e dias sem carga não contam automaticamente |
+| Regras temporais | fluxo `recebido_periodo`, snapshots `a_vencer`/`vencido`, timestamp original, dia sem carga, contagem dos 10 dias úteis | Fluxo e posição não confundidos; timestamp preservado; janela de alerta segue calendário definido e dias sem carga não contam automaticamente |
 | CHECK/obrigatoriedade faseada | NULL legado antes de backfill, zero, coluna não aplicável ao tipo, sinal, marker de fase, triggers pós-backfill | Linhas históricas incompletas não bloqueiam a migração aditiva; dados novos inválidos falham; após backfill conciliado, ausência em métrica aplicável falha |
 | Rollback após corte | Importar um registro novo depois do corte, forçar mudança de chave de leitura, confirmar retorno a REAL | O registro pós-corte permanece visível ao voltar a REAL; a escrita legada não foi encerrada antes do descomissionamento |
 | Integração | CLI do importador, auditoria, dashboard, relatórios, exportações, workflow CI | Compatibilidade comprovada por testes de regressão e CI verde |
 
-## 5. Critérios de conciliação e aprovação
+## 5. Critérios de conciliação e saída
 
 - **Dados novos:** igualdade exata em centavos; tolerância zero.
 - **Legado REAL versus INTEGER:** 100% das diferenças classificadas como conversão histórica suspeita, com registro e valor identificados, ou erro corrigido. Nenhuma divergência inexplicada.
 - **Janela:** dez dias úteis consecutivos de dupla escrita e conciliação diária, sob critério de calendário definido antes de iniciar.
-- **Governança:** Controladoria aprova; Diretoria Financeira assina o corte.
+- **Registro operacional:** manter histórico da execução, responsável, janela, evidências e resultado técnico do corte.
 - **Backup:** manifesto e SHA-256 conferidos e restauração ensaiada em homologação.
-- **Retirada de REAL:** release separada após 90 dias corridos sem incidentes e aprovação própria.
+- **Retirada de REAL:** release separada após 90 dias corridos sem incidentes, inventário completo e comprovação de que todos os consumidores migraram para centavos.
 
 ## 6. Rollback
 
@@ -176,28 +176,28 @@ A escrita legada em REAL permanece ativa durante os 90 dias corridos posteriores
 
 ## 7. Evidências a anexar ao PR de implementação
 
-- Decisões ratificadas e versão da política/contrato.
+- Versão da política/contrato e histórico das decisões técnicas.
 - Matriz completa de leitores e escritores, incluindo anexo por consumidor que informa dependência atual de REAL e data/gate planejado para mudar a leitura.
 - Payload sanitizado e autorizado / resultados de 30 títulos mantidos fora do Git, mais relatório com hashes e resultados não sensíveis.
 - Resultados de testes unitários/integrados e CI.
 - Manifesto do backup, SHA-256 e relatório de restauração, mantendo artefatos sensíveis em armazenamento restrito.
-- Relatórios diários dos dez dias úteis, divergências classificadas e aprovações.
+- Relatórios diários dos dez dias úteis e classificação documentada das divergências.
 - Procedimento e evidência de rollback em homologação.
 
 ## 8. Estado atual
 
-As decisões de desenho dos três bloqueadores foram ratificadas pelo solicitante em 14/10/2026: nome semântico por métrica, `REAL congelado` com escrita legada mantida ao menos 90 dias pós-corte e até descomissionamento formal, e distinção entre valores finais e grandezas de cálculo. A integração de código segue em branch/PR controlada. Nenhum backfill, corte ou alteração de banco real será executado até a aprovação dos gates operacionais e a verificação de backup/restauração.
+As decisões de desenho técnico registradas neste plano são: nomes semânticos por métrica, `REAL congelado` com escrita legada mantida ao menos 90 dias pós-corte e distinção entre valores finais e grandezas de cálculo. Nenhum backfill, corte ou alteração de banco real será executado sem evidência dos gates técnicos, configuração do ambiente confirmada, backup/restauração verificados e janela operacional registrada.
 
 Este plano foi preparado a partir da análise documental e das decisões recebidas em 14/10/2026. O GitHub Actions `Testes CAIXA FUTURO` — execução [#42](https://github.com/IsaacTexCotton/Dashboard/actions/runs/38581680436) no head documental `82c5e3284a3e1db61c55ed77123e245639b93b27` — concluiu com sucesso nos testes automatizados existentes e na validação da amostra sem CRM. Isso não valida uma migração que ainda não foi implementada: testes específicos de centavos/schema/dupla escrita/rollback permanecem pendentes. Não foram executados backup, migração, alteração de schema, dupla escrita, acesso ao CRM/ERP ou corte de produção nesta etapa.
 
 
 ### Bloqueadores rastreados no GitHub
 
-- [Issue #3 — Ratificar regra de entrada com mais de 2 casas](https://github.com/IsaacTexCotton/Dashboard/issues/3)
+- [Issue #3 — Definir regra de entrada monetária com mais de 2 casas](https://github.com/IsaacTexCotton/Dashboard/issues/3)
 - [Issue #4 — Definir contrato de dupla escrita REAL/INTEGER](https://github.com/IsaacTexCotton/Dashboard/issues/4)
 - [Issue #5 — Definir colunas INTEGER específicas por métrica](https://github.com/IsaacTexCotton/Dashboard/issues/5)
 
-Os três itens precisam ser decididos e fechados com evidência/aprovação antes da PR funcional de migração.
+Os três itens precisam ter definição técnica versionada, testes reproduzíveis e critérios de aceite documentados antes da PR funcional de migração.
 
 ## 9. Inventário de testes/CI confirmado
 
@@ -207,13 +207,13 @@ A árvore de `main` inspecionada em 14/10/2026 lista seis módulos de teste e 65
 |---|---:|---|
 | `tests/test_importar.py` | 28 | Aproveitar as regressões existentes de timestamp, transação, reimportação/idempotência, dry-run e validação; rever expectativas de sinal |
 | `tests/test_auditar_resposta.py` | 12 | Atualizar `test_respeita_tolerancia_de_centavo`: tolerância de R$ 0,01 não está conforme a política de igualdade exata para os novos centavos |
-| `tests/test_validar_integracao_local.py` | 3 | Preservar o fluxo local com amostra sem CRM, adicionando fixtures para as novas semânticas quando aprovadas |
+| `tests/test_validar_integracao_local.py` | 3 | Preservar o fluxo local com amostra sem CRM, adicionando fixtures para as semânticas definidas no contrato |
 | `tests/test_backup_recuperacao.py` | 2 | Cobertura automatizada em DB temporário; não substitui restauração operacional em homologação |
 | `tests/test_backup_sqlite.py` | 12 | Reutilizar testes de manifesto, hash, corrupção e preservação de registros |
 | `tests/test_diagnosticar_banco.py` | 8 | Preservar garantias de diagnóstico read-only/não destrutivo |
 
 Workflow `.github/workflows/testes.yml`: Python 3.11, `unittest discover`, dry-run de importação da amostra, auditoria da amostra e validação de integração local. A última execução confirmada antes desta edição é [#42](https://github.com/IsaacTexCotton/Dashboard/actions/runs/38581680436), `success`, no head documental `82c5e3284a3e1db61c55ed77123e245639b93b27`; uma nova execução precisa confirmar o head desta atualização.
 
-**Atenção:** os testes atuais de auditoria/importação codificam as regras antigas (aceitar diferença de um centavo em contexto de auditoria e rejeitar todo negativo). Devem ser revisados de acordo com as decisões ratificadas. Não há evidência de testes de centavos, backfill, dupla escrita, constraints do schema monetário ou rollback de leitura; esses testes precisam existir antes do corte. A amostra é fictícia e os testes automatizados de backup usam bancos temporários; nenhum dos dois comprova segurança operacional em banco real.
+**Atenção:** os testes atuais de auditoria/importação codificam regras antigas (tolerância de R$ 0,01 em contexto de auditoria e rejeição de todo negativo). Devem ser revisados de acordo com as regras documentadas por campo. Os testes de centavos, backfill, dupla escrita, constraints de schema e rollback de leitura precisam existir e passar antes do corte. A amostra é fictícia e testes em banco temporário não comprovam segurança operacional em banco real.
 
-A árvore também contém `caixa-futuro-fase1.zip`, cujo conteúdo não foi inspecionado. Fechar o inventário de consumidores exige verificar esse artefato ou documentar formalmente que ele está fora do escopo operacional.
+A árvore também contém `caixa-futuro-fase1.zip`, cujo conteúdo foi listado em 15/10/2026 (README, importador, teste e amostra). A listagem não mostrou UI/relatórios nesse pacote; consumidores externos e outros repositórios continuam fora do escopo verificado.
