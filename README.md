@@ -4,7 +4,7 @@ Ferramentas para importar, auditar e visualizar o consolidado diário de cobran�
 
 ## Ver a demonstração sem instalar nada
 
-A demonstração estática e interativa fica em [`web-demo/index.html`](web-demo/index.html). Ela usa exclusivamente dados fictícios em JavaScript local; não consulta o CRM, não abre banco de dados e não grava informações.
+A demonstração estática e interativa fica em [`web-demo/index.html`](web-demo/index.html). Ela incorpora `amostra_resposta_ficticia.json`, com a mesma estrutura, tipos e quantidade de itens de `amostra_resposta.json`, alterando valores sem gerar histórico ou distribuir métricas ausentes por usuário. Não consulta o CRM, não abre banco de dados e não grava informações.
 
 Para disponibilizá-la por um endereço público, configure uma única vez **Settings → Pages → Build and deployment → Source: GitHub Actions**. Depois, abra **Actions → Publicar demonstração estática → Run workflow** para a primeira publicação. O workflow publicará automaticamente novas alterações em `web-demo/` na `main`. A URL esperada para este repositório é `https://isaactexcotton.github.io/Dashboard/`; ela só ficará ativa depois que o Pages for habilitado e a publicação terminar.
 
