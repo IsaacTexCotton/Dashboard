@@ -11,6 +11,12 @@ Ferramentas Python para importar, auditar e proteger o consolidado diário do CR
 - `validar_integracao_local.py`: executa auditoria, dry-run, importação dupla e diagnóstico num SQLite temporário.
 - `RUNBOOK_OPERACIONAL.md`: critérios de homologação, backup e recuperação.
 
+## Fonte de verdade das especificações monetárias
+
+Para implementação e revisão das Issues [#4](https://github.com/IsaacTexCotton/Dashboard/issues/4) e [#5](https://github.com/IsaacTexCotton/Dashboard/issues/5), vale o contrato técnico revisado nessas issues e as instruções mais recentes do projeto. Se documentos anteriores entrarem em conflito, não se deve reintroduzir um requisito removido: alinhe a documentação conflitante ao contrato vigente.
+
+**Ratificação administrativa/formal não é etapa nem gate deste projeto.** O avanço é determinado por critérios técnicos verificáveis, testes, revisão de código e evidência operacional. Não marcar critérios como concluídos sem evidência, e não confundir testes com dados sintéticos com homologação de produção.
+
 ## Requisitos
 
 Python 3.10 ou superior; não há dependências externas para executar ferramentas e testes.
