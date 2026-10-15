@@ -10,7 +10,7 @@ from test_escrita_dupla import (
     preparar_posicao_dupla, semear_fato_legado,
 )
 
-class TestReimportacaoDuplaEscrita(unittest.TestCase):(unittest.TestCase):
+class TestReimportacaoDuplaEscrita(unittest.TestCase):
     def test_reimportacao_substitui_fatos_nas_duas_representacoes_e_preserva_snapshots(self):
         con = criar_banco()
         try:
