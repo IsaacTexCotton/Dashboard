@@ -1,4 +1,5 @@
 """Testes isolados da migração aditiva monetária em SQLite descartável."""
+import hashlib
 import sqlite3
 import unittest
 
@@ -76,6 +77,46 @@ class TestMigracaoSchemaMonetario(unittest.TestCase):
             self.assertEqual(
                 con.execute("SELECT monetario_fase FROM acordos_posicao").fetchall(),
                 [],
+            )
+        finally:
+            con.close()
+
+    def test_checksum_preserva_todos_os_valores_real_legados(self):
+        con = banco_legado()
+        try:
+            con.execute(
+                "INSERT INTO acordos_posicao(capturado_em,data,recebido_periodo,a_vencer,vencido) "
+                "VALUES ('2026-10-14T12:00:00','2026-10-14',123.45,67.89,10.11)"
+            )
+            con.commit()
+
+            def checksum_reais():
+                fatos = con.execute(
+                    "SELECT data,usuario,tipo,valor,valor_pago,valor_aberto,valor_quebrado "
+                    "FROM fatos ORDER BY data,usuario,tipo"
+                ).fetchall()
+                posicoes = con.execute(
+                    "SELECT capturado_em,data,recebido_periodo,a_vencer,vencido "
+                    "FROM acordos_posicao ORDER BY capturado_em"
+                ).fetchall()
+                serializado = repr((fatos, posicoes)).encode("utf-8")
+                return hashlib.sha256(serializado).hexdigest()
+
+            antes = checksum_reais()
+            migrar_schema_monetario(con)
+            depois = checksum_reais()
+
+            self.assertEqual(antes, depois)
+            self.assertEqual(
+                con.execute("SELECT monetario_fase FROM fatos").fetchone()[0],
+                "legado",
+            )
+            self.assertEqual(
+                con.execute(
+                    "SELECT monetario_fase FROM acordos_posicao WHERE capturado_em=?",
+                    ("2026-10-14T12:00:00",),
+                ).fetchone()[0],
+                "legado",
             )
         finally:
             con.close()
