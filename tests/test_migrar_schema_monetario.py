@@ -1,6 +1,7 @@
 """Testes isolados da migração aditiva monetária em SQLite descartável."""
 import hashlib
 import sqlite3
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -404,6 +405,57 @@ class TestMigracaoSchemaMonetario(unittest.TestCase):
             )
         finally:
             con.close()
+
+    def test_begin_immediate_bloqueia_escritor_concorrente_durante_conciliacao(self):
+        with tempfile.TemporaryDirectory() as td:
+            caminho = f"{td}/fase.db"
+            con = banco_legado()
+            disco = sqlite3.connect(caminho, timeout=0.1)
+            concorrente = None
+            try:
+                con.backup(disco)
+                con.close()
+                migrar_schema_monetario(disco)
+                definir_fase_migracao(disco, "backfill_em_andamento")
+                disco.execute(
+                    "UPDATE fatos SET deposito_valor_centavos=1234 WHERE usuario='ana'"
+                )
+                disco.commit()
+                concorrente = sqlite3.connect(caminho, timeout=0.01)
+
+                verificar_original = schema_monetario.verificar_conciliacao_monetaria
+                tentativas = []
+
+                def verificar_com_escritor_concorrente(conexao):
+                    with self.assertRaisesRegex(sqlite3.OperationalError, "locked"):
+                        concorrente.execute(
+                            "UPDATE fatos SET qtd=qtd+1 WHERE usuario='ana'"
+                        )
+                    tentativas.append(True)
+                    return verificar_original(conexao)
+
+                with patch.object(
+                    schema_monetario,
+                    "verificar_conciliacao_monetaria",
+                    side_effect=verificar_com_escritor_concorrente,
+                ):
+                    definir_fase_migracao(disco, "backfill_conciliado")
+
+                self.assertEqual(tentativas, [True])
+                self.assertEqual(
+                    disco.execute(
+                        f"SELECT fase FROM {TABELA_ESTADO} WHERE id=1"
+                    ).fetchone()[0],
+                    "backfill_conciliado",
+                )
+                self.assertEqual(
+                    disco.execute("SELECT qtd FROM fatos WHERE usuario='ana'").fetchone()[0],
+                    1,
+                )
+            finally:
+                if concorrente is not None:
+                    concorrente.close()
+                disco.close()
 
     def test_conciliacao_divergente_nao_altera_nenhuma_fase(self):
         con = banco_legado()
