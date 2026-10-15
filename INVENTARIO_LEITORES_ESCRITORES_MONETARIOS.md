@@ -39,7 +39,7 @@ Este adendo registra a diferença entre o comportamento observado no código ver
 |---|---|---|
 | Flag de dupla escrita | `importar.py` lê `DASHBOARD_MONETARIO_DUAL_WRITE`, com padrão `0` | O contrato revisado define `DUPLA_ESCRITA`; a chave-alvo ainda precisa ser implementada/validada |
 | Flag de leitura por centavos | Não foi encontrada chave `LEITURA_CENTAVOS` integrada ao dashboard | Implementar leitura com fallback e rejeitar a combinação de leitura por centavos ligada com dupla escrita desligada, após revisão técnica do contrato e testes |
-| Diagnóstico de coerência | `diagnosticar_banco.py` é somente leitura e não compara, por fase, o `REAL` convertido com o `INTEGER` | Implementar e testar a comparação exata para linhas `dual`/`conciliado`, após ratificação |
+| Diagnóstico de coerência | `diagnosticar_banco.py` é somente leitura e não compara, por fase, o `REAL` convertido com o `INTEGER` | Implementar e testar a comparação exata para linhas `dual`/`conciliado`, após revisão técnica do contrato e testes |
 | Testes de atomicidade | Há testes sintéticos em memória e, após PR #19, em arquivo temporário com interrupção de processo e leitor concorrente | Continuar sem tratar CI como homologação de produção |
 | Reimportação em dupla escrita | Teste específico está proposto na PR #20; CI da PR passou, mas a PR ainda precisa ser integrada/revisada | Não marcar o critério como concluído até revisar/integrar a alteração |
 | Consumidores externos | Não verificados por este inventário estático | Issue #17 exige inventário operacional com donos, comunicação, runbook e ensaio de restauração |
