@@ -205,6 +205,9 @@ Metas numéricas devem ser combinadas com a equipe depois de medir o baseline; n
 
 ## 5. Catálogo inicial de indicadores
 
+O detalhamento técnico das fontes, fórmulas, granularidade, reconciliações e limites de cada métrica está em [Dicionário de indicadores de cobrança](DICIONARIO_INDICADORES_COBRANCA.md). O dicionário descreve o comportamento observado no código, não substitui a revisão de negócio por Cobrança/Financeiro.
+
+
 | Indicador | Disponível com os dados descritos hoje? | Regra/limite |
 |---|---|---|
 | Depósitos por período | Sim, agregado | Não assumir equivalência com todo o caixa recebido sem validar a semântica da origem |
