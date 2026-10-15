@@ -15,7 +15,7 @@ class DemoHistoricoMultidatasTestes(unittest.TestCase):
     def setUp(self):
         self.html = (ROOT / "web-demo" / "index.html").read_text(encoding="utf-8")
         match = re.search(
-            r'<script id="demo-history" type="application/json">\\s*(.*?)\\s*</script>',
+            r'<script id="demo-history" type="application/json">\s*(.*?)\s*</script>',
             self.html,
             re.DOTALL,
         )
