@@ -93,7 +93,7 @@ Estas visões são cálculos de interface sobre os indicadores acima, não campo
 
 | Visão | Regra observada | Condição de disponibilidade / interpretação |
 |---|---|---|
-| Resumo do período | Soma os fatos nas datas selecionadas; separa depósitos, acordo, promessa e contatos | Somente representa datas com fatos disponíveis. Cobertura de importações deve ser lida separadamente; ausência de registro não prova zero movimento |
+| Resumo do período | Soma os fatos nas datas selecionadas; separa depósitos, acordo, promessa e contatos | O agregado inicializa os indicadores numéricos em zero e soma as linhas encontradas. Assim, um filtro sem fatos pode exibir zero no resumo enquanto o gráfico diário fica vazio; o payload de resumo, isoladamente, ainda não distingue zero real de ausência de registros. Cobertura de importações deve ser lida separadamente |
 | Movimento diário | Agrupa os três fluxos monetários — depósitos, valor de face de acordos e valor prometido — por data | A posição a vencer/vencida não entra no gráfico de fluxo. Uma única data não demonstra tendência |
 | Posição mais recente | Escolhe o snapshot elegível com maior `capturado_em` | Exibe recebido, a vencer e vencido a partir dessa captura; não soma snapshots |
 | Comparação de períodos | Compara depósitos, valor de face de acordos e valor prometido em períodos de igual duração | Na aplicação local, exige metadados de importação disponíveis e os mesmos offsets relativos de datas importadas nos dois períodos. Não compara snapshots |
@@ -144,7 +144,7 @@ Não derivar essas métricas só por divisões de agregados que parecem plausív
 
 ## 6. Decisões que Cobrança/Financeiro ainda precisa confirmar
 
-O catálogo pode ser usado para uma revisão de negócio, mas não representa homologação. Registrar a decisão, responsável, data e evidência de validação fora de dados pessoais/financeiros:
+O catálogo pode ser usado para uma revisão de negócio, mas não representa homologação. Além das decisões semânticas, há um ponto de UX/qualidade a tratar: o agregador local inicializa os indicadores numéricos em zero; em período sem fatos isso pode se parecer com zero movimento. Antes de usar o resumo como ferramenta operacional, a interface deve distinguir período sem registros/carga ausente de um período efetivamente conciliado com movimento zero. Registrar a decisão, responsável, data e evidência de validação fora de dados pessoais/financeiros:
 
 - [ ] O que conta como depósito e se estornos/valores negativos são representados nesse campo.
 - [ ] Significado operacional de valor de face, pago e pendente do acordo; tratamento de renegociações, descontos, cancelamentos, parcelas não vencidas, pagamento parcial e baixa pendente.
