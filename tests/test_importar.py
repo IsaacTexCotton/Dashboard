@@ -433,3 +433,92 @@ class PersistenciaTestes(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class PrecisaoEntradaMonetariaTestes(unittest.TestCase):
+    def _payload_decimal(self, campo, valor):
+        payload = importar.loads_json_estrito(json.dumps(AMOSTRA))
+        payload["data"]["depositos"]["porUsuario"][0][campo] = valor
+        return payload
+
+    def test_entrada_com_duas_casas_e_valida(self):
+        from decimal import Decimal
+        payload = self._payload_decimal("valor", Decimal("1.23"))
+        _, fatos, _ = importar.normalizar(payload, "2026-10-13")
+        deposito = next(f for f in fatos if f[2] == "deposito")
+        self.assertEqual(deposito[5], 1.23)
+
+    def test_zeros_excedentes_sao_aceitos_sem_mudar_centavos(self):
+        from decimal import Decimal
+        for token in ("1.230", "1.2300", "1.230000"):
+            with self.subTest(token=token):
+                payload = self._payload_decimal("valor", Decimal(token))
+                _, fatos, _ = importar.normalizar(payload, "2026-10-13")
+                deposito = next(f for f in fatos if f[2] == "deposito")
+                self.assertEqual(deposito[5], 1.23)
+
+    def test_fracao_subcentavo_e_rejeitada_sem_arredondamento(self):
+        from decimal import Decimal
+        for token in ("1.231", "1.2345", "1.0001", "0.001"):
+            with self.subTest(token=token):
+                payload = self._payload_decimal("valor", Decimal(token))
+                with self.assertRaisesRegex(importar.ErroValidacao, "precisão excede"):
+                    importar.normalizar(payload, "2026-10-13")
+
+    def test_precisao_excedente_e_rejeitada_em_todos_os_campos_monetarios(self):
+        from decimal import Decimal
+        casos = [
+            ("depositos", "valor"), ("acordos", "valor"),
+            ("acordos", "pagos"), ("acordos", "pendente"),
+            ("promessas", "prometido"), ("promessas", "cumprido"),
+            ("promessas", "emAberto"), ("promessas", "quebrado"),
+        ]
+        for grupo, campo in casos:
+            with self.subTest(grupo=grupo, campo=campo):
+                payload = importar.loads_json_estrito(json.dumps(AMOSTRA))
+                payload["data"][grupo]["porUsuario"][0][campo] = Decimal("2.675")
+                with self.assertRaises(importar.ErroValidacao):
+                    importar.normalizar(payload, "2026-10-13")
+
+    def test_limite_integer64_e_rejeitado(self):
+        from decimal import Decimal
+        payload = self._payload_decimal("valor", Decimal("92233720368547758.08"))
+        with self.assertRaisesRegex(importar.ErroValidacao, "fora do intervalo"):
+            importar.normalizar(payload, "2026-10-13")
+
+    def test_notacao_cientifica_e_rejeitada_pelo_parser_de_origem(self):
+        with self.assertRaises(importar.ErroMonetario):
+            importar.loads_json_estrito('{"valor": 1e2}')
+
+
+class PrecisaoEntradaAtomicidadeTestes(unittest.TestCase):
+    def test_payload_com_fracao_subcentavo_nao_altera_fatos_existentes(self):
+        from decimal import Decimal
+        con = sqlite3.connect(":memory:")
+        try:
+            con.executescript(importar.SCHEMA)
+            con.execute(
+                "INSERT INTO fatos VALUES (?,?,?,?,?,?,?,?,?,?)",
+                ("2026-10-13", "SINTETICO", "contato", 1, 1, 0, 0, 0, 0, "antes"),
+            )
+            con.commit()
+            payload = importar.loads_json_estrito(json.dumps(AMOSTRA))
+            payload["data"]["depositos"]["porUsuario"][0]["valor"] = Decimal("1.231")
+            with self.assertRaises(importar.ErroValidacao):
+                importar.gravar(con, "2026-10-13", payload, "teste")
+            self.assertEqual(
+                con.execute("SELECT usuario, tipo FROM fatos").fetchall(),
+                [("SINTETICO", "contato")],
+            )
+            self.assertEqual(con.execute("SELECT COUNT(*) FROM importacoes").fetchone()[0], 0)
+        finally:
+            con.close()
+
+    def test_totais_de_posicao_rejeitam_precisao_excedente(self):
+        from decimal import Decimal
+        for campo in ("valorRecebidoPeriodo", "valorAVencer", "valorVencido"):
+            with self.subTest(campo=campo):
+                payload = importar.loads_json_estrito(json.dumps(AMOSTRA))
+                payload["data"]["valoresAcordo"][campo] = Decimal("1.231")
+                with self.assertRaises(importar.ErroValidacao):
+                    importar.normalizar(payload, "2026-10-13")

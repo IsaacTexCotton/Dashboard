@@ -29,7 +29,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from precisao_monetaria import ErroMonetario, loads_json_estrito
+from precisao_monetaria import ErroMonetario, loads_json_estrito, valor_final_centavos
 from escrita_dupla import gravar_dia_duplo, preparar_fato_duplo, preparar_posicao_dupla
 from migrar_schema_monetario import ErroMigracaoMonetaria, validar_schema_monetario
 
@@ -88,6 +88,16 @@ def _numero(
 ) -> float:
     if isinstance(valor, bool) or not isinstance(valor, (int, float, Decimal)):
         raise ErroValidacao(f"{campo}: esperado número JSON finito")
+    # O caminho operacional carrega JSON com loads_json_estrito, preservando
+    # Decimal/int. Validar escala antes de qualquer conversão para float/REAL:
+    # zeros excedentes são exatos; frações subcentavo são rejeitadas sem round.
+    if isinstance(valor, (Decimal, int)) and not isinstance(valor, bool):
+        try:
+            valor_final_centavos(
+                valor, campo=campo, negativos_permitidos=negativos_permitidos
+            )
+        except ErroMonetario as exc:
+            raise ErroValidacao(str(exc).replace("valor negativo não permitido", "valor monetário negativo não permitido")) from exc
     try:
         numero = float(valor)
     except (OverflowError, ValueError) as exc:
