@@ -66,5 +66,14 @@ class WebDemoPeriodValidationTests(unittest.TestCase):
         self.assertIn('setText("status",has?"1 dia com dados fictícios":"Nenhum dia com dados na amostra");', self.html)
 
 
+    def test_missing_period_does_not_look_like_a_zero_result(self):
+        self.assertIn('setText("depValue",has?money(d.valor):"—")', self.html)
+        self.assertIn('setText("agrValue",has?money(a.valor):"—")', self.html)
+        self.assertIn('setText("promValue",has?money(p.valor):"—")', self.html)
+        self.assertIn('setText("contactRecords",has?integer(c.registros):"—")', self.html)
+        self.assertIn('"Sem dados no período"', self.html)
+        self.assertIn('setText("agrPaid",has?money(a.pagos):"—")', self.html)
+
+
 if __name__ == "__main__":
     unittest.main()
