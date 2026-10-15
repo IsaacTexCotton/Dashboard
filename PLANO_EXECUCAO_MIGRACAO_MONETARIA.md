@@ -213,7 +213,7 @@ Os três itens precisam ter definição técnica versionada, testes reproduzíve
 
 A árvore de `main` contém 15 módulos de teste Python e 189 métodos `test_*`. O workflow `.github/workflows/testes.yml` executa `unittest discover -s tests` em Python 3.11 e as validações locais da amostra fictícia sem CRM.
 
-A execução [#38754594110](https://github.com/IsaacTexCotton/Dashboard/actions/runs/38754594110) passou com 189 testes no HEAD da PR #32 (`9d4ad634d987ba6ac96bc31a2217c77fb47c4560)), antes de a alteração ser integrada à `main`. Esse HEAD continha a mesma árvore de código/testes que foi integrada pelo commit `ecb3c2f7381a000ef157669a66a51fe74e217677`; a execução é evidência do candidato testado, não um check separado emitido sobre o SHA de merge.
+A execução [#38754594110](https://github.com/IsaacTexCotton/Dashboard/actions/runs/38754594110) passou com 189 testes no HEAD da PR #32 (`9d4ad634d987ba6ac96bc31a2217c77fb47c4560`, antes de a alteração ser integrada à `main`. Esse HEAD continha a mesma árvore de código/testes que foi integrada pelo commit `ecb3c2f7381a000ef157669a66a51fe74e217677`; a execução é evidência do candidato testado, não um check separado emitido sobre o SHA de merge.
 
 | Arquivo | Testes | Cobertura principal |
 |---|---:|---|
