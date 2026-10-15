@@ -216,4 +216,4 @@ A afinidade `INTEGER` do SQLite pode converter o texto numérico `'123'` em inte
 
 ### Limite de implementação
 
-Esta seção é somente a especificação-alvo. Não modifica nem autoriza alterar o importador, aplicar migração, iniciar backfill, executar uma importação real ou ativar flags. A implementação funcional permanece condicionada à conclusão da especificação técnica da Issue #5 e aos gates operacionais da Issue #17.
+Esta seção define o contrato-alvo por métrica. O código versionado já implementa, com testes em SQLite descartável, a migração aditiva das 11 colunas de centavos e dos marcadores de fase por linha, a escrita de fase `dual` no caminho de dupla escrita e o diagnóstico de igualdade exata REAL→centavos. Esses testes não executam nem autorizam migração/backfill em banco real ou ativação de flags. O leitor de centavos ainda não está integrado ao dashboard neste repositório; `LEITURA_CENTAVOS=1` é recusada até existir tal leitor. Os gates operacionais da Issue #17 permanecem separados.
