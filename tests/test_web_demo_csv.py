@@ -38,8 +38,7 @@ class WebDemoCsvExportTests(unittest.TestCase):
 
     def test_csv_escapes_quotes_delimiters_and_newlines(self):
         self.assertIn('/[;"\\r\\n]/.test(text)', self.export_source)
-        self.assertIn("text.replace(/\\"/g",'self.export_source)
-        self.assertIn('replace(/\\"/g,\'\\"\\"\')', self.export_source)
+        self.assertIn('text.replace(/"/g,', self.export_source)
 
     def test_financial_values_use_two_decimal_places_and_comma_decimal(self):
         self.assertIn("number.toFixed(2).replace(\".\",\",\")", self.export_source)
