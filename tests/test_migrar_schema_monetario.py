@@ -7,6 +7,7 @@ from migrar_schema_monetario import (
     ErroMigracaoMonetaria,
     FASES_VALIDAS,
     TABELA_ESTADO,
+    _COLUNAS,
     ativar_triggers_obrigatoriedade,
     definir_fase_migracao,
     migrar_schema_monetario,
@@ -226,6 +227,37 @@ class TestMigracaoSchemaMonetario(unittest.TestCase):
             self.assertEqual(depois, antes)
             self.assertNotIn(TABELA_ESTADO, {
                 r[0] for r in con.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                )
+            })
+        finally:
+            con.close()
+
+    def test_nao_inferir_legado_se_ja_existirem_centavos_sem_marcador(self):
+        con = banco_legado()
+        try:
+            for coluna in _COLUNAS:
+                con.execute(
+                    f"ALTER TABLE {coluna.tabela} ADD COLUMN {coluna.nome} "
+                    f"INTEGER CHECK ({coluna.check})"
+                )
+            con.execute(
+                "UPDATE fatos SET deposito_valor_centavos=1234 WHERE tipo='deposito'"
+            )
+            con.commit()
+
+            with self.assertRaisesRegex(
+                ErroMigracaoMonetaria,
+                "já existem valores em centavos",
+            ):
+                migrar_schema_monetario(con)
+
+            self.assertNotIn(
+                "monetario_fase",
+                {row[1] for row in con.execute("PRAGMA table_info(fatos)")},
+            )
+            self.assertNotIn(TABELA_ESTADO, {
+                row[0] for row in con.execute(
                     "SELECT name FROM sqlite_master WHERE type='table'"
                 )
             })
