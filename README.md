@@ -59,6 +59,14 @@ A transição de `REAL` para `INTEGER` em centavos é incremental; a existência
 - A escrita dupla exige um banco já existente com o esquema monetário validado. A configuração por si só não cria esquema e não autoriza operações em produção.
 
 
+### Fase monetária por linha
+
+- A migração aditiva adiciona as 11 colunas de métricas em centavos e `monetario_fase` em `fatos` e `acordos_posicao`; as linhas existentes recebem `legado`.
+- O escritor duplo grava `monetario_fase='dual'` na mesma transação que grava as duas representações.
+- A fase `conciliado` é atribuída às linhas somente quando a verificação integral de igualdade REAL→centavos passa e a fase global avança para `backfill_conciliado`.
+- `diagnosticar_banco.py --json` é somente-leitura: NULL em métrica aplicável na fase `legado` é pendência (`WARN`); ausência ou divergência em linhas `dual`/`conciliado` é falha (`FAIL`).
+- Testes de migração/backfill usam bancos sintéticos. Nenhuma migração, backfill ou importação em banco real foi executada, e nenhum corte foi habilitado.
+
 ## Limites antes de produção
 
 - `amostra_resposta.json` contém dados fictícios; teste local não comprova compatibilidade com todos os dados reais do CRM.
