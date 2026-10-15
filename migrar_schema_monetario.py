@@ -125,6 +125,35 @@ _DDL_FASE_LINHA = (
 )
 
 
+def _triggers_fase_global() -> dict[str, str]:
+    """Impede linhas legado depois da conciliação, inclusive por omissão da fase."""
+    guard = f"(SELECT fase FROM {TABELA_ESTADO} WHERE id=1)='backfill_conciliado'"
+    condicao = f"NEW.monetario_fase='legado' AND {guard}"
+    mensagem = "fase legado não permitida após backfill_conciliado"
+    return {
+        "trg_monetario_fatos_fase_global_insert": (
+            "CREATE TRIGGER IF NOT EXISTS trg_monetario_fatos_fase_global_insert "
+            f"BEFORE INSERT ON fatos WHEN {condicao} "
+            f"BEGIN SELECT RAISE(ABORT, '{mensagem}'); END"
+        ),
+        "trg_monetario_fatos_fase_global_update": (
+            "CREATE TRIGGER IF NOT EXISTS trg_monetario_fatos_fase_global_update "
+            f"BEFORE UPDATE ON fatos WHEN {condicao} "
+            f"BEGIN SELECT RAISE(ABORT, '{mensagem}'); END"
+        ),
+        "trg_monetario_posicao_fase_global_insert": (
+            "CREATE TRIGGER IF NOT EXISTS trg_monetario_posicao_fase_global_insert "
+            f"BEFORE INSERT ON acordos_posicao WHEN {condicao} "
+            f"BEGIN SELECT RAISE(ABORT, '{mensagem}'); END"
+        ),
+        "trg_monetario_posicao_fase_global_update": (
+            "CREATE TRIGGER IF NOT EXISTS trg_monetario_posicao_fase_global_update "
+            f"BEFORE UPDATE ON acordos_posicao WHEN {condicao} "
+            f"BEGIN SELECT RAISE(ABORT, '{mensagem}'); END"
+        ),
+    }
+
+
 def _validar_estado(con: sqlite3.Connection, tabelas: dict[str, str]) -> str | None:
     if TABELA_ESTADO not in tabelas:
         return None
@@ -259,6 +288,22 @@ def migrar_schema_monetario(con: sqlite3.Connection) -> dict[str, object]:
                 "VALUES (1,1,'schema_adicionado',CURRENT_TIMESTAMP)"
             )
 
+        triggers_fase_criados: list[str] = []
+        for nome, sql in _triggers_fase_global().items():
+            existente = con.execute(
+                "SELECT sql FROM sqlite_master WHERE type='trigger' AND name=?", (nome,)
+            ).fetchone()
+            if existente:
+                sql_existente = _normalizar_sql(str(existente[0])).replace("ifnotexists", "")
+                sql_esperado = _normalizar_sql(sql).replace("ifnotexists", "")
+                if sql_existente != sql_esperado:
+                    raise ErroMigracaoMonetaria(
+                        f"trigger de fase global preexistente divergente: {nome}"
+                    )
+            else:
+                con.execute(sql)
+                triggers_fase_criados.append(nome)
+
         con.commit()
     except BaseException:
         if con.in_transaction:
@@ -268,6 +313,7 @@ def migrar_schema_monetario(con: sqlite3.Connection) -> dict[str, object]:
     return {
         "versao": 1,
         "colunas_criadas": criadas,
+        "triggers_fase_criados": triggers_fase_criados,
         "total_colunas": len(_COLUNAS) + len(_COLUNAS_FASE_LINHA),
         "fase": _validar_estado(con, _tabelas(con)),
     }

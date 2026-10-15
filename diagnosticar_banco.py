@@ -124,6 +124,16 @@ def _diagnostico_coerencia_fase_monetaria(
     pendencias = 0
     verificadas = 0
     erros: list[str] = []
+    from migrar_schema_monetario import TABELA_ESTADO
+
+    if TABELA_ESTADO not in tables:
+        fase_global = None
+        erros.append("marcador global de fase monetária ausente")
+    else:
+        estado = con.execute(f"SELECT fase FROM {TABELA_ESTADO} WHERE id=1").fetchone()
+        fase_global = estado[0] if estado else None
+        if fase_global not in ("schema_adicionado", "backfill_em_andamento", "backfill_conciliado"):
+            erros.append(f"marcador global de fase monetária inválido: {fase_global!r}")
 
     def verificar_par(*, fase: Any, legado: Any, centavos: Any, campo: str,
                       negativos_permitidos: bool) -> None:
@@ -164,6 +174,11 @@ def _diagnostico_coerencia_fase_monetaria(
         if fase not in FASES_LINHA_MONETARIA:
             erros.append(f"fatos[{row['data']},{row['usuario']}]: monetario_fase inválido {fase!r}")
             continue
+        if fase_global == "backfill_conciliado" and fase == "legado":
+            erros.append(
+                f"fatos[{row['data']},{row['usuario']}]: fase legado após backfill_conciliado"
+            )
+            continue
         tipo = row["tipo"]
         if tipo not in MAPA_FATO_CENTAVOS:
             erros.append(f"fatos[{row['data']},{row['usuario']}]: tipo inválido {tipo!r}")
@@ -192,6 +207,11 @@ def _diagnostico_coerencia_fase_monetaria(
         fases_contagem[f"acordos_posicao.{fase}"] = fases_contagem.get(f"acordos_posicao.{fase}", 0) + 1
         if fase not in FASES_LINHA_MONETARIA:
             erros.append(f"acordos_posicao[{row['capturado_em']}]: monetario_fase inválido {fase!r}")
+            continue
+        if fase_global == "backfill_conciliado" and fase == "legado":
+            erros.append(
+                f"acordos_posicao[{row['capturado_em']}]: fase legado após backfill_conciliado"
+            )
             continue
         for origem, destino, negativos in (
             ("recebido_periodo", "recebido_periodo_centavos", True),
