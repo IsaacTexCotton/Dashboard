@@ -487,5 +487,5 @@ class PrecisaoEntradaMonetariaTestes(unittest.TestCase):
             importar.normalizar(payload, "2026-10-13")
 
     def test_notacao_cientifica_e_rejeitada_pelo_parser_de_origem(self):
-        with self.assertRaises(ErroMonetario):
+        with self.assertRaises(importar.ErroMonetario):
             importar.loads_json_estrito('{"valor": 1e2}')
