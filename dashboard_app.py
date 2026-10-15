@@ -109,7 +109,7 @@ async function load(inicio, fim) {
   finally { $("loadBtn").disabled = false; }
 }
 function limparPainel(mensagem) {
-  ["depositosValue","acordosValue","acordosPago","acordosPendente","promessasValue",
+  ["sourceChip","periodLabel","depositosValue","acordosValue","acordosPago","acordosPendente","promessasValue",
    "promessasCumpridas","promessasAberto","promessasQuebradas","contatosValue",
    "contatosUnicos","snapRecebido","snapVencer","snapVencido","snapshotStamp",
    "lastImportTime","lastImportDetail","lastImportSource","lastImportPeriod",
@@ -413,7 +413,7 @@ def _atualizacao_importacoes(
     intervalos.sort()
     unidos: list[tuple[date, date]] = []
     for primeiro, ultimo_dia in intervalos:
-        if unidos and primeiro <= unidos[-1][1] + timedelta(days=1):
+        if unidos and (primeiro <= unidos[-1][1] or (unidos[-1][1] < date.max and primeiro == unidos[-1][1] + timedelta(days=1))):
             anterior_inicio, anterior_fim = unidos[-1]
             unidos[-1] = (anterior_inicio, max(anterior_fim, ultimo_dia))
         else:
