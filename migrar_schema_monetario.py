@@ -100,6 +100,21 @@ def _tem_check_esperado(sql_tabela: str, coluna: ColunaAlvo) -> bool:
     return all(_normalizar_sql(p) in sql for p in partes) and check in sql
 
 
+def _tem_check_fase_linha(sql_tabela: str) -> bool:
+    esperado = _normalizar_sql(
+        "monetario_fase TEXT NOT NULL DEFAULT 'legado' "
+        "CHECK (monetario_fase IN ('legado','dual','conciliado'))"
+    )
+    return esperado in _normalizar_sql(sql_tabela)
+
+
+_COLUNAS_FASE_LINHA = ("fatos", "acordos_posicao")
+_DDL_FASE_LINHA = (
+    "monetario_fase TEXT NOT NULL DEFAULT 'legado' "
+    "CHECK (monetario_fase IN ('legado','dual','conciliado'))"
+)
+
+
 def _validar_estado(con: sqlite3.Connection, tabelas: dict[str, str]) -> str | None:
     if TABELA_ESTADO not in tabelas:
         return None
@@ -167,6 +182,23 @@ def migrar_schema_monetario(con: sqlite3.Connection) -> dict[str, object]:
                 )
             plano.append(coluna)
 
+    plano_fase_linha: list[str] = []
+    for tabela in _COLUNAS_FASE_LINHA:
+        presentes = _colunas_tabela(con, tabela)
+        sql_tabela = tabelas[tabela]
+        if "monetario_fase" in presentes:
+            if presentes["monetario_fase"] != "TEXT" or not _tem_check_fase_linha(sql_tabela):
+                raise ErroMigracaoMonetaria(
+                    f"{tabela}.monetario_fase: tipo/CHECK ausente ou incompatível"
+                )
+        else:
+            if fase_atual == "backfill_conciliado":
+                raise ErroMigracaoMonetaria(
+                    f"{tabela}.monetario_fase: marcador por linha ausente após backfill conciliado; "
+                    "não é seguro inferir a fase automaticamente"
+                )
+            plano_fase_linha.append(tabela)
+
     criadas: list[str] = []
     try:
         con.execute("BEGIN IMMEDIATE")
@@ -176,6 +208,9 @@ def migrar_schema_monetario(con: sqlite3.Connection) -> dict[str, object]:
                 f"ALTER TABLE {coluna.tabela} ADD COLUMN {coluna.nome} INTEGER CHECK ({coluna.check})"
             )
             criadas.append(f"{coluna.tabela}.{coluna.nome}")
+        for tabela in plano_fase_linha:
+            con.execute(f"ALTER TABLE {tabela} ADD COLUMN {_DDL_FASE_LINHA}")
+            criadas.append(f"{tabela}.monetario_fase")
 
         tabelas_apos = _tabelas(con)
         estado_ausente = TABELA_ESTADO not in tabelas_apos
@@ -206,7 +241,7 @@ def migrar_schema_monetario(con: sqlite3.Connection) -> dict[str, object]:
     return {
         "versao": 1,
         "colunas_criadas": criadas,
-        "total_colunas": len(_COLUNAS),
+        "total_colunas": len(_COLUNAS) + len(_COLUNAS_FASE_LINHA),
         "fase": _validar_estado(con, _tabelas(con)),
     }
 
@@ -233,6 +268,11 @@ def definir_fase_migracao(con: sqlite3.Connection, fase: str) -> None:
         verificar_conciliacao_monetaria(con)
     try:
         con.execute("BEGIN IMMEDIATE")
+        if fase == "backfill_conciliado":
+            # Só marcar linhas como conciliadas depois da verificação exata
+            # de todas as representações legadas e centavos ter passado.
+            for tabela in _COLUNAS_FASE_LINHA:
+                con.execute(f"UPDATE {tabela} SET monetario_fase='conciliado'")
         con.execute(
             f"UPDATE {TABELA_ESTADO} SET fase=?, atualizado_em=CURRENT_TIMESTAMP WHERE id=1",
             (fase,),
@@ -300,26 +340,26 @@ def ativar_triggers_obrigatoriedade(con: sqlite3.Connection) -> list[str]:
     sql_triggers = {
         "trg_monetario_fatos_obrigatorio_insert": (
             f"CREATE TRIGGER IF NOT EXISTS trg_monetario_fatos_obrigatorio_insert "
-            f"BEFORE INSERT ON fatos WHEN {fato_incompleto} "
+            f"BEFORE INSERT ON fatos WHEN NEW.monetario_fase IN ('dual','conciliado') AND {fato_incompleto} "
             "BEGIN SELECT RAISE(ABORT, 'métrica monetária aplicável obrigatória após backfill'); END"
         ),
         "trg_monetario_fatos_obrigatorio_update": (
             f"CREATE TRIGGER IF NOT EXISTS trg_monetario_fatos_obrigatorio_update "
-            f"BEFORE UPDATE ON fatos WHEN {fato_incompleto} "
+            f"BEFORE UPDATE ON fatos WHEN NEW.monetario_fase IN ('dual','conciliado') AND {fato_incompleto} "
             "BEGIN SELECT RAISE(ABORT, 'métrica monetária aplicável obrigatória após backfill'); END"
         ),
         "trg_monetario_posicao_obrigatoria_insert": (
             "CREATE TRIGGER IF NOT EXISTS trg_monetario_posicao_obrigatoria_insert "
-            "BEFORE INSERT ON acordos_posicao WHEN "
+            "BEFORE INSERT ON acordos_posicao WHEN NEW.monetario_fase IN ('dual','conciliado') AND ("
             "NEW.recebido_periodo_centavos IS NULL OR NEW.a_vencer_centavos IS NULL OR "
-            "NEW.vencido_centavos IS NULL "
+            "NEW.vencido_centavos IS NULL) "
             "BEGIN SELECT RAISE(ABORT, 'métricas monetárias da posição são obrigatórias após backfill'); END"
         ),
         "trg_monetario_posicao_obrigatoria_update": (
             "CREATE TRIGGER IF NOT EXISTS trg_monetario_posicao_obrigatoria_update "
-            "BEFORE UPDATE ON acordos_posicao WHEN "
+            "BEFORE UPDATE ON acordos_posicao WHEN NEW.monetario_fase IN ('dual','conciliado') AND ("
             "NEW.recebido_periodo_centavos IS NULL OR NEW.a_vencer_centavos IS NULL OR "
-            "NEW.vencido_centavos IS NULL "
+            "NEW.vencido_centavos IS NULL) "
             "BEGIN SELECT RAISE(ABORT, 'métricas monetárias da posição são obrigatórias após backfill'); END"
         ),
     }
@@ -467,7 +507,7 @@ def verificar_conciliacao_monetaria(con: sqlite3.Connection) -> dict[str, int]:
 
 
 def validar_schema_monetario(con: sqlite3.Connection) -> str:
-    """Valida as 11 colunas, seus CHECKs e o marcador de fase sem escrever."""
+    """Valida as 11 métricas monetárias, fases por linha e estado global."""
     if not isinstance(con, sqlite3.Connection):
         raise ErroMigracaoMonetaria("conexão SQLite inválida")
     tabelas = _tabelas(con)
@@ -483,6 +523,12 @@ def validar_schema_monetario(con: sqlite3.Connection) -> str:
         if not _tem_check_esperado(tabelas[coluna.tabela], coluna):
             raise ErroMigracaoMonetaria(
                 f"{coluna.tabela}.{coluna.nome}: CHECK ausente ou incompatível"
+            )
+    for tabela in _COLUNAS_FASE_LINHA:
+        tipos = _colunas_tabela(con, tabela)
+        if tipos.get("monetario_fase") != "TEXT" or not _tem_check_fase_linha(tabelas[tabela]):
+            raise ErroMigracaoMonetaria(
+                f"{tabela}.monetario_fase: tipo/CHECK ausente ou incompatível"
             )
     fase = _validar_estado(con, tabelas)
     if fase is None:
@@ -520,6 +566,21 @@ def planejar_schema_monetario(con: sqlite3.Connection) -> dict[str, object]:
                 f"{coluna.tabela}.{coluna.nome}: tipo/CHECK existente incompatível"
             )
         existentes.append(f"{coluna.tabela}.{coluna.nome}")
+    for tabela in _COLUNAS_FASE_LINHA:
+        presentes = _colunas_tabela(con, tabela)
+        sql_tabela = tabelas[tabela]
+        if "monetario_fase" not in presentes:
+            if fase == "backfill_conciliado":
+                raise ErroMigracaoMonetaria(
+                    f"{tabela}.monetario_fase: ausente após backfill conciliado"
+                )
+            adicionar.append(f"{tabela}.monetario_fase")
+        else:
+            if presentes["monetario_fase"] != "TEXT" or not _tem_check_fase_linha(sql_tabela):
+                raise ErroMigracaoMonetaria(
+                    f"{tabela}.monetario_fase: tipo/CHECK existente incompatível"
+                )
+            existentes.append(f"{tabela}.monetario_fase")
     return {
         "modo": "simulacao",
         "fase": fase or "marcador_a_criar",
