@@ -219,24 +219,24 @@ def normalizar(
 
     for ctx, usuario, x in percorrer("depositos"):
         fatos.append((dia, usuario, "deposito", _campo_inteiro(x, "quantidade", ctx), 0,
-                      _campo_numero(x, "valor", ctx, negativos_permitidos=True), 0, 0, 0))
+                      campo_numero(x, "valor", ctx, negativos_permitidos=True), 0, 0, 0))
     for ctx, usuario, x in percorrer("acordos"):
         fatos.append((dia, usuario, "acordo", _campo_inteiro(x, "quantidade", ctx), 0,
-                      _campo_numero(x, "valor", ctx), _campo_numero(x, "pagos", ctx),
-                      _campo_numero(x, "pendente", ctx, negativos_permitidos=True), 0))
+                      campo_numero(x, "valor", ctx), campo_numero(x, "pagos", ctx),
+                      campo_numero(x, "pendente", ctx, negativos_permitidos=True), 0))
     for ctx, usuario, x in percorrer("promessas"):
         fatos.append((dia, usuario, "promessa", _campo_inteiro(x, "quantidade", ctx), 0,
-                      _campo_numero(x, "prometido", ctx), _campo_numero(x, "cumprido", ctx),
-                      _campo_numero(x, "emAberto", ctx, negativos_permitidos=True), _campo_numero(x, "quebrado", ctx)))
+                      campo_numero(x, "prometido", ctx), campo_numero(x, "cumprido", ctx),
+                      campo_numero(x, "emAberto", ctx, negativos_permitidos=True), campo_numero(x, "quebrado", ctx)))
     for ctx, usuario, x in percorrer("contatos"):
         fatos.append((dia, usuario, "contato", _campo_inteiro(x, "registrosTotais", ctx),
                       _campo_inteiro(x, "contatosUnicos", ctx), 0, 0, 0, 0))
 
     valores = _objeto(d.get("valoresAcordo"), "data.valoresAcordo")
     totais = (
-        _campo_numero(valores, "valorRecebidoPeriodo", "data.valoresAcordo", negativos_permitidos=True),
-        _campo_numero(valores, "valorAVencer", "data.valoresAcordo"),
-        _campo_numero(valores, "valorVencido", "data.valoresAcordo"),
+        campo_numero(valores, "valorRecebidoPeriodo", "data.valoresAcordo", negativos_permitidos=True),
+        campo_numero(valores, "valorAVencer", "data.valoresAcordo"),
+        campo_numero(valores, "valorVencido", "data.valoresAcordo"),
     )
     timestamp = resp.get("timestamp")
     if not isinstance(timestamp, str) or not timestamp.strip():
