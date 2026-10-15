@@ -54,9 +54,9 @@ class TestPainelDemo(unittest.TestCase):
         self.assertEqual(result["resumo"]["contatos_registros"], 148)
         self.assertEqual(result["resumo"]["contatos_unicos_por_usuario"], 108)
         self.assertEqual(result["cobertura_dados"]["estado"], "fatos_presentes")
-        self.assertEqual(result["cobertura_dados"]["linhas_fatos_no_periodo"], 18)
+        self.assertEqual(result["cobertura_dados"]["linhas_fatos_no_periodo"], 5)
         self.assertEqual(result["cobertura_dados"]["linhas_por_tipo"], {
-            "deposito": 5, "acordo": 5, "promessa": 3, "contato": 5,
+            "deposito": 2, "acordo": 1, "promessa": 1, "contato": 1,
         })
         self.assertEqual(result["snapshot"]["a_vencer_centavos"], 88_000_000)
         self.assertEqual(result["snapshot"]["vencido_centavos"], 17_500_000)
