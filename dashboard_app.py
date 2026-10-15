@@ -59,7 +59,7 @@ HTML = r"""<!doctype html>
 main{max-width:1240px;margin:auto;padding:28px 22px 52px}.top{display:flex;gap:20px;align-items:flex-start;justify-content:space-between;margin-bottom:24px}.eyebrow{font-size:12px;letter-spacing:.13em;text-transform:uppercase;font-weight:750;color:var(--teal)}h1{font-size:clamp(28px,4vw,38px);line-height:1.15;letter-spacing:-.03em;margin:5px 0 7px}.sub{color:var(--muted);margin:0}.source{padding:8px 12px;border:1px solid var(--line);border-radius:999px;background:#fff;font-size:12px;font-weight:700;white-space:nowrap}
 .notice{border:1px solid #b9dfe1;background:#eef9f9;border-radius:12px;padding:12px 15px;margin:18px 0 22px;font-size:13px;color:#204c55}
 .controls{display:flex;align-items:end;gap:12px;flex-wrap:wrap;background:var(--card);padding:16px;border:1px solid var(--line);border-radius:14px;margin-bottom:22px}.field{display:flex;flex-direction:column;gap:5px}.field label{font-size:12px;color:var(--muted);font-weight:700}.field input{font:inherit;color:var(--ink);border:1px solid #cbd8dd;border-radius:8px;padding:9px 10px;background:white}.btn{border:0;background:var(--navy);color:white;font-weight:700;font:inherit;border-radius:8px;padding:10px 16px;cursor:pointer}.btn:disabled{opacity:.5;cursor:wait}
-.data-status-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0 0 18px}.status-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:13px 15px;min-width:0}.status-card span{display:block;font-size:11px;color:var(--muted);font-weight:700}.status-card strong{display:block;font-size:14px;color:var(--ink);margin-top:4px;overflow-wrap:anywhere}.status-card small{display:block;color:var(--muted);font-size:10px;line-height:1.45;margin-top:5px}.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:14px}.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;min-width:0;box-shadow:0 1px 2px #163d4d08}.card h2{font-size:13px;color:var(--muted);font-weight:700;margin:0 0 10px}.big{font-weight:780;font-size:clamp(20px,2vw,27px);letter-spacing:-.035em;overflow-wrap:anywhere}.meta{font-size:12px;color:var(--muted);margin-top:6px}.split{display:flex;justify-content:space-between;gap:14px;margin-top:12px;padding-top:10px;border-top:1px solid #edf1f3;font-size:13px}.split strong{display:block;color:var(--ink);font-size:14px}.section{margin-top:22px}.section-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin:0 0 10px}.section h2{font-size:18px;letter-spacing:-.02em;margin:0}.section-head p{color:var(--muted);font-size:12px;margin:0}.lower{display:grid;grid-template-columns:1.15fr 1fr;gap:14px}.panel{background:white;border:1px solid var(--line);border-radius:14px;padding:18px;min-width:0}.bar-row{display:grid;grid-template-columns:100px 1fr minmax(100px,auto);align-items:center;gap:10px;margin:14px 0;font-size:12px}.bar-label{font-weight:650}.bar-track{height:10px;background:#edf2f4;border-radius:100px;overflow:hidden}.bar{height:100%;background:var(--teal);border-radius:100px;min-width:0}.bar-value{text-align:right;font-variant-numeric:tabular-nums}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;white-space:nowrap;font-size:13px}th,td{text-align:right;padding:10px 9px;border-bottom:1px solid #edf1f3}th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.03em}th:first-child,td:first-child{text-align:left}tbody tr:last-child td{border-bottom:0}.snapshot-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.snapshot-metric{padding:12px;border-radius:10px;background:#f6f9fa}.snapshot-metric span{font-size:12px;color:var(--muted);display:block}.snapshot-metric strong{font-size:18px;display:block;overflow-wrap:anywhere;margin-top:4px}.small-note{font-size:12px;color:var(--muted);margin-top:12px}.comparison-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px}.comparison-card{border:1px solid var(--line);border-radius:11px;background:#fbfdfe;padding:14px;min-width:0}.comparison-card h3{margin:0 0 8px;font-size:12px;color:var(--muted);font-weight:750}.comparison-delta{font-size:clamp(18px,1.8vw,23px);line-height:1.2;font-weight:850;letter-spacing:-.035em;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.comparison-detail,.comparison-percent{margin-top:7px;font-size:11px;color:var(--muted);line-height:1.45}.comparison-note{margin-top:11px;font-size:11px;color:var(--muted);line-height:1.5}.status{min-height:22px;margin:8px 0;color:var(--muted);font-size:13px}.error{color:#a12d2d}.empty{color:var(--muted);padding:18px 0;font-size:13px}
+.data-status-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0 0 18px}.status-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:13px 15px;min-width:0}.status-card span{display:block;font-size:11px;color:var(--muted);font-weight:700}.status-card strong{display:block;font-size:14px;color:var(--ink);margin-top:4px;overflow-wrap:anywhere}.status-card small{display:block;color:var(--muted);font-size:10px;line-height:1.45;margin-top:5px}.coverage-notice{border:1px solid var(--line);border-left:4px solid var(--teal);border-radius:10px;background:#fff;padding:12px 15px;margin:0 0 18px;font-size:13px;color:var(--ink)}.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:14px}.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;min-width:0;box-shadow:0 1px 2px #163d4d08}.card h2{font-size:13px;color:var(--muted);font-weight:700;margin:0 0 10px}.big{font-weight:780;font-size:clamp(20px,2vw,27px);letter-spacing:-.035em;overflow-wrap:anywhere}.meta{font-size:12px;color:var(--muted);margin-top:6px}.split{display:flex;justify-content:space-between;gap:14px;margin-top:12px;padding-top:10px;border-top:1px solid #edf1f3;font-size:13px}.split strong{display:block;color:var(--ink);font-size:14px}.section{margin-top:22px}.section-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin:0 0 10px}.section h2{font-size:18px;letter-spacing:-.02em;margin:0}.section-head p{color:var(--muted);font-size:12px;margin:0}.lower{display:grid;grid-template-columns:1.15fr 1fr;gap:14px}.panel{background:white;border:1px solid var(--line);border-radius:14px;padding:18px;min-width:0}.bar-row{display:grid;grid-template-columns:100px 1fr minmax(100px,auto);align-items:center;gap:10px;margin:14px 0;font-size:12px}.bar-label{font-weight:650}.bar-track{height:10px;background:#edf2f4;border-radius:100px;overflow:hidden}.bar{height:100%;background:var(--teal);border-radius:100px;min-width:0}.bar-value{text-align:right;font-variant-numeric:tabular-nums}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;white-space:nowrap;font-size:13px}th,td{text-align:right;padding:10px 9px;border-bottom:1px solid #edf1f3}th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.03em}th:first-child,td:first-child{text-align:left}tbody tr:last-child td{border-bottom:0}.snapshot-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.snapshot-metric{padding:12px;border-radius:10px;background:#f6f9fa}.snapshot-metric span{font-size:12px;color:var(--muted);display:block}.snapshot-metric strong{font-size:18px;display:block;overflow-wrap:anywhere;margin-top:4px}.small-note{font-size:12px;color:var(--muted);margin-top:12px}.comparison-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px}.comparison-card{border:1px solid var(--line);border-radius:11px;background:#fbfdfe;padding:14px;min-width:0}.comparison-card h3{margin:0 0 8px;font-size:12px;color:var(--muted);font-weight:750}.comparison-delta{font-size:clamp(18px,1.8vw,23px);line-height:1.2;font-weight:850;letter-spacing:-.035em;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.comparison-detail,.comparison-percent{margin-top:7px;font-size:11px;color:var(--muted);line-height:1.45}.comparison-note{margin-top:11px;font-size:11px;color:var(--muted);line-height:1.5}.status{min-height:22px;margin:8px 0;color:var(--muted);font-size:13px}.error{color:#a12d2d}.empty{color:var(--muted);padding:18px 0;font-size:13px}
 @media(max-width:900px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.data-status-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.comparison-grid{grid-template-columns:1fr}.lower{grid-template-columns:1fr}}
 @media(max-width:520px){main{padding:20px 13px 36px}.top{display:block}.source{display:inline-block;margin-top:12px}.data-status-grid{grid-template-columns:1fr}.grid{grid-template-columns:1fr}.snapshot-grid{grid-template-columns:1fr}.bar-row{grid-template-columns:78px 1fr;gap:8px}.bar-value{grid-column:2;text-align:left}.controls{align-items:stretch}.field{flex:1;min-width:130px}.field input{width:100%}}
 </style>
@@ -75,11 +75,12 @@ main{max-width:1240px;margin:auto;padding:28px 22px 52px}.top{display:flex;gap:2
   <article class="status-card"><span>Origem e período do último lote</span><strong id="lastImportSource">—</strong><small id="lastImportPeriod">—</small></article>
   <article class="status-card"><span>Datas com importação no filtro</span><strong id="periodImportCoverage">—</strong><small id="periodImportNote">A contagem não substitui um calendário esperado de carga.</small></article>
 </section>
+<div class="coverage-notice" id="dataCoverageNotice" role="status" aria-live="polite">Aguardando avaliação da cobertura dos dados.</div>
 <section class="grid">
 <article class="card"><h2>Depósitos</h2><div class="big" id="depositosValue">—</div><div class="meta" id="depositosMeta">Valor no período</div></article>
-<article class="card"><h2>Acordos — valor de face</h2><div class="big" id="acordosValue">—</div><div class="split"><div>Pago<strong id="acordosPago">—</strong></div><div>Pendente<strong id="acordosPendente">—</strong></div></div></article>
-<article class="card"><h2>Promessas — prometido</h2><div class="big" id="promessasValue">—</div><div class="split"><div>Cumprido<strong id="promessasCumpridas">—</strong></div><div>Em aberto<strong id="promessasAberto">—</strong></div></div><div class="meta" id="promessasQuebradas">Quebrado: —</div></article>
-<article class="card"><h2>Contatos</h2><div class="big" id="contatosValue">—</div><div class="meta">Registros no período</div><div class="split"><div>Únicos por usuário<strong id="contatosUnicos">—</strong></div></div></article>
+<article class="card"><h2>Acordos — valor de face</h2><div class="big" id="acordosValue">—</div><div class="meta" id="acordosMeta">Valor no período</div><div class="split"><div>Pago<strong id="acordosPago">—</strong></div><div>Pendente<strong id="acordosPendente">—</strong></div></div></article>
+<article class="card"><h2>Promessas — prometido</h2><div class="big" id="promessasValue">—</div><div class="meta" id="promessasMeta">Valor no período</div><div class="split"><div>Cumprido<strong id="promessasCumpridas">—</strong></div><div>Em aberto<strong id="promessasAberto">—</strong></div></div><div class="meta" id="promessasQuebradas">Quebrado: —</div></article>
+<article class="card"><h2>Contatos</h2><div class="big" id="contatosValue">—</div><div class="meta" id="contatosMeta">Registros no período</div><div class="split"><div>Únicos por usuário<strong id="contatosUnicos">—</strong></div></div></article>
 </section>
 <section class="section" aria-label="Comparação temporal">
   <div class="section-head"><div><h2>Comparação com período anterior</h2><p>Movimentações em períodos equivalentes; a posição da carteira fica separada.</p></div><p id="comparisonPeriod">—</p></div>
@@ -108,6 +109,9 @@ function money(value) {
 }
 function esc(value) { return String(value ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 function count(value) { return nf.format(Number(value || 0)); }
+function coveredMetric(entry,type,key) {
+  return Number(entry?.linhas_por_tipo?.[type]||0)>0 ? money(entry[key]) : "—";
+}
 function width(value, max) { try { let n=BigInt(value||"0"); if(n<0n)n=-n; let m=BigInt(max||"0"); if(m<0n)m=-m; if(m===0n)return 0; return Math.min(100,Number(n*10000n/m)/100); } catch { return 0; } }
 async function load(inicio, fim) {
   $("loadBtn").disabled = true; $("status").className = "status"; $("status").textContent = "Atualizando…";
@@ -124,7 +128,8 @@ async function load(inicio, fim) {
 function limparPainel(mensagem) {
   ["sourceChip","periodLabel","depositosValue","acordosValue","acordosPago","acordosPendente","promessasValue",
    "promessasCumpridas","promessasAberto","promessasQuebradas","contatosValue",
-   "contatosUnicos","snapRecebido","snapVencer","snapVencido","snapshotStamp",
+   "contatosUnicos","acordosMeta","promessasMeta","contatosMeta",
+   "snapRecebido","snapVencer","snapVencido","snapshotStamp",
    "lastImportTime","lastImportDetail","lastImportSource","lastImportPeriod",
    "periodImportCoverage","periodImportNote","comparisonPeriod"].forEach(id=>$(id).textContent="—");
   $("comparisonGrid").hidden=true;
@@ -132,6 +137,7 @@ function limparPainel(mensagem) {
   $("comparisonUnavailable").textContent=mensagem;
   $("comparisonNote").textContent="A comparação foi removida porque a leitura do painel falhou.";
   $("depositosMeta").textContent="Dados indisponíveis para o filtro";
+  $("dataCoverageNotice").textContent=mensagem;
   $("notice").textContent="Não foi possível validar os dados para o período selecionado.";
   $("dailyChart").innerHTML='<div class="empty" style="display:block">'+esc(mensagem)+'</div>';
   $("usersTable").innerHTML='<tr><td colspan="8">'+esc(mensagem)+'</td></tr>';
@@ -171,7 +177,15 @@ function renderComparacao(c) {
 }
 function render(d) {
   renderComparacao(d.comparacao);
-  const s=d.resumo; $("sourceChip").textContent=d.modo;
+  const s=d.resumo;
+  const cobertura=d.cobertura_dados||{};
+  const linhas=cobertura.linhas_por_tipo||{};
+  const temLinha=tipo=>Number(linhas[tipo]||0)>0;
+  const textoCobertura=(tipo,nome,quandoHaLinha)=>temLinha(tipo)
+    ? quandoHaLinha
+    : "Sem linha de fato de "+nome+" no período; o zero não confirma ausência de movimento.";
+  $("dataCoverageNotice").textContent=cobertura.mensagem||"Cobertura dos dados não pôde ser avaliada.";
+  $("sourceChip").textContent=d.modo;
   $("notice").textContent=d.demo ? "DEMONSTRAÇÃO — os valores abaixo vêm de amostra fictícia versionada. Não são dados da empresa." : "BANCO EXISTENTE — conexão somente-leitura. Fonte monetária: " + (d.leitura_centavos ? "INTEGER em centavos, com conciliação completa" : "REAL legado convertido para centavos para apresentação.");
   const a=d.atualizacao||{};
   if(d.demo) {
@@ -203,10 +217,20 @@ function render(d) {
     $("periodImportCoverage").textContent="—";
     $("periodImportNote").textContent="Sem metadados não é possível estimar recência ou cobertura.";
   }
-  $("depositosValue").textContent=money(s.depositos_centavos); $("depositosMeta").textContent=count(s.depositos_quantidade)+" depósitos registrados";
-  $("acordosValue").textContent=money(s.acordos_centavos); $("acordosPago").textContent=money(s.acordos_pagos_centavos); $("acordosPendente").textContent=money(s.acordos_pendentes_centavos);
-  $("promessasValue").textContent=money(s.promessas_centavos); $("promessasCumpridas").textContent=money(s.promessas_cumpridas_centavos); $("promessasAberto").textContent=money(s.promessas_em_aberto_centavos); $("promessasQuebradas").textContent="Quebrado: "+money(s.promessas_quebradas_centavos);
-  $("contatosValue").textContent=count(s.contatos_registros); $("contatosUnicos").textContent=count(s.contatos_unicos_por_usuario);
+  $("depositosValue").textContent=temLinha("deposito")?money(s.depositos_centavos):"—";
+  $("depositosMeta").textContent=textoCobertura("deposito","depósito",count(s.depositos_quantidade)+" depósitos registrados");
+  $("acordosValue").textContent=temLinha("acordo")?money(s.acordos_centavos):"—";
+  $("acordosPago").textContent=temLinha("acordo")?money(s.acordos_pagos_centavos):"—";
+  $("acordosPendente").textContent=temLinha("acordo")?money(s.acordos_pendentes_centavos):"—";
+  $("acordosMeta").textContent=textoCobertura("acordo","acordo",count(s.acordos_quantidade)+" acordos registrados");
+  $("promessasValue").textContent=temLinha("promessa")?money(s.promessas_centavos):"—";
+  $("promessasCumpridas").textContent=temLinha("promessa")?money(s.promessas_cumpridas_centavos):"—";
+  $("promessasAberto").textContent=temLinha("promessa")?money(s.promessas_em_aberto_centavos):"—";
+  $("promessasQuebradas").textContent="Quebrado: "+(temLinha("promessa")?money(s.promessas_quebradas_centavos):"—");
+  $("promessasMeta").textContent=textoCobertura("promessa","promessa",count(s.promessas_quantidade)+" promessas registradas");
+  $("contatosValue").textContent=temLinha("contato")?count(s.contatos_registros):"—";
+  $("contatosUnicos").textContent=temLinha("contato")?count(s.contatos_unicos_por_usuario):"—";
+  $("contatosMeta").textContent=textoCobertura("contato","contato",count(s.contatos_registros)+" registros no período; únicos por usuário");
   $("periodLabel").textContent=d.periodo.inicio+" a "+d.periodo.fim;
   if(d.snapshot) {
     $("snapshotStamp").textContent="Captura "+d.snapshot.capturado_em;
@@ -219,8 +243,8 @@ function render(d) {
   }
   const daily=d.diario||[];
   let max=0n; daily.forEach(x=>["depositos_centavos","acordos_centavos","promessas_centavos"].forEach(k=>{try{let v=BigInt(x[k]||"0");if(v<0n)v=-v;if(v>max)max=v;}catch{}}));
-  $("dailyChart").innerHTML=daily.length?daily.map(x=>'<div class="bar-row"><span class="bar-label">'+esc(x.data)+'</span><div><div class="bar-track" title="Depósitos"><div class="bar" style="width:'+width(x.depositos_centavos,max.toString())+'%"></div></div><div class="bar-track" title="Acordos" style="margin-top:4px"><div class="bar" style="width:'+width(x.acordos_centavos,max.toString())+'%;background:#173b55"></div></div><div class="bar-track" title="Promessas" style="margin-top:4px"><div class="bar" style="width:'+width(x.promessas_centavos,max.toString())+'%;background:#9ab9c4"></div></div></div><span class="bar-value">D '+money(x.depositos_centavos)+'<br>A '+money(x.acordos_centavos)+'<br>P '+money(x.promessas_centavos)+'</span></div>').join("")+'<div class="small-note">Barras: depósitos (verde-azulado), acordos (azul-escuro) e promessas (cinza-azulado).</div>':'<div class="empty">Sem movimento no período selecionado.</div>';
-  $("usersTable").innerHTML=d.usuarios.length?d.usuarios.map(x=>'<tr><td>'+esc(x.nome)+'<div class="meta">'+esc(x.usuario)+'</div></td><td>'+money(x.depositos_centavos)+'</td><td>'+money(x.acordos_centavos)+'</td><td>'+money(x.acordos_pagos_centavos)+'</td><td>'+money(x.acordos_pendentes_centavos)+'</td><td>'+money(x.promessas_centavos)+'</td><td>'+money(x.promessas_cumpridas_centavos)+'</td><td>'+count(x.contatos_registros)+'</td></tr>').join(""):'<tr><td colspan="8">Nenhum registro no período.</td></tr>';
+  $("dailyChart").innerHTML=daily.length?daily.map(x=>'<div class="bar-row"><span class="bar-label">'+esc(x.data)+'</span><div><div class="bar-track" title="Depósitos"><div class="bar" style="width:'+width(x.depositos_centavos,max.toString())+'%"></div></div><div class="bar-track" title="Acordos" style="margin-top:4px"><div class="bar" style="width:'+width(x.acordos_centavos,max.toString())+'%;background:#173b55"></div></div><div class="bar-track" title="Promessas" style="margin-top:4px"><div class="bar" style="width:'+width(x.promessas_centavos,max.toString())+'%;background:#9ab9c4"></div></div></div><span class="bar-value">D '+coveredMetric(x,"deposito","depositos_centavos")+'<br>A '+coveredMetric(x,"acordo","acordos_centavos")+'<br>P '+coveredMetric(x,"promessa","promessas_centavos")+'</span></div>').join("")+'<div class="small-note">Barras: depósitos, acordos e promessas. “—” indica ausência de linha de fato daquele tipo no dia; não confirma movimento zero.</div>':'<div class="empty">Nenhuma linha de fato no período; movimento zero não está confirmado.</div>';
+  $("usersTable").innerHTML=d.usuarios.length?d.usuarios.map(x=>'<tr><td>'+esc(x.nome)+'<div class="meta">'+esc(x.usuario)+'</div></td><td>'+coveredMetric(x,"deposito","depositos_centavos")+'</td><td>'+coveredMetric(x,"acordo","acordos_centavos")+'</td><td>'+coveredMetric(x,"acordo","acordos_pagos_centavos")+'</td><td>'+coveredMetric(x,"acordo","acordos_pendentes_centavos")+'</td><td>'+coveredMetric(x,"promessa","promessas_centavos")+'</td><td>'+coveredMetric(x,"promessa","promessas_cumpridas_centavos")+'</td><td>'+coveredMetric(x,"contato","contatos_registros")+'</td></tr>').join(""):'<tr><td colspan="8">Nenhuma linha de fato no período; movimento zero não está confirmado.</td></tr>';
 }
 $("filters").addEventListener("submit", event => {event.preventDefault();load($("inicio").value,$("fim").value);});
 load("","");
@@ -367,6 +391,7 @@ def _amount(
 def _empty_user(usuario: str, nome: str) -> dict[str, Any]:
     return {
         "usuario": usuario, "nome": nome or usuario,
+        "linhas_por_tipo": {"deposito": 0, "acordo": 0, "promessa": 0, "contato": 0},
         "depositos_centavos": 0, "acordos_centavos": 0,
         "acordos_pagos_centavos": 0, "acordos_pendentes_centavos": 0,
         "promessas_centavos": 0, "promessas_cumpridas_centavos": 0,
@@ -376,7 +401,9 @@ def _empty_user(usuario: str, nome: str) -> dict[str, Any]:
 
 def _empty_day(day: str) -> dict[str, Any]:
     return {
-        "data": day, "depositos_centavos": 0, "acordos_centavos": 0,
+        "data": day,
+        "linhas_por_tipo": {"deposito": 0, "acordo": 0, "promessa": 0, "contato": 0},
+        "depositos_centavos": 0, "acordos_centavos": 0,
         "promessas_centavos": 0, "contatos_registros": 0,
     }
 
@@ -487,6 +514,75 @@ def _atualizacao_importacoes(
     }
 
 
+
+def _cobertura_dados(
+    *,
+    linhas_por_tipo: dict[str, int],
+    snapshot_disponivel: bool,
+    atualizacao: dict[str, Any],
+    demo: bool,
+) -> dict[str, Any]:
+    """Expõe evidência observada sem inferir movimento zero a partir de ausência."""
+    total = sum(linhas_por_tipo.values())
+    dias_importados = atualizacao.get("dias_com_importacao_registrada")
+    dias_calendario = atualizacao.get("dias_calendario_periodo")
+
+    if total:
+        estado = "fatos_presentes"
+        mensagem = (
+            f"Foram encontradas {total} linhas de fatos no período. Cada indicador "
+            "informa separadamente quando não há linha do seu tipo; nesse caso, zero "
+            "agregado não confirma movimento zero. A cobertura de importação é avaliada à parte."
+        )
+    elif snapshot_disponivel:
+        estado = "somente_snapshot"
+        mensagem = (
+            "Nenhuma linha de fato de movimento foi encontrada no intervalo, mas existe "
+            "uma captura de posição da carteira. Snapshot não substitui fluxo; os zeros "
+            "dos indicadores sem fatos não confirmam movimento zero."
+        )
+        if demo:
+            mensagem += " Esta captura pertence à demonstração fictícia."
+    elif demo:
+        estado = "sem_fatos_demo"
+        mensagem = (
+            "Nenhuma linha de fato foi encontrada neste intervalo da demonstração sintética. "
+            "Os agregados zero decorrem da ausência de linhas no filtro e não confirmam "
+            "que o movimento financeiro foi zero."
+        )
+    elif not atualizacao.get("disponivel"):
+        estado = "cobertura_desconhecida"
+        mensagem = (
+            "Nenhuma linha de fato foi encontrada e os metadados de importação estão "
+            "indisponíveis. Não é possível distinguir ausência de movimento de falta de carga; "
+            "os agregados zero não são resultados confirmados."
+        )
+    elif not dias_importados:
+        estado = "sem_importacao_registrada"
+        mensagem = (
+            "Nenhuma linha de fato nem data com importação registrada foi encontrada no "
+            "intervalo. Isso não comprova movimento zero; confirme se a carga do período ocorreu."
+        )
+    else:
+        estado = "sem_fatos_com_importacao_registrada"
+        mensagem = (
+            "Nenhuma linha de fato foi encontrada, embora haja data(s) com importação registrada. "
+            "Confirme se a resposta sem linhas representa ausência de movimento ou carga incompleta; "
+            "os agregados zero não são resultados confirmados."
+        )
+
+    return {
+        "estado": estado,
+        "linhas_fatos_no_periodo": total,
+        "linhas_por_tipo": dict(linhas_por_tipo),
+        "snapshot_disponivel": snapshot_disponivel,
+        "metadados_importacao_disponiveis": bool(atualizacao.get("disponivel")),
+        "dias_com_importacao_registrada": dias_importados,
+        "dias_calendario_periodo": dias_calendario,
+        "mensagem": mensagem,
+    }
+
+
 def _percentual_variacao(delta: int, anterior: int) -> str | None:
     """Percentual com uma casa decimal; não define percentual para base <= 0."""
     if anterior <= 0:
@@ -504,6 +600,7 @@ def _comparar_periodos(
     fim: str,
     resumo_atual: dict[str, Any],
     atualizacao_atual: dict[str, Any],
+    linhas_por_tipo_atual: dict[str, int],
     leitura_centavos: bool,
     demo: bool,
 ) -> dict[str, Any]:
@@ -542,6 +639,22 @@ def _comparar_periodos(
             "Comparação indisponível: não há datas com importação registrada no período atual."
         )
 
+    tipos_comparados = {
+        "deposito": "depósitos",
+        "acordo": "acordos",
+        "promessa": "promessas",
+    }
+    faltantes_atual = [
+        rotulo for tipo, rotulo in tipos_comparados.items()
+        if int(linhas_por_tipo_atual.get(tipo, 0)) == 0
+    ]
+    if faltantes_atual:
+        return indisponivel(
+            "Comparação indisponível: faltam linhas de fatos para "
+            + ", ".join(faltantes_atual)
+            + " no período atual; zeros sem fatos não confirmam movimento zero."
+        )
+
     anterior = montar_dados_painel(
         con,
         inicio=periodo_anterior["inicio"],
@@ -565,6 +678,17 @@ def _comparar_periodos(
     if intervalos_atuais != intervalos_anteriores:
         return indisponivel(
             "Comparação indisponível: as datas importadas não correspondem às mesmas posições relativas nos dois períodos."
+        )
+
+    faltantes_anterior = [
+        rotulo for tipo, rotulo in tipos_comparados.items()
+        if int(anterior["cobertura_dados"]["linhas_por_tipo"].get(tipo, 0)) == 0
+    ]
+    if faltantes_anterior:
+        return indisponivel(
+            "Comparação indisponível: faltam linhas de fatos para "
+            + ", ".join(faltantes_anterior)
+            + " no período anterior; zeros sem fatos não confirmam movimento zero."
         )
 
     resumo_anterior = anterior["resumo"]
@@ -653,6 +777,7 @@ def montar_dados_painel(
     }
     by_user: dict[str, dict[str, Any]] = {}
     by_day: dict[str, dict[str, Any]] = {}
+    linhas_por_tipo = {"deposito": 0, "acordo": 0, "promessa": 0, "contato": 0}
 
     for row in facts:
         tipo = row["tipo"]
@@ -661,6 +786,9 @@ def montar_dados_painel(
         usuario = row["usuario"]
         user = by_user.setdefault(usuario, _empty_user(usuario, row["nome"] or usuario))
         day = by_day.setdefault(row["data"], _empty_day(row["data"]))
+        linhas_por_tipo[tipo] += 1
+        user["linhas_por_tipo"][tipo] += 1
+        day["linhas_por_tipo"][tipo] += 1
 
         if tipo == "deposito":
             cents = _amount(row, "valor", "deposito_valor_centavos", field=f"fatos[{row['data']},{usuario}].deposito", negatives_allowed=True, read_cents=leitura_centavos)
@@ -717,6 +845,12 @@ def montar_dados_painel(
         }
 
     atualizacao = _atualizacao_importacoes(con, inicio, fim, demo=demo)
+    cobertura_dados = _cobertura_dados(
+        linhas_por_tipo=linhas_por_tipo,
+        snapshot_disponivel=snapshot is not None,
+        atualizacao=atualizacao,
+        demo=demo,
+    )
     resultado = {
         "demo": demo,
         "leitura_centavos": leitura_centavos,
@@ -724,6 +858,7 @@ def montar_dados_painel(
         "periodo": {"inicio": inicio, "fim": fim},
         "limites": {"inicio": data_min, "fim": data_max},
         "atualizacao": atualizacao,
+        "cobertura_dados": cobertura_dados,
         "resumo": resumo,
         "snapshot": snapshot,
         "diario": [by_day[d] for d in sorted(by_day)],
@@ -743,6 +878,7 @@ def montar_dados_painel(
             fim=fim,
             resumo_atual=resumo,
             atualizacao_atual=atualizacao,
+            linhas_por_tipo_atual=linhas_por_tipo,
             leitura_centavos=leitura_centavos,
             demo=demo,
         )
