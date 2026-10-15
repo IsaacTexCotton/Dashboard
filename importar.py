@@ -97,7 +97,7 @@ def _numero(
                 valor, campo=campo, negativos_permitidos=negativos_permitidos
             )
         except ErroMonetario as exc:
-            raise ErroValidacao(str(exc)) from exc
+            raise ErroValidacao(str(exc).replace("valor negativo não permitido", "valor monetário negativo não permitido")) from exc
     try:
         numero = float(valor)
     except (OverflowError, ValueError) as exc:
