@@ -43,9 +43,25 @@ O diagnóstico é somente-leitura e exige um banco existente. A pasta de backup 
 
 Para importação via API, configure `CRM_URL` e pelo menos uma credencial (`CRM_TOKEN` ou `CRM_COOKIE`) por variáveis de ambiente. `DASHBOARD_DB` define o caminho do SQLite; o padrão é `cobranca.db`. Não grave segredos no código ou no repositório.
 
+
+## Diretriz de implementação monetária
+
+O projeto não inclui uma etapa de ratificação administrativa/formal como requisito de desenvolvimento. O trabalho segue os contratos técnicos versionados, as regras de negócio fornecidas e critérios verificáveis de código, testes e operação. Não reintroduzir essa ratificação como gate em README, código, issues ou runbook.
+
+A transição de `REAL` para `INTEGER` em centavos é incremental; a existência de testes ou de uma especificação não significa que o corte esteja habilitado. Não executar migração, backfill nem importação real como parte dos testes automatizados.
+
+### Flags monetárias
+
+- `DUPLA_ESCRITA` controla a gravação paralela e tem padrão `0`.
+- `LEITURA_CENTAVOS` tem padrão `0`. Se for definida como `1`, o importador recusa a operação até existir um leitor de centavos realmente integrado; ele não pode ignorar a flag e continuar lendo `REAL` silenciosamente.
+- `DASHBOARD_MONETARIO_DUAL_WRITE` é aceito apenas como fallback de compatibilidade temporária quando `DUPLA_ESCRITA` não foi definido.
+- Ambas as flags aceitam somente `0` ou `1`. `LEITURA_CENTAVOS=1` sem `DUPLA_ESCRITA=1` é configuração inválida.
+- A escrita dupla exige um banco já existente com o esquema monetário validado. A configuração por si só não cria esquema e não autoriza operações em produção.
+
+
 ## Limites antes de produção
 
 - `amostra_resposta.json` contém dados fictícios; teste local não comprova compatibilidade com todos os dados reais do CRM.
-- Valores financeiros seguem SQLite `REAL`; validar precisão contábil antes de qualquer migração.
+- As colunas legadas `REAL` permanecem preservadas; o caminho `INTEGER` em centavos continua sujeito à implementação e verificação faseadas.
 - A semântica histórica dos snapshots de acordo depende de decisão de negócio.
 - Homologação com payload real obtido por canal autorizado, validação das regras financeiras, backup/restauração verificados e plano de rollback ensaiado são critérios técnicos antes de produção.
