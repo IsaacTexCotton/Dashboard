@@ -124,8 +124,38 @@ class NormalizacaoTestes(unittest.TestCase):
                 ):
                     importar.normalizar(payload, "2026-10-13")
 
+    def test_normalizar_modo_exato_preserva_decimal_sem_conversao_float(self):
+        from decimal import Decimal
+        from unittest.mock import patch
+
+        payload = importar.loads_json_estrito(json.dumps(AMOSTRA))
+        with patch.object(
+            importar, "float",
+            side_effect=AssertionError("conversão float não deve ser chamada"),
+            create=True,
+        ):
+            usuarios, fatos, posicao = importar.normalizar(
+                payload, "2026-10-13", converter_monetarios_float=False
+            )
+        self.assertTrue(usuarios)
+        self.assertIsInstance(fatos[0][5], Decimal)
+        self.assertIsInstance(posicao[2], Decimal)
+
     def test_normalizar_duplo_aceita_zeros_finais_e_rejeita_subcentavos(self):
         from decimal import Decimal
+        from unittest.mock import patch
+
+        payload = importar.loads_json_estrito(json.dumps(AMOSTRA))
+        with patch.object(
+            importar, "float",
+            side_effect=AssertionError("conversão float não deve ser chamada"),
+            create=True,
+        ):
+            usuarios, fatos, _ = importar.normalizar_duplo(
+                payload, "2026-10-13", "2026-10-14T12:00:00"
+            )
+        self.assertTrue(usuarios)
+        self.assertTrue(fatos)
 
         payload = importar.loads_json_estrito(json.dumps(AMOSTRA))
         payload["data"]["depositos"]["porUsuario"][0]["valor"] = Decimal("1.230")
