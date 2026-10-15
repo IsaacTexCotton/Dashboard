@@ -364,7 +364,7 @@ function apply(event){
  dashboard.hidden=false;sections.forEach(s=>s.hidden=false);
  const days=selectDays(start,end),has=days.length>0,totals=periodTotals(days),last=has?days[days.length-1]:null;
  setText("periodLabel",datePt(start)+" a "+datePt(end));setText("sampleDateChip","Cenário sintético: 08–15 out 2026");
- setText("status",days.length+" de "+daysBetween(start,end)+" datas com dados fictícios");
+ setText("status",days.length+" de "+daysBetween(start,end)+" datas com dados fictícios"+(days.length===daysBetween(start,end)?"":"; totais incluem somente as datas disponíveis"));
  setText("depValue",has?money(totals.depValor):"—");setText("depCount",has?integer(totals.depQtd)+" depósitos no período":"Sem dados no período");
  setText("agrValue",has?money(totals.agrValor):"—");setText("agrCount",has?integer(totals.agrQtd)+" acordos no período":"Sem dados no período");setText("agrPaid",has?money(totals.agrPago):"—");setText("agrOpen",has?money(totals.agrPendente):"—");
  setText("promValue",has?money(totals.promValor):"—");setText("promCount",has?integer(totals.promQtd)+" promessas no período":"Sem dados no período");setText("promPaid",has?money(totals.promCumprido):"—");setText("promOpen",has?money(totals.promAberto):"—");
