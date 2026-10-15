@@ -11,6 +11,7 @@ from migrar_schema_monetario import (
     ativar_triggers_obrigatoriedade,
     definir_fase_migracao,
     migrar_schema_monetario,
+    validar_schema_monetario,
 )
 
 SCHEMA_LEGADO = """
@@ -198,6 +199,28 @@ class TestMigracaoSchemaMonetario(unittest.TestCase):
                 con.execute(
                     "UPDATE acordos_posicao SET vencido_centavos=-1 WHERE capturado_em='ts'"
                 )
+        finally:
+            con.close()
+
+    def test_validacao_recusa_guarda_fase_ausente_e_migracao_reconstroi(self):
+        con = banco_legado()
+        try:
+            migrar_schema_monetario(con)
+            con.execute("DROP TRIGGER trg_monetario_fatos_fase_global_insert")
+            con.commit()
+
+            with self.assertRaisesRegex(
+                ErroMigracaoMonetaria,
+                "guarda de fase global ausente",
+            ):
+                validar_schema_monetario(con)
+
+            resultado = migrar_schema_monetario(con)
+            self.assertIn(
+                "trg_monetario_fatos_fase_global_insert",
+                resultado["triggers_fase_criados"],
+            )
+            self.assertEqual(validar_schema_monetario(con), "schema_adicionado")
         finally:
             con.close()
 
