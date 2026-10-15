@@ -1,6 +1,8 @@
 """Testes da prévia visual e da leitura monetária em SQLite sintético."""
+import copy
 import sqlite3
 import unittest
+from pathlib import Path
 
 import importar
 from dashboard_app import (
@@ -137,6 +139,111 @@ class TestPainelDemo(unittest.TestCase):
         self.assertIn('"sourceChip","periodLabel","depositosValue"', HTML)
         self.assertIn("Não foi possível validar os dados para o período selecionado.", HTML)
         self.assertIn('$("periodImportCoverage").textContent="—"', HTML)
+
+
+
+class TestComparacaoPeriodos(unittest.TestCase):
+    def criar_banco_com_importacoes(self, *dias):
+        con = sqlite3.connect(":memory:")
+        con.row_factory = sqlite3.Row
+        con.executescript(importar.SCHEMA)
+        arquivo = Path(__file__).resolve().parents[1] / "amostra_resposta.json"
+        original = importar._carregar_arquivo(str(arquivo))
+        for dia in dias:
+            resposta = copy.deepcopy(original)
+            resposta["data"]["inicio"] = dia
+            resposta["data"]["fim"] = dia
+            resposta["timestamp"] = dia + "T12:00:00"
+            importar.gravar(con, dia, resposta, "arquivo")
+        return con
+
+    def test_compara_fluxos_em_periodos_equivalentes_com_cobertura_alinhada(self):
+        con = self.criar_banco_com_importacoes("2026-10-12", "2026-10-13")
+        try:
+            con.execute(
+                "UPDATE fatos SET valor = valor + 50 "
+                "WHERE data = ? AND tipo = 'deposito'",
+                ("2026-10-13",),
+            )
+            result = montar_dados_painel(
+                con, inicio="2026-10-13", fim="2026-10-13",
+                leitura_centavos=False, demo=False,
+            )
+            comparison = result["comparacao"]
+            self.assertTrue(comparison["disponivel"], comparison["motivo"])
+            self.assertEqual(comparison["periodo_anterior"], {
+                "inicio": "2026-10-12", "fim": "2026-10-12",
+            })
+            deposits = comparison["metricas"]["depositos"]
+            self.assertEqual(deposits["anterior_centavos"], 2_500_000)
+            self.assertEqual(deposits["atual_centavos"], 2_510_000)
+            self.assertEqual(deposits["delta_centavos"], 10_000)
+            self.assertEqual(deposits["variacao_percentual"], "0.4")
+            self.assertEqual(
+                comparison["metricas"]["acordos"]["delta_centavos"], 0,
+            )
+            self.assertEqual(
+                comparison["metricas"]["promessas"]["delta_centavos"], 0,
+            )
+            self.assertIn("posição da carteira não entra", comparison["nota"])
+        finally:
+            con.close()
+
+    def test_percentual_nao_e_calculado_quando_base_anterior_e_zero(self):
+        con = self.criar_banco_com_importacoes("2026-10-12", "2026-10-13")
+        try:
+            con.execute(
+                "UPDATE fatos SET valor = 0 "
+                "WHERE data = ? AND tipo = 'deposito'",
+                ("2026-10-12",),
+            )
+            result = montar_dados_painel(
+                con, inicio="2026-10-13", fim="2026-10-13",
+                leitura_centavos=False, demo=False,
+            )
+            deposits = result["comparacao"]["metricas"]["depositos"]
+            self.assertTrue(result["comparacao"]["disponivel"])
+            self.assertEqual(deposits["anterior_centavos"], 0)
+            self.assertIsNone(deposits["variacao_percentual"])
+        finally:
+            con.close()
+
+    def test_coberturas_com_mesma_quantidade_mas_datas_relativas_diferentes_bloqueiam_comparacao(self):
+        con = self.criar_banco_com_importacoes("2026-10-11", "2026-10-14")
+        try:
+            result = montar_dados_painel(
+                con, inicio="2026-10-13", fim="2026-10-14",
+                leitura_centavos=False, demo=False,
+            )
+            comparison = result["comparacao"]
+            self.assertFalse(comparison["disponivel"])
+            self.assertIn("mesmas posições relativas", comparison["motivo"])
+            self.assertEqual(result["atualizacao"]["dias_com_importacao_registrada"], 1)
+        finally:
+            con.close()
+
+    def test_demo_nao_inventa_historico_para_comparar(self):
+        con = criar_banco_com_importacoes("2026-10-13")
+        try:
+            result = montar_dados_painel(
+                con, inicio="2026-10-13", fim="2026-10-13",
+                leitura_centavos=False, demo=True,
+            )
+            self.assertFalse(result["comparacao"]["disponivel"])
+            self.assertIn("demonstração", result["comparacao"]["motivo"])
+        finally:
+            con.close()
+
+    def test_interface_identifica_comparacao_indisponivel_e_nao_mostra_valores_antigos(self):
+        self.assertIn('id="comparisonGrid"', HTML)
+        self.assertIn('id="comparisonUnavailable"', HTML)
+        self.assertIn('renderComparacao(d.comparacao)', HTML)
+        self.assertIn('function renderComparacao(c)', HTML)
+        self.assertIn("Variação percentual não calculada: base anterior zero ou negativa.", HTML)
+        self.assertIn("Comparação indisponível", HTML)
+        self.assertIn('"comparisonPeriod"].forEach', HTML)
+
+
 
 
 if __name__ == "__main__":
