@@ -460,7 +460,7 @@ def verificar_conciliacao_monetaria(con: sqlite3.Connection) -> dict[str, int]:
                 verificadas += 1
     if pendencias or divergencias:
         raise ErroMigracaoMonetaria(
-            f"conciliação não aprovada: {pendencias} pendência(s), "
+            f"conciliação incompleta ou divergente: {pendencias} pendência(s), "
             f"{divergencias} divergência(s); não marque backfill_conciliado"
         )
     return {"campos_verificados": verificadas, "pendencias": pendencias, "divergencias": divergencias}
